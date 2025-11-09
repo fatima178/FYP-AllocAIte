@@ -1,0 +1,158 @@
+:root {
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.upload-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f6f7fb;
+  padding: 2rem;
+}
+
+.upload-card {
+  width: min(640px, 100%);
+  background: #ffffff;
+  border-radius: 1.5rem;
+  padding: clamp(2rem, 4vw, 3rem);
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  text-align: center;
+}
+
+.upload-card h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: #0f172a;
+}
+
+.upload-hint {
+  background: #e8f1ff;
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  font-size: 0.95rem;
+  color: #1e3a8a;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.upload-hint strong {
+  display: block;
+  margin-top: 0.25rem;
+  color: #0f172a;
+}
+
+.drop-zone {
+  position: relative;
+  border: 2px dashed #cbd5f5;
+  border-radius: 1.25rem;
+  padding: 3rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  background: #f9fafc;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  cursor: pointer;
+}
+
+.drop-zone.active {
+  border-color: #2563eb;
+  background: #f0f6ff;
+}
+
+.drop-zone p {
+  margin: 0;
+  font-weight: 600;
+  color: #111827;
+}
+
+.drop-zone span {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.drop-zone input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.drop-icon {
+  width: 64px;
+  height: 64px;
+}
+
+.drop-icon img {
+  width: 100%;
+  height: 100%;
+}
+
+.browse-button {
+  border: 1px solid #cbd5f5;
+  border-radius: 999px;
+  padding: 0.65rem 1.5rem;
+  background: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.browse-button:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.file-name {
+  margin: 0;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+button.primary {
+  border: none;
+  border-radius: 999px;
+  padding: 0.95rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+button.primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.status {
+  border-radius: 0.9rem;
+  padding: 0.9rem 1rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.status.success {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.status.error {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+@media (max-width: 600px) {
+  .upload-page {
+    padding: 1.5rem;
+  }
+
+  .drop-zone {
+    padding: 2.5rem 1rem;
+  }
+}

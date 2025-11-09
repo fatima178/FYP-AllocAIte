@@ -127,6 +127,13 @@ function LoginPage() {
         return;
       }
 
+      if (body.user_id && payload.email) {
+        localStorage.setItem('user_id', body.user_id);
+        localStorage.setItem('email', payload.email);
+        window.location.href = '/upload';
+        return;
+      }
+
       // if everything works, show success message
       setStatus({ type: 'success', message: body.message || 'Success.' });
 

@@ -96,7 +96,15 @@ function Register() {
       }
 
       // if everything works fine, clear form and show success message
-      await response.json();
+      const body = await response.json();
+
+      if (body.user_id && payload.email) {
+        localStorage.setItem('user_id', body.user_id);
+        localStorage.setItem('email', payload.email);
+        window.location.href = '/upload';
+        return;
+      }
+
       setStatus({ type: 'success', message: 'Account created successfully.' });
       setFormData({ name: '', email: '', password: '', confirmPassword: '' });
     } catch (error) {
