@@ -1,0 +1,185 @@
+import { useState } from 'react';
+import '../styles/Register.css';
+
+// if there’s no environment variable set, use the local backend
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+
+function Register() {
+  // stores user input from the form
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
+
+  // handles success/error messages
+  const [status, setStatus] = useState({ type: null, message: null });
+
+  // shows loading state while the form is being submitted
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // takes the user to the login page when they click the link
+  const goToLogin = () => {
+    window.location.href = '/';
+  };
+
+  // updates form values as the user types
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // handles everything that happens when the user clicks "Sign up"
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setStatus({ type: null, message: '' });
+
+    // basic name validation (checks if both first and last name are entered)
+    if (formData.name.trim().split(/\s+/).length < 2) {
+      setStatus({ type: 'error', message: 'Please enter your full name.' });
+      setIsSubmitting(false);
+      return;
+    }
+
+    // checks password strength (must include a capital letter + special character)
+    if (!/[A-Z]/.test(formData.password) || !/[^A-Za-z0-9]/.test(formData.password)) {
+      setStatus({
+        type: 'error',
+        message: 'Password must include an uppercase letter and special character.',
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    // makes sure the two password fields match
+    if (formData.password !== formData.confirmPassword) {
+      setStatus({ type: 'error', message: 'Passwords do not match.' });
+      setIsSubmitting(false);
+      return;
+    }
+
+    // removes confirmPassword before sending to backend
+    const { confirmPassword, ...payload } = formData;
+
+    try {
+      // send the data to backend API
+      const response = await fetch(`${API_BASE_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      // check if backend responded with an error
+      if (!response.ok) {
+        const errorBody = await response.json();
+
+        // if the email already exists, show login link instead of generic error
+        if (errorBody.detail === 'Email already registered.') {
+          setStatus({
+            type: 'error',
+            message: (
+              <>
+                Email already registered.
+                <button type="button" className="inline-link" onClick={goToLogin}>
+                  Go to login
+                </button>
+              </>
+            ),
+          });
+          return;
+        }
+
+        // show normal error if something else went wrong
+        throw new Error(errorBody.detail || 'Registration failed.');
+      }
+
+      // if everything works fine, clear form and show success message
+      await response.json();
+      setStatus({ type: 'success', message: 'Account created successfully.' });
+      setFormData({ name: '', email: '', password: '', confirmPassword: '' });
+    } catch (error) {
+      // catch any network or unexpected error
+      setStatus({ type: 'error', message: error.message });
+    } finally {
+      // stop loading state after process finishes
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="register-page">
+      {/* the main registration form card */}
+      <form className="register-card" onSubmit={handleSubmit}>
+        <h1>Create an account</h1>
+
+        {/* full name input */}
+        <label>
+          Full name
+          <input
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            placeholder="Alex Anderson"
+            required
+          />
+        </label>
+
+        {/* email input */}
+        <label>
+          Email address
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="alex@example.com"
+            required
+          />
+        </label>
+
+        {/* password input */}
+        <label>
+          Password
+          <input
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            minLength={6}
+            placeholder="At least 6 characters"
+            required
+          />
+        </label>
+
+        {/* confirm password input */}
+        <label>
+          Confirm password
+          <input
+            type="password"
+            name="confirmPassword"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            placeholder="Repeat your password"
+            required
+            minLength={6}
+          />
+        </label>
+
+        {/* submit button */}
+        <button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Creating account...' : 'Sign up'}
+        </button>
+
+        {/* feedback messages for user */}
+        {status.type && (
+          <p className={`status ${status.type}`}>{status.message}</p>
+        )}
+      </form>
+    </div>
+  );
+}
+
+export default Register;

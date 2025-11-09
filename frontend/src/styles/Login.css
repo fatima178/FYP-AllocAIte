@@ -1,0 +1,240 @@
+:root {
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #0f172a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f6f7fb;
+}
+
+.auth-page {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  min-height: 100vh;
+}
+
+.hero {
+  background-image: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.88)),
+    url('../images/ai-circuit-brain.jpg');
+  background-size: cover;
+  background-position: center;
+  color: white;
+  padding: clamp(2rem, 5vw, 4rem);
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.brand .logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  display: grid;
+  place-items: center;
+}
+
+.brand .logo img {
+  width: 36px;
+  height: 36px;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+}
+
+.brand p {
+  margin: 0.2rem 0 0;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.hero-points {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.hero-points > div {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.hero-points span {
+  font-size: 1.25rem;
+  line-height: 1.25rem;
+}
+
+.hero-points h3 {
+  margin: 0 0 0.25rem;
+}
+
+.hero-points p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.8);
+  max-width: 30ch;
+}
+
+.auth-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(2rem, 5vw, 4rem);
+  background: #f6f7fb;
+}
+
+.tab-switcher {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  background: #e7e9f2;
+  border-radius: 999px;
+  padding: 0.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.tab-switcher button {
+  border: none;
+  background: transparent;
+  padding: 0.8rem 1rem;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.tab-switcher button.active {
+  background: white;
+  color: #111827;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+.auth-card {
+  background: white;
+  border-radius: 1.5rem;
+  padding: clamp(2rem, 4vw, 3rem);
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.auth-card h2 {
+  margin: 0;
+}
+
+.auth-card p {
+  margin: 0.35rem 0 0;
+  color: #6b7280;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+input {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 0.9rem;
+  padding: 0.95rem 1rem;
+  font-size: 1rem;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+input:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
+  outline: none;
+}
+
+button.primary {
+  border: none;
+  border-radius: 999px;
+  padding: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background: #0f172a;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+button.primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+button.primary:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 20px rgba(15, 23, 42, 0.18);
+}
+
+button.linkish {
+  border: none;
+  background: none;
+  padding: 0;
+  align-self: flex-start;
+  color: #475569;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.status {
+  text-align: center;
+  padding: 0.85rem;
+  border-radius: 0.85rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.inline-link {
+  border: none;
+  background: none;
+  color: #60a5fa;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  text-decoration: underline;
+  font-size: 0.95rem;
+}
+
+.status.success {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.status.error {
+  background: #fef2f2;
+  color: #b45309;
+}
+
+@media (max-width: 768px) {
+  .auth-page {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    min-height: 40vh;
+  }
+}
