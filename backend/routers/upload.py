@@ -63,12 +63,12 @@ async def upload_excel(user_id: int = Form(...), file: UploadFile = File(...)):
 
         # go through each row and calculate availability
         for _, row in df.iterrows():
-            availability_score = calculate_availability(row)  # use helper
+            availability_status = calculate_availability(row)  # use helper
 
             # insert employee data
             cur.execute(
                 """
-                INSERT INTO Employees (upload_id, name, role, department, experience_years, skills, availability_score)
+                INSERT INTO Employees (upload_id, name, role, department, experience_years, skills, availability_status)
                 VALUES (%s, %s, %s, %s, %s, %s, %s);
                 """,
                 (
@@ -78,7 +78,7 @@ async def upload_excel(user_id: int = Form(...), file: UploadFile = File(...)):
                     row["Department"],
                     float(row["Experience (Years)"]),
                     json.dumps(row["Skill Set"].split(",") if isinstance(row["Skill Set"], str) else []),
-                    availability_score,
+                    availability_status,
                 ),
             )
 
