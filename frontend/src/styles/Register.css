@@ -65,17 +65,22 @@ button {
   border: none;
   border-radius: 999px;
   padding: 0.95rem;
-  background: linear-gradient(120deg, #2563eb, #7c3aed);
+  background: #0f172a;
   color: white;
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
-  transition: opacity 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 button:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 20px rgba(15, 23, 42, 0.18);
 }
 
 .status {

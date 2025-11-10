@@ -14,8 +14,15 @@ body {
 
 .auth-page {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(2, minmax(360px, 1fr));
   min-height: 100vh;
+  align-items: stretch;
+}
+
+@media (max-width: 900px) {
+  .auth-page {
+    grid-template-columns: 1fr;
+  }
 }
 
 .hero {
@@ -29,6 +36,7 @@ body {
   flex-direction: column;
   gap: 2rem;
   justify-content: center;
+  min-height: 100vh;
 }
 
 .brand {
@@ -94,6 +102,14 @@ body {
   justify-content: center;
   padding: clamp(2rem, 5vw, 4rem);
   background: #f6f7fb;
+  min-height: 100vh;
+}
+
+@media (max-width: 900px) {
+  .hero,
+  .auth-panel {
+    min-height: auto;
+  }
 }
 
 .tab-switcher {
