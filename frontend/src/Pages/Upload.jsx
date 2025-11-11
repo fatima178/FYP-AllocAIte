@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Menu from './Menu';
 import '../styles/Upload.css';
 import uploadIcon from '../images/upload.png';
 
@@ -23,7 +24,7 @@ function UploadPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Guard the page so only authenticated users (with cached ids) can access it
+  // only authenticated users allowed in
   useEffect(() => {
     const storedUser = localStorage.getItem('user_id');
     if (!storedUser) {
@@ -31,7 +32,7 @@ function UploadPage() {
     }
   }, []);
 
-  // Make sure we nudge users toward providing the spreadsheet we expect
+  // make sure we nudge users toward providing the spreadsheet we expect
   const acceptedColumnsText = REQUIRED_COLUMNS.join(', ');
 
   const validateAndStoreFile = (incomingFile) => {
@@ -116,43 +117,46 @@ function UploadPage() {
   };
 
   return (
-    <div className="upload-page">
-      <form className="upload-card" onSubmit={handleSubmit}>
-        <h1>Upload Employee Data</h1>
+    <>
+      <Menu />
+      <div className="upload-page">
+        <form className="upload-card" onSubmit={handleSubmit}>
+          <h1>Upload Employee Data</h1>
 
-        <div className="upload-hint">
-          <span>Accepted format: .xlsx — include columns:</span>
-          <strong>{acceptedColumnsText}</strong>
-        </div>
-
-        <label
-          className={`drop-zone ${isDragging ? 'active' : ''}`}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-        >
-          <div className="drop-icon">
-            <img src={uploadIcon} alt="Upload icon" />
+          <div className="upload-hint">
+            <span>Accepted format: .xlsx — include columns:</span>
+            <strong>{acceptedColumnsText}</strong>
           </div>
-          <p>Drag and drop your Excel file here</p>
-          <span>or</span>
-          <button type="button" className="browse-button">
-            Browse File
+
+          <label
+            className={`drop-zone ${isDragging ? 'active' : ''}`}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+          >
+            <div className="drop-icon">
+              <img src={uploadIcon} alt="Upload icon" />
+            </div>
+            <p>Drag and drop your Excel file here</p>
+            <span>or</span>
+            <button type="button" className="browse-button">
+              Browse File
+            </button>
+            <input type="file" accept=".xlsx" onChange={handleFileChange} />
+          </label>
+
+          {file && <p className="file-name">Selected file: {file.name}</p>}
+
+          <button type="submit" className="primary" disabled={!file || isSubmitting}>
+            {isSubmitting ? 'Uploading…' : 'Upload File'}
           </button>
-          <input type="file" accept=".xlsx" onChange={handleFileChange} />
-        </label>
 
-        {file && <p className="file-name">Selected file: {file.name}</p>}
-
-        <button type="submit" className="primary" disabled={!file || isSubmitting}>
-          {isSubmitting ? 'Uploading…' : 'Upload File'}
-        </button>
-
-        {status.type && (
-          <p className={`status ${status.type}`}>{status.message}</p>
-        )}
-      </form>
-    </div>
+          {status.type && (
+            <p className={`status ${status.type}`}>{status.message}</p>
+          )}
+        </form>
+      </div>
+    </>
   );
 }
 

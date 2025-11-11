@@ -151,7 +151,7 @@ function LoginPage() {
     <div className="auth-page">
       {/* left side - hero section */}
       <section className="hero">
-        <div className="brand">
+        <div className="hero-brand">
           <div className="logo">
             <img src={groupChat} alt="AllocAIte" />
           </div>
