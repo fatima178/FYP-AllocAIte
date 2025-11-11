@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 
 from db import get_connection, init_db
-from routers import upload
+from routers import upload, dashboard
 
 app = FastAPI()
 
@@ -21,6 +21,7 @@ app.add_middleware(
 
 init_db()
 app.include_router(upload.router, prefix="/api")
+app.include_router(dashboard.router, prefix="/api")
 
 
 class RegisterRequest(BaseModel):
