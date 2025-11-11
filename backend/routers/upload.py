@@ -61,6 +61,9 @@ async def upload_excel(user_id: int = Form(...), file: UploadFile = File(...)):
         )
         upload_id = cur.fetchone()[0]
 
+        # keep track of unique projects
+        seen_projects = set()
+
         # go through each row and calculate availability
         for _, row in df.iterrows():
             availability_status = calculate_availability(row)  # use helper
@@ -81,6 +84,41 @@ async def upload_excel(user_id: int = Form(...), file: UploadFile = File(...)):
                     availability_status,
                 ),
             )
+
+            # inawer inro assignments
+            project_title = str(row.get("Current Project", "")).strip()
+            start_raw = row.get("Start Date")
+            end_raw = row.get("End Date")
+
+            # clean invalid dates like '—', NaN, or blanks
+            def clean_date(v):
+                if pd.isna(v) or str(v).strip() in ["—", "-", "", "NaT", "nan"]:
+                    return None
+                try:
+                    return pd.to_datetime(v, errors="coerce").date()
+                except Exception:
+                    return None
+
+            start_date = clean_date(start_raw)
+            end_date = clean_date(end_raw)
+
+            # insert project only once per upload
+            if project_title and project_title not in seen_projects:
+                cur.execute(
+                    """
+                    INSERT INTO Assignments (upload_id, title, start_date, end_date, description)
+                    VALUES (%s, %s, %s, %s, %s);
+                    """,
+                    (
+                        upload_id,
+                        project_title,
+                        start_date,
+                        end_date,
+                        f"Imported from {file.filename}",
+                    ),
+                )
+                seen_projects.add(project_title)
+        
 
         conn.commit()
     except Exception as exc:

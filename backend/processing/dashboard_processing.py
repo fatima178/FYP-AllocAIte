@@ -6,8 +6,14 @@ def get_dashboard_summary():
     cur = conn.cursor()
 
     try:
-        # get the latest active upload (so only show data for the newest file)
-        cur.execute("SELECT upload_id FROM uploads WHERE is_active = TRUE ORDER BY upload_date DESC LIMIT 1;")
+        # get the latest active upload
+        cur.execute("""
+            SELECT upload_id
+            FROM uploads
+            WHERE is_active = TRUE
+            ORDER BY upload_date DESC
+            LIMIT 1;
+        """)
         result = cur.fetchone()
         if not result:
             return {
@@ -29,11 +35,9 @@ def get_dashboard_summary():
 
         # count how many unique projects are still active (based on start and end date)
         cur.execute("""
-            SELECT COUNT(DISTINCT current_project)
-            FROM employees
+            SELECT COUNT(DISTINCT title)
+            FROM assignments
             WHERE upload_id = %s
-              AND current_project IS NOT NULL
-              AND current_project <> ''
               AND start_date <= %s
               AND end_date >= %s;
         """, (upload_id, today, today))
@@ -43,7 +47,8 @@ def get_dashboard_summary():
         cur.execute("""
             SELECT COUNT(DISTINCT name)
             FROM employees
-            WHERE upload_id = %s AND LOWER(availability_status) = 'available';
+            WHERE upload_id = %s
+              AND LOWER(availability_status) = 'available';
         """, (upload_id,))
         available_this_week = cur.fetchone()[0] or 0
 
