@@ -103,6 +103,7 @@ def get_employees_data():
                 experience_years,
                 skills,
                 availability_status,
+                availability_percent,
                 active_assignments
             FROM employees
             WHERE upload_id = %s
@@ -135,7 +136,7 @@ def get_employees_data():
 
             skills = [s.strip() for s in parse_json_field(r[5], []) if s.strip()]
             assignments = [
-                a for a in parse_json_field(r[7], [])
+                a for a in parse_json_field(r[8], [])
                 if a.get("title") and a["title"] not in ["—", "-", "None", "NaN", ""]
                 and a.get("start_date") and a.get("end_date")
             ]
@@ -149,6 +150,7 @@ def get_employees_data():
                 "experience_years": r[4],
                 "skills": skills,
                 "availability_status": r[6],
+                "availability_percent": float(r[7]) if r[7] is not None else None,
                 "active_assignments": assignments
             })
 

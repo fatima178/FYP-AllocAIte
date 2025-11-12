@@ -47,9 +47,14 @@ def init_db():
             experience_years FLOAT,
             skills JSON,
             availability_status VARCHAR(20),
+            availability_percent FLOAT,
             department VARCHAR(100),
             active_assignments JSON
         );
+    """)
+    cur.execute("""
+        ALTER TABLE Employees
+        ADD COLUMN IF NOT EXISTS availability_percent FLOAT;
     """)
 
     # ASSIGNMENTS TABLE

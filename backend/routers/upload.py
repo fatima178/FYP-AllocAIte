@@ -71,7 +71,7 @@ async def upload_excel(user_id: int = Form(...), file: UploadFile = File(...)):
 
         for name, group in grouped:
             first_row = group.iloc[0]
-            availability_status = calculate_availability(first_row)
+            availability_status, availability_percent = calculate_availability(first_row)
 
             # normalise and clean skills
             skills_raw = str(first_row.get("Skill Set", "")).strip()
@@ -110,9 +110,10 @@ async def upload_excel(user_id: int = Form(...), file: UploadFile = File(...)):
                     experience_years,
                     skills,
                     availability_status,
+                    availability_percent,
                     active_assignments
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
                 """,
                 (
                     upload_id,
@@ -122,6 +123,7 @@ async def upload_excel(user_id: int = Form(...), file: UploadFile = File(...)):
                     float(first_row["Experience (Years)"]),
                     json.dumps(skills),
                     availability_status,
+                    availability_percent,
                     json.dumps(assignments) if assignments else None,
                 ),
             )

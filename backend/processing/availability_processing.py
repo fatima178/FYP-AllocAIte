@@ -10,7 +10,7 @@ def calculate_availability(row, start=None, end=None):
         start_date = pd.to_datetime(row.get("Start Date"), errors="coerce")
         end_date = pd.to_datetime(row.get("End Date"), errors="coerce")
     except Exception:
-        return "Available"  # default if data is messy
+        return "Available", 100.0  # default if data is messy
 
     # base calculation
     availability_percent = (remaining_hours / total_hours * 100) if total_hours > 0 else 100
@@ -34,4 +34,4 @@ def calculate_availability(row, start=None, end=None):
     else:
         status = "Available"
 
-    return status
+    return status, round(float(availability_percent), 1)
