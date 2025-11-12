@@ -73,21 +73,31 @@ async def upload_excel(user_id: int = Form(...), file: UploadFile = File(...)):
             first_row = group.iloc[0]
             availability_status = calculate_availability(first_row)
 
+            # normalise and clean skills
+            skills_raw = str(first_row.get("Skill Set", "")).strip()
+            skills = [s.strip() for s in skills_raw.split(",") if s.strip()] if skills_raw else []
+
             # build list of all active assignments for this employee
             assignments = []
             for _, row in group.iterrows():
-                start_date = pd.to_datetime(row.get("Start Date"), errors="coerce").date() if pd.notna(row.get("Start Date")) else None
-                end_date = pd.to_datetime(row.get("End Date"), errors="coerce").date() if pd.notna(row.get("End Date")) else None
+                title = str(row.get("Current Project", "")).strip()
+                if not title or title in ["—", "-", "NaN", "None", "nan"]:
+                    continue  # skip invalid or empty rows
 
-                if row.get("Current Project") and str(row.get("Current Project")).strip():
-                    assignments.append({
-                        "title": str(row["Current Project"]).strip(),
-                        "start_date": str(start_date) if start_date and str(start_date) not in ["NaT", "nan", "None"] else None,
-                        "end_date": str(end_date) if end_date and str(end_date) not in ["NaT", "nan", "None"] else None,
-                        "total_hours": float(row.get("Total Hours", 0)) if not pd.isna(row.get("Total Hours")) else 0,
-                        "remaining_hours": float(row.get("Remaining Hours", 0)) if not pd.isna(row.get("Remaining Hours")) else 0,
-                        "priority": str(row.get("Priority", "")).strip(),
-                    })
+                start_date = pd.to_datetime(row.get("Start Date"), errors="coerce")
+                end_date = pd.to_datetime(row.get("End Date"), errors="coerce")
+
+                if pd.isna(start_date) or pd.isna(end_date):
+                    continue  # skip if missing valid date range
+
+                assignments.append({
+                    "title": title,
+                    "start_date": str(start_date.date()),
+                    "end_date": str(end_date.date()),
+                    "total_hours": float(row.get("Total Hours", 0)) if not pd.isna(row.get("Total Hours")) else 0,
+                    "remaining_hours": float(row.get("Remaining Hours", 0)) if not pd.isna(row.get("Remaining Hours")) else 0,
+                    "priority": str(row.get("Priority", "")).strip(),
+                })
 
             # insert single employee record with multiple assignments stored in a list
             cur.execute(
@@ -110,7 +120,7 @@ async def upload_excel(user_id: int = Form(...), file: UploadFile = File(...)):
                     first_row["Role"],
                     first_row["Department"],
                     float(first_row["Experience (Years)"]),
-                    json.dumps(first_row["Skill Set"].split(",") if isinstance(first_row["Skill Set"], str) else []),
+                    json.dumps(skills),
                     availability_status,
                     json.dumps(assignments) if assignments else None,
                 ),

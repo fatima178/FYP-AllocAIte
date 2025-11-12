@@ -41,6 +41,10 @@ def get_dashboard_summary():
             FROM employees,
                  jsonb_array_elements(active_assignments) AS elem
             WHERE upload_id = %s
+              AND elem->>'start_date' IS NOT NULL
+              AND elem->>'end_date' IS NOT NULL
+              AND elem->>'start_date' NOT IN ('', 'NaT')
+              AND elem->>'end_date' NOT IN ('', 'NaT')
               AND (elem->>'start_date')::date <= CURRENT_DATE
               AND (elem->>'end_date')::date >= CURRENT_DATE;
         """, (upload_id,))
@@ -105,18 +109,45 @@ def get_employees_data():
 
         rows = cur.fetchall()
 
-        # convert the data into a clean list of dicts
+        def parse_json_field(value, default):
+            if isinstance(value, (list, dict)):
+                return value
+            if isinstance(value, str) and value.strip():
+                try:
+                    return json.loads(value)
+                except json.JSONDecodeError:
+                    return default
+            return default
+
         employees = []
         for r in rows:
+            name = r[1] or ""
+            # create initials (first and last letter of full name)
+            parts = name.split()
+            initials = ""
+            if len(parts) >= 2:
+                initials = parts[0][0] + parts[-1][0]
+            elif len(parts) == 1:
+                initials = parts[0][0]
+            initials = initials.upper()
+
+            skills = [s.strip() for s in parse_json_field(r[5], []) if s.strip()]
+            assignments = [
+                a for a in parse_json_field(r[7], [])
+                if a.get("title") and a["title"] not in ["—", "-", "None", "NaN", ""]
+                and a.get("start_date") and a.get("end_date")
+            ]
+
             employees.append({
                 "employee_id": r[0],
-                "name": r[1],
+                "name": name,
+                "initials": initials,
                 "role": r[2],
                 "department": r[3],
                 "experience_years": r[4],
-                "skills": r[5] if isinstance(r[5], list) else json.loads(r[5]) if r[5] else [],
+                "skills": skills,
                 "availability_status": r[6],
-                "active_assignments": r[7] if isinstance(r[7], dict) else json.loads(r[7]) if r[7] else None
+                "active_assignments": assignments
             })
 
         return {"employees": employees}
