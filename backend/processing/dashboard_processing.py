@@ -37,9 +37,11 @@ def get_dashboard_summary():
 
         # count how many unique projects are still active (based on start and end date)
         cur.execute("""
-            SELECT COUNT(DISTINCT elem->>'title')
-            FROM employees,
-                 jsonb_array_elements(active_assignments) AS elem
+            SELECT COUNT(*)
+            FROM employees
+            CROSS JOIN LATERAL jsonb_array_elements(
+                COALESCE(active_assignments, '[]'::jsonb)
+            ) AS elem
             WHERE upload_id = %s
               AND elem->>'start_date' IS NOT NULL
               AND elem->>'end_date' IS NOT NULL
