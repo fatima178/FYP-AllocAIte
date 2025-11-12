@@ -1,10 +1,10 @@
-from io import BytesIO
-from pathlib import Path
+from db import get_connection
+from datetime import date
 import json
 import pandas as pd
+from io import BytesIO
+from pathlib import Path
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-
-from db import get_connection
 from processing.availability_processing import calculate_availability  # availability helper
 
 router = APIRouter()
@@ -50,6 +50,11 @@ async def upload_excel(user_id: int = Form(...), file: UploadFile = File(...)):
     conn = get_connection()
     cur = conn.cursor()
     try:
+        # deactivate old uploads and clear their data
+        cur.execute("UPDATE uploads SET is_active = FALSE;")
+        cur.execute("DELETE FROM employees;")
+        cur.execute("DELETE FROM assignments;")
+
         # record upload in uploads table
         cur.execute(
             """
@@ -61,64 +66,55 @@ async def upload_excel(user_id: int = Form(...), file: UploadFile = File(...)):
         )
         upload_id = cur.fetchone()[0]
 
-        # keep track of unique projects
-        seen_projects = set()
+        # group rows by employee name to handle multiple assignments per person
+        grouped = df.groupby("Employee Name")
 
-        # go through each row and calculate availability
-        for _, row in df.iterrows():
-            availability_status = calculate_availability(row)  # use helper
+        for name, group in grouped:
+            first_row = group.iloc[0]
+            availability_status = calculate_availability(first_row)
 
-            # insert employee data
+            # build list of all active assignments for this employee
+            assignments = []
+            for _, row in group.iterrows():
+                start_date = pd.to_datetime(row.get("Start Date"), errors="coerce").date() if pd.notna(row.get("Start Date")) else None
+                end_date = pd.to_datetime(row.get("End Date"), errors="coerce").date() if pd.notna(row.get("End Date")) else None
+
+                if row.get("Current Project") and str(row.get("Current Project")).strip():
+                    assignments.append({
+                        "title": str(row["Current Project"]).strip(),
+                        "start_date": str(start_date) if start_date and str(start_date) not in ["NaT", "nan", "None"] else None,
+                        "end_date": str(end_date) if end_date and str(end_date) not in ["NaT", "nan", "None"] else None,
+                        "total_hours": float(row.get("Total Hours", 0)) if not pd.isna(row.get("Total Hours")) else 0,
+                        "remaining_hours": float(row.get("Remaining Hours", 0)) if not pd.isna(row.get("Remaining Hours")) else 0,
+                        "priority": str(row.get("Priority", "")).strip(),
+                    })
+
+            # insert single employee record with multiple assignments stored in a list
             cur.execute(
                 """
-                INSERT INTO Employees (upload_id, name, role, department, experience_years, skills, availability_status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s);
+                INSERT INTO Employees (
+                    upload_id,
+                    name,
+                    role,
+                    department,
+                    experience_years,
+                    skills,
+                    availability_status,
+                    active_assignments
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
                 """,
                 (
                     upload_id,
-                    row["Employee Name"],
-                    row["Role"],
-                    row["Department"],
-                    float(row["Experience (Years)"]),
-                    json.dumps(row["Skill Set"].split(",") if isinstance(row["Skill Set"], str) else []),
+                    name,
+                    first_row["Role"],
+                    first_row["Department"],
+                    float(first_row["Experience (Years)"]),
+                    json.dumps(first_row["Skill Set"].split(",") if isinstance(first_row["Skill Set"], str) else []),
                     availability_status,
+                    json.dumps(assignments) if assignments else None,
                 ),
             )
-
-            # inawer inro assignments
-            project_title = str(row.get("Current Project", "")).strip()
-            start_raw = row.get("Start Date")
-            end_raw = row.get("End Date")
-
-            # clean invalid dates like '—', NaN, or blanks
-            def clean_date(v):
-                if pd.isna(v) or str(v).strip() in ["—", "-", "", "NaT", "nan"]:
-                    return None
-                try:
-                    return pd.to_datetime(v, errors="coerce").date()
-                except Exception:
-                    return None
-
-            start_date = clean_date(start_raw)
-            end_date = clean_date(end_raw)
-
-            # insert project only once per upload
-            if project_title and project_title not in seen_projects:
-                cur.execute(
-                    """
-                    INSERT INTO Assignments (upload_id, title, start_date, end_date, description)
-                    VALUES (%s, %s, %s, %s, %s);
-                    """,
-                    (
-                        upload_id,
-                        project_title,
-                        start_date,
-                        end_date,
-                        f"Imported from {file.filename}",
-                    ),
-                )
-                seen_projects.add(project_title)
-        
 
         conn.commit()
     except Exception as exc:

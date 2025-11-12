@@ -1,5 +1,7 @@
 from db import get_connection
 from datetime import date
+import json
+
 
 def get_dashboard_summary():
     conn = get_connection()
@@ -35,12 +37,13 @@ def get_dashboard_summary():
 
         # count how many unique projects are still active (based on start and end date)
         cur.execute("""
-            SELECT COUNT(DISTINCT title)
-            FROM assignments
+            SELECT COUNT(DISTINCT elem->>'title')
+            FROM employees,
+                 jsonb_array_elements(active_assignments) AS elem
             WHERE upload_id = %s
-              AND start_date <= %s
-              AND end_date >= %s;
-        """, (upload_id, today, today))
+              AND (elem->>'start_date')::date <= CURRENT_DATE
+              AND (elem->>'end_date')::date >= CURRENT_DATE;
+        """, (upload_id,))
         active_projects = cur.fetchone()[0] or 0
 
         # count how many employees are marked as available
@@ -61,5 +64,63 @@ def get_dashboard_summary():
 
     finally:
         # close the database connection so nothing stays open
+        cur.close()
+        conn.close()
+
+
+def get_employees_data():
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        # get the latest active upload
+        cur.execute("""
+            SELECT upload_id
+            FROM uploads
+            WHERE is_active = TRUE
+            ORDER BY upload_date DESC
+            LIMIT 1;
+        """)
+        result = cur.fetchone()
+        if not result:
+            return {"employees": []}
+
+        upload_id = result[0]
+
+        # fetch all employees for that upload
+        cur.execute("""
+            SELECT 
+                employee_id,
+                name,
+                role,
+                department,
+                experience_years,
+                skills,
+                availability_status,
+                active_assignments
+            FROM employees
+            WHERE upload_id = %s
+            ORDER BY name ASC;
+        """, (upload_id,))
+
+        rows = cur.fetchall()
+
+        # convert the data into a clean list of dicts
+        employees = []
+        for r in rows:
+            employees.append({
+                "employee_id": r[0],
+                "name": r[1],
+                "role": r[2],
+                "department": r[3],
+                "experience_years": r[4],
+                "skills": r[5] if isinstance(r[5], list) else json.loads(r[5]) if r[5] else [],
+                "availability_status": r[6],
+                "active_assignments": r[7] if isinstance(r[7], dict) else json.loads(r[7]) if r[7] else None
+            })
+
+        return {"employees": employees}
+
+    finally:
         cur.close()
         conn.close()

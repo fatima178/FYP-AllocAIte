@@ -3,8 +3,8 @@ import psycopg2
 def get_connection():
     conn = psycopg2.connect(
         dbname="allocaite",
-        user="fatima",             
-        password= " ",   
+        user="fatima",
+        password=" ",  
         host="localhost",
         port="5433"
     )
@@ -46,37 +46,10 @@ def init_db():
             role VARCHAR(100),
             experience_years FLOAT,
             skills JSON,
-            availability_score FLOAT,
-            department VARCHAR(100)
+            availability_status VARCHAR(20),
+            department VARCHAR(100),
+            active_assignments JSON
         );
-    """)
-
-        # fix the old column type or name if needed
-    cur.execute("""
-        DO $$
-        BEGIN
-            -- if the old column name exists, rename it
-            IF EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'employees' AND column_name = 'availability_score'
-            ) THEN
-                BEGIN
-                    ALTER TABLE employees RENAME COLUMN availability_score TO availability_status;
-                EXCEPTION WHEN duplicate_column THEN
-                    NULL; -- ignore if already renamed
-                END;
-            END IF;
-
-            -- if availability_status exists but is not varchar, convert it
-            IF EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'employees'
-                AND column_name = 'availability_status'
-                AND data_type != 'character varying'
-            ) THEN
-                ALTER TABLE employees ALTER COLUMN availability_status TYPE VARCHAR(20);
-            END IF;
-        END $$;
     """)
 
     # ASSIGNMENTS TABLE
