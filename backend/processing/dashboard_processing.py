@@ -122,6 +122,7 @@ def get_employees_data():
                     return default
             return default
 
+        today = date.today()
         employees = []
         for r in rows:
             name = r[1] or ""
@@ -135,11 +136,30 @@ def get_employees_data():
             initials = initials.upper()
 
             skills = [s.strip() for s in parse_json_field(r[5], []) if s.strip()]
-            assignments = [
-                a for a in parse_json_field(r[8], [])
-                if a.get("title") and a["title"] not in ["—", "-", "None", "NaN", ""]
-                and a.get("start_date") and a.get("end_date")
-            ]
+            assignments = []
+            for assignment in parse_json_field(r[8], []):
+                title = assignment.get("title")
+                start_raw = assignment.get("start_date")
+                end_raw = assignment.get("end_date")
+
+                if not title or title in ["—", "-", "None", "NaN", ""]:
+                    continue
+                if not start_raw or not end_raw:
+                    continue
+
+                try:
+                    start_date = date.fromisoformat(str(start_raw))
+                    end_date = date.fromisoformat(str(end_raw))
+                except ValueError:
+                    continue
+
+                if start_date <= today <= end_date:
+                    assignments.append({
+                        "title": title,
+                        "priority": assignment.get("priority"),
+                        "start_date": str(start_date),
+                        "end_date": str(end_date)
+                    })
 
             employees.append({
                 "employee_id": r[0],
