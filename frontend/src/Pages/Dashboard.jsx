@@ -3,15 +3,27 @@ import Menu from './Menu';
 import '../styles/Dashboard.css';
 
 function DashboardPage() {
+  const [userId, setUserId] = useState(null);
   const [data, setData] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [error, setError] = useState(null);
 
+  // make sure a user is logged in before fetching dashboard data
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user_id');
+    if (!storedUser) {
+      window.location.href = '/';
+      return;
+    }
+    setUserId(storedUser);
+  }, []);
+
   // fetch summary
   useEffect(() => {
+    if (!userId) return;
     const fetchSummary = async () => {
       try {
-        const response = await fetch('http://127.0.0.1:8001/api/dashboard/summary');
+        const response = await fetch(`http://127.0.0.1:8001/api/dashboard/summary?user_id=${userId}`);
         if (!response.ok) throw new Error('Server returned ' + response.status);
         const json = await response.json();
         setData(json);
@@ -21,13 +33,14 @@ function DashboardPage() {
       }
     };
     fetchSummary();
-  }, []);
+  }, [userId]);
 
   // fetch employees
   useEffect(() => {
+    if (!userId) return;
     const fetchEmployees = async () => {
       try {
-        const response = await fetch('http://127.0.0.1:8001/api/dashboard/employees');
+        const response = await fetch(`http://127.0.0.1:8001/api/dashboard/employees?user_id=${userId}`);
         if (!response.ok) throw new Error('Server returned ' + response.status);
         const json = await response.json();
         setEmployees(json.employees || []);
@@ -36,7 +49,7 @@ function DashboardPage() {
       }
     };
     fetchEmployees();
-  }, []);
+  }, [userId]);
 
   const getAvailabilityPercentage = (employee) => {
     if (typeof employee?.availability_percent === 'number') {

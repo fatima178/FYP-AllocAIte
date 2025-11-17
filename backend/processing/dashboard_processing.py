@@ -3,7 +3,7 @@ from datetime import date
 import json
 
 
-def get_dashboard_summary():
+def get_dashboard_summary(user_id: int):
     conn = get_connection()
     cur = conn.cursor()
 
@@ -13,9 +13,10 @@ def get_dashboard_summary():
             SELECT upload_id
             FROM uploads
             WHERE is_active = TRUE
+              AND user_id = %s
             ORDER BY upload_date DESC
             LIMIT 1;
-        """)
+        """, (user_id,))
         result = cur.fetchone()
         if not result:
             return {
@@ -74,7 +75,7 @@ def get_dashboard_summary():
         conn.close()
 
 
-def get_employees_data():
+def get_employees_data(user_id: int):
     conn = get_connection()
     cur = conn.cursor()
 
@@ -84,9 +85,10 @@ def get_employees_data():
             SELECT upload_id
             FROM uploads
             WHERE is_active = TRUE
+              AND user_id = %s
             ORDER BY upload_date DESC
             LIMIT 1;
-        """)
+        """, (user_id,))
         result = cur.fetchone()
         if not result:
             return {"employees": []}

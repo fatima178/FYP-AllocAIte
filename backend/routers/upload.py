@@ -50,10 +50,26 @@ async def upload_excel(user_id: int = Form(...), file: UploadFile = File(...)):
     conn = get_connection()
     cur = conn.cursor()
     try:
-        # deactivate old uploads and clear their data
-        cur.execute("UPDATE uploads SET is_active = FALSE;")
-        cur.execute("DELETE FROM employees;")
-        cur.execute("DELETE FROM assignments;")
+        # deactivate this user's previous uploads and clear only their data
+        cur.execute("UPDATE uploads SET is_active = FALSE WHERE user_id = %s;", (user_id,))
+        cur.execute(
+            """
+            DELETE FROM employees
+            WHERE upload_id IN (
+                SELECT upload_id FROM uploads WHERE user_id = %s
+            );
+            """,
+            (user_id,),
+        )
+        cur.execute(
+            """
+            DELETE FROM assignments
+            WHERE upload_id IN (
+                SELECT upload_id FROM uploads WHERE user_id = %s
+            );
+            """,
+            (user_id,),
+        )
 
         # record upload in uploads table
         cur.execute(
