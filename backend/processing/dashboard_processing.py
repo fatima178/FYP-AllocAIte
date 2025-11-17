@@ -1,6 +1,7 @@
 from db import get_connection
 from datetime import date
 import json
+from typing import List, Optional
 
 
 def get_dashboard_summary(user_id: int):
@@ -75,25 +76,74 @@ def get_dashboard_summary(user_id: int):
         conn.close()
 
 
-def get_employees_data(user_id: int):
+def _get_latest_upload_id(cur, user_id: int) -> Optional[int]:
+    cur.execute(
+        """
+        SELECT upload_id
+        FROM uploads
+        WHERE is_active = TRUE
+          AND user_id = %s
+        ORDER BY upload_date DESC
+        LIMIT 1;
+        """,
+        (user_id,),
+    )
+    result = cur.fetchone()
+    return result[0] if result else None
+
+
+def get_available_skills(user_id: int):
+    """Return distinct skills for a user's latest upload so the UI can build filters."""
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        upload_id = _get_latest_upload_id(cur, user_id)
+        if not upload_id:
+            return {"skills": []}
+
+        cur.execute(
+            """
+            SELECT skills
+            FROM employees
+            WHERE upload_id = %s;
+            """,
+            (upload_id,),
+        )
+
+        skill_set = set()
+        for row in cur.fetchall():
+            raw = row[0]
+            if isinstance(raw, list):
+                values = raw
+            else:
+                try:
+                    values = json.loads(raw) if raw else []
+                except (TypeError, json.JSONDecodeError):
+                    values = []
+            for skill in values:
+                cleaned = str(skill).strip()
+                if cleaned:
+                    skill_set.add(cleaned)
+
+        return {"skills": sorted(skill_set, key=lambda s: s.lower())}
+    finally:
+        cur.close()
+        conn.close()
+
+
+def get_employees_data(
+    user_id: int,
+    search: Optional[str] = None,
+    skills: Optional[List[str]] = None,
+    availability: Optional[str] = None,
+):
     conn = get_connection()
     cur = conn.cursor()
 
     try:
-        # get the latest active upload
-        cur.execute("""
-            SELECT upload_id
-            FROM uploads
-            WHERE is_active = TRUE
-              AND user_id = %s
-            ORDER BY upload_date DESC
-            LIMIT 1;
-        """, (user_id,))
-        result = cur.fetchone()
-        if not result:
+        upload_id = _get_latest_upload_id(cur, user_id)
+        if not upload_id:
             return {"employees": []}
-
-        upload_id = result[0]
 
         # fetch all employees for that upload
         cur.execute("""
@@ -124,6 +174,10 @@ def get_employees_data(user_id: int):
                     return default
             return default
 
+        search_term = search.strip().lower() if search else None
+        skill_filters = [s.strip().lower() for s in (skills or []) if s and s.strip()]
+        availability_filter = availability.strip().lower() if availability else None
+
         today = date.today()
         employees = []
         for r in rows:
@@ -137,7 +191,24 @@ def get_employees_data(user_id: int):
                 initials = parts[0][0]
             initials = initials.upper()
 
-            skills = [s.strip() for s in parse_json_field(r[5], []) if s.strip()]
+            parsed_skills = [s.strip() for s in parse_json_field(r[5], []) if s.strip()]
+            skills_lower = [s.lower() for s in parsed_skills]
+            availability_status = (r[6] or "").lower()
+
+            # apply text search filter
+            if search_term:
+                role = (r[2] or "").lower()
+                if search_term not in name.lower() and search_term not in role:
+                    continue
+
+            # apply skill filter (employee must have all selected skills)
+            if skill_filters and not all(sf in skills_lower for sf in skill_filters):
+                continue
+
+            # apply availability filter
+            if availability_filter and availability_status != availability_filter:
+                continue
+
             assignments = []
             for assignment in parse_json_field(r[8], []):
                 title = assignment.get("title")
@@ -170,7 +241,7 @@ def get_employees_data(user_id: int):
                 "role": r[2],
                 "department": r[3],
                 "experience_years": r[4],
-                "skills": skills,
+                "skills": parsed_skills,
                 "availability_status": r[6],
                 "availability_percent": float(r[7]) if r[7] is not None else None,
                 "active_assignments": assignments

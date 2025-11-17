@@ -4,6 +4,10 @@ import '../styles/Dashboard.css';
 
 function DashboardPage() {
   const [userId, setUserId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [availableSkills, setAvailableSkills] = useState([]);
+  const [selectedSkill, setSelectedSkill] = useState('');
+  const [availability, setAvailability] = useState('');
   const [data, setData] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [error, setError] = useState(null);
@@ -40,7 +44,18 @@ function DashboardPage() {
     if (!userId) return;
     const fetchEmployees = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:8001/api/dashboard/employees?user_id=${userId}`);
+        const params = new URLSearchParams({ user_id: userId });
+        if (searchTerm.trim()) {
+          params.append('search', searchTerm.trim());
+        }
+        if (selectedSkill) {
+          params.append('skills', selectedSkill);
+        }
+        if (availability) {
+          params.append('availability', availability);
+        }
+
+        const response = await fetch(`http://127.0.0.1:8001/api/dashboard/employees?${params.toString()}`);
         if (!response.ok) throw new Error('Server returned ' + response.status);
         const json = await response.json();
         setEmployees(json.employees || []);
@@ -49,7 +64,27 @@ function DashboardPage() {
       }
     };
     fetchEmployees();
+  }, [userId, searchTerm, selectedSkill, availability]);
+
+  // fetch distinct skills for filter options
+  useEffect(() => {
+    if (!userId) return;
+    const fetchSkills = async () => {
+      try {
+        const response = await fetch(`http://127.0.0.1:8001/api/dashboard/skills?user_id=${userId}`);
+        if (!response.ok) throw new Error('Server returned ' + response.status);
+        const json = await response.json();
+        setAvailableSkills(json.skills || []);
+      } catch (err) {
+        console.error('Error fetching skills:', err);
+      }
+    };
+    fetchSkills();
   }, [userId]);
+
+  const handleSkillChange = (event) => {
+    setSelectedSkill(event.target.value);
+  };
 
   const getAvailabilityPercentage = (employee) => {
     if (typeof employee?.availability_percent === 'number') {
@@ -88,6 +123,30 @@ function DashboardPage() {
                 </div>
               </div>
 
+              {/* SEARCH + FILTERS */}
+              <div className="dashboard-filters">
+                <input
+                  type="text"
+                  placeholder="Search by name or role..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <select value={selectedSkill} onChange={handleSkillChange}>
+                  <option value="">Filter by skills</option>
+                  {availableSkills.map((skill) => (
+                    <option key={skill} value={skill}>
+                      {skill}
+                    </option>
+                  ))}
+                </select>
+                <select value={availability} onChange={(e) => setAvailability(e.target.value)}>
+                  <option value="">Filter by availability</option>
+                  <option value="available">Available</option>
+                  <option value="partial">Partial</option>
+                  <option value="busy">Busy</option>
+                </select>
+              </div>
+
               {/* EMPLOYEE CARDS */}
               <div className="employee-grid">
                 {employees.map((emp) => (
@@ -103,23 +162,23 @@ function DashboardPage() {
                       <span className={`status ${emp.availability_status?.toLowerCase?.() || 'available'}`}>
                         {emp.availability_status}
                       </span>
-                    </div>
+                  </div>
 
-                    {/* Skills */}
-                    <div className="skills-section">
+                  {/* Skills */}
+                  <div className="skills-section">
                     <h4>Skills</h4>
                     <div className="skills">
-                        {emp.skills && emp.skills.length > 0 ? (
+                      {emp.skills && emp.skills.length > 0 ? (
                         emp.skills.map((skill, i) => (
-                            <span key={i} className="skill-tag">
+                          <span key={i} className="skill-tag">
                             {skill}
-                            </span>
+                          </span>
                         ))
-                        ) : (
+                      ) : (
                         <p className="no-skills">No skills listed</p>
-                        )}
+                      )}
                     </div>
-                    </div>
+                  </div>
 
 
                     <p className="experience">
