@@ -1,0 +1,76 @@
+.assignments-container {
+  padding: 40px 20px;
+  max-width: 900px;
+  margin: 0 auto;
+  font-family: Arial, sans-serif;
+}
+
+/* Match the menu’s rounded + clean card style */
+.form-box {
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 12px;  /* smoother */
+  margin-top: 25px;
+  border: 1px solid #e2e8f0;  /* same line color as navbar */
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+.form-box label {
+  display: block;
+  margin-top: 20px;
+  font-weight: 600;
+}
+
+.form-box textarea {
+  width: 100%;
+  height: 130px;
+  padding: 12px;
+  margin-top: 6px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 15px;
+  resize: vertical;
+}
+
+.form-box input[type="date"] {
+  width: 100%;
+  padding: 12px;
+  margin-top: 6px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 15px;
+}
+
+.form-box button {
+  margin-top: 25px;
+  padding: 12px 22px;
+  background: #4a7aff;
+  border: none;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.form-box button:hover {
+  background: #3b6aee;
+}
+
+.form-box button:disabled {
+  background: #9db5ff;
+  cursor: not-allowed;
+}
+
+.error {
+  margin-top: 15px;
+  color: #d00;
+  font-weight: 600;
+}
+
+.page-title {
+  margin-top: 25px;
+  margin-bottom: 10px;
+  font-size: 26px;
+  font-weight: 700;
+}

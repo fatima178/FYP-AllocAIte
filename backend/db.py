@@ -18,15 +18,6 @@ def init_db():
     cur = conn.cursor()
 
     # ----------------------------------------------------------------------
-    # 1. CLEAN OLD STRUCTURES
-    # ----------------------------------------------------------------------
-    # Nukes obsolete versions of the tables so your schema doesn't explode.
-    cur.execute("DROP TABLE IF EXISTS Assignments CASCADE;")
-    cur.execute("DROP TABLE IF EXISTS Employees CASCADE;")
-    cur.execute("DROP TABLE IF EXISTS Uploads CASCADE;")
-    # NOTE: Users is preserved because you shouldn't nuke your accounts.
-
-    # ----------------------------------------------------------------------
     # 2. USERS TABLE
     # ----------------------------------------------------------------------
     cur.execute("""

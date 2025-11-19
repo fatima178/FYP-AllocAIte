@@ -5,6 +5,9 @@ import DashboardPage from './Pages/Dashboard';
 import TasksPage from './Pages/Tasks';
 import AssignmentsPage from './Pages/Assignments';
 import ChatbotPage from './Pages/Chatbot';
+import RecommendationsPage from './Pages/Recommendations';
+
+
 
 function App() {
   const path = window.location.pathname || '/';
@@ -25,6 +28,7 @@ function App() {
     '/upload': <UploadPage />,
     '/assignments': <AssignmentsPage />,
     '/chatbot': <ChatbotPage />,
+    '/recommendations': <RecommendationsPage />  
   };
 
   return pages[path] || <UploadPage />;
