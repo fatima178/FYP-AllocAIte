@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db import init_db
-from routers import upload, dashboard, auth, recommend
+from routers import upload, dashboard, auth, recommend, settings
 
 app = FastAPI()
 
@@ -29,6 +29,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(recommend.router, prefix="/api")
+app.include_router(settings.router, prefix="/api")
 
 
 @app.get("/")

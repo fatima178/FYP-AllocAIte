@@ -3,15 +3,17 @@
   max-width: 900px;
   margin: 0 auto;
   font-family: Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
 }
 
 /* Match the menu’s rounded + clean card style */
 .form-box {
-  background: #ffffff;
+  background: var(--card);
   padding: 30px;
-  border-radius: 12px;  /* smoother */
+  border-radius: 12px; /* smoother */
   margin-top: 25px;
-  border: 1px solid #e2e8f0;  /* same line color as navbar */
+  border: 1px solid var(--card-border); /* same line color as navbar */
   box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 
@@ -19,6 +21,7 @@
   display: block;
   margin-top: 20px;
   font-weight: 600;
+  color: var(--text);
 }
 
 .form-box textarea {
@@ -27,9 +30,11 @@
   padding: 12px;
   margin-top: 6px;
   border-radius: 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--card-border);
   font-size: 15px;
   resize: vertical;
+  background: var(--card);
+  color: var(--text);
 }
 
 .form-box input[type="date"] {
@@ -37,24 +42,27 @@
   padding: 12px;
   margin-top: 6px;
   border-radius: 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--card-border);
   font-size: 15px;
+  background: var(--card);
+  color: var(--text);
 }
 
 .form-box button {
   margin-top: 25px;
   padding: 12px 22px;
-  background: #4a7aff;
+  background: var(--button-bg);
   border: none;
-  color: white;
+  color: var(--button-text);
   border-radius: 8px;
   cursor: pointer;
   font-size: 16px;
   font-weight: 600;
+  transition: opacity 0.2s ease;
 }
 
 .form-box button:hover {
-  background: #3b6aee;
+  opacity: 0.9;
 }
 
 .form-box button:disabled {
@@ -73,4 +81,9 @@
   margin-bottom: 10px;
   font-size: 26px;
   font-weight: 700;
+  color: var(--text);
+}
+
+.dark-theme .form-box {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }

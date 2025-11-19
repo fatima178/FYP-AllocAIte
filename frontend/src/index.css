@@ -11,3 +11,34 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* ---------------------------------------------------
+   THEME VARIABLES
+--------------------------------------------------- */
+:root {
+  --bg: #f8f9fc;
+  --text: #1a1a1a;
+  --card: #ffffff;
+  --card-border: rgba(0, 0, 0, 0.1);
+  --button-bg: #2563eb;
+  --button-text: #ffffff;
+}
+
+.dark-theme {
+  --bg: #0f0f0f;
+  --text: #e4e4e4;
+  --card: #1a1a1a;
+  --card-border: rgba(255, 255, 255, 0.1);
+  --button-bg: #3b82f6;
+  --button-text: #ffffff;
+}
+
+/* ---------------------------------------------------
+   Apply theme to body/root
+--------------------------------------------------- */
+body,
+#root {
+  background-color: var(--bg) !important;
+  color: var(--text) !important;
+  transition: background 0.3s ease, color 0.3s ease;
+}

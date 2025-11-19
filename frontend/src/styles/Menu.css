@@ -5,8 +5,8 @@
   justify-content: space-between;
   gap: 1.5rem;
   padding: 1rem 2rem;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--card);
+  border-bottom: 1px solid var(--card-border);
 }
 
 .brand {
@@ -31,13 +31,15 @@
   padding: 0.4rem 0.9rem;
   border-radius: 999px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text);
+  opacity: 0.75;
   cursor: pointer;
 }
 
 .menu-link.active {
-  background: #e9f2ff;
-  color: #2563eb;
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--button-bg);
+  opacity: 1;
 }
 
 .logout-button {
@@ -45,13 +47,29 @@
   border-radius: 999px;
   padding: 0.5rem 1.2rem;
   font-weight: 600;
-  color: #2563eb;
+  color: var(--button-bg);
   background: rgba(37, 99, 235, 0.12);
   cursor: pointer;
 }
 
 .logout-button:hover {
   background: rgba(37, 99, 235, 0.2);
+}
+
+.dark-theme .menu-bar {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.dark-theme .menu-link {
+  opacity: 0.8;
+}
+
+.dark-theme .menu-link.active {
+  background: rgba(59, 130, 246, 0.25);
+}
+
+.dark-theme .logout-button {
+  background: rgba(59, 130, 246, 0.25);
 }
 
 @media (max-width: 640px) {

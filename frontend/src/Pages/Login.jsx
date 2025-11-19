@@ -95,9 +95,21 @@ function LoginPage() {
         body: JSON.stringify(payload),
       });
 
-      if (body.user_id && payload.email) {
+      if (body.user_id) {
+        const resolvedEmail = body.email || payload.email || '';
+        const resolvedName =
+          body.name || (mode === 'register' ? payload.name : null) || '';
+
         localStorage.setItem('user_id', body.user_id);
-        localStorage.setItem('email', payload.email);
+        if (resolvedEmail) {
+          localStorage.setItem('email', resolvedEmail);
+        }
+        if (resolvedName) {
+          localStorage.setItem('name', resolvedName);
+        }
+        if (body.created_at) {
+          localStorage.setItem('member_since', body.created_at);
+        }
         window.location.href = '/upload';
         return;
       }

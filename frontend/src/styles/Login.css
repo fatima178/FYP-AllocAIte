@@ -1,6 +1,6 @@
 :root {
   font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  color: #0f172a;
+  color: var(--text);
 }
 
 * {
@@ -9,7 +9,9 @@
 
 body {
   margin: 0;
-  background: #f6f7fb;
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 .auth-page {
@@ -101,7 +103,8 @@ body {
   flex-direction: column;
   justify-content: center;
   padding: clamp(2rem, 5vw, 4rem);
-  background: #f6f7fb;
+  background: var(--bg);
+  color: var(--text);
   min-height: 100vh;
 }
 
@@ -115,7 +118,7 @@ body {
 .tab-switcher {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  background: #e7e9f2;
+  background: rgba(0, 0, 0, 0.04);
   border-radius: 999px;
   padding: 0.25rem;
   margin-bottom: 1.5rem;
@@ -128,22 +131,23 @@ body {
   border-radius: 999px;
   font-size: 1rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--text);
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
 .tab-switcher button.active {
-  background: white;
-  color: #111827;
+  background: var(--card);
+  color: var(--text);
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
 }
 
 .auth-card {
-  background: white;
+  background: var(--card);
   border-radius: 1.5rem;
   padding: clamp(2rem, 4vw, 3rem);
   box-shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+  border: 1px solid var(--card-border);
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -155,7 +159,8 @@ body {
 
 .auth-card p {
   margin: 0.35rem 0 0;
-  color: #6b7280;
+  color: var(--text);
+  opacity: 0.75;
 }
 
 label {
@@ -163,15 +168,17 @@ label {
   flex-direction: column;
   gap: 0.35rem;
   font-weight: 500;
-  color: #111827;
+  color: var(--text);
 }
 
 input {
-  border: 1.5px solid #e2e8f0;
+  border: 1.5px solid var(--card-border);
   border-radius: 0.9rem;
   padding: 0.95rem 1rem;
   font-size: 1rem;
   transition: border 0.2s ease, box-shadow 0.2s ease;
+  background: var(--card);
+  color: var(--text);
 }
 
 input:focus {
@@ -186,8 +193,8 @@ button.primary {
   padding: 1rem;
   font-size: 1rem;
   font-weight: 600;
-  color: white;
-  background: #0f172a;
+  color: var(--button-text);
+  background: var(--button-bg);
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -207,7 +214,8 @@ button.linkish {
   background: none;
   padding: 0;
   align-self: flex-start;
-  color: #475569;
+  color: var(--text);
+  opacity: 0.75;
   font-weight: 500;
   cursor: pointer;
 }
@@ -226,7 +234,7 @@ button.linkish {
 .inline-link {
   border: none;
   background: none;
-  color: #60a5fa;
+  color: var(--button-bg);
   font-weight: 600;
   cursor: pointer;
   padding: 0;
@@ -253,4 +261,16 @@ button.linkish {
   .hero {
     min-height: 40vh;
   }
+}
+
+.dark-theme .auth-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.dark-theme .tab-switcher {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.dark-theme .tab-switcher button.active {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
 }

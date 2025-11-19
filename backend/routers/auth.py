@@ -47,13 +47,19 @@ def register_user(payload: RegisterRequest):
         cur.execute("""
             INSERT INTO Users (name, email, password_hash)
             VALUES (%s, %s, %s)
-            RETURNING user_id;
+            RETURNING user_id, created_at;
         """, (payload.name, payload.email, password_hash))
 
-        user_id = cur.fetchone()[0]
+        user_id, created_at = cur.fetchone()
         conn.commit()
 
-        return {"user_id": user_id, "message": "User registered successfully."}
+        return {
+            "user_id": user_id,
+            "name": payload.name,
+            "email": payload.email,
+            "created_at": created_at.isoformat(),
+            "message": "User registered successfully."
+        }
 
     except psycopg2.IntegrityError:
         conn.rollback()
@@ -70,7 +76,7 @@ def login_user(payload: LoginRequest):
 
     try:
         cur.execute("""
-            SELECT user_id, password_hash
+            SELECT user_id, name, password_hash, created_at
             FROM Users
             WHERE email = %s;
         """, (payload.email,))
@@ -79,13 +85,19 @@ def login_user(payload: LoginRequest):
         if not record:
             raise HTTPException(401, "Invalid email or password.")
 
-        user_id, stored_hash = record
+        user_id, name, stored_hash, created_at = record
         given_hash = hashlib.sha256(payload.password.encode("utf-8")).hexdigest()
 
         if stored_hash != given_hash:
             raise HTTPException(401, "Invalid email or password.")
 
-        return {"user_id": user_id, "message": "Login successful."}
+        return {
+            "user_id": user_id,
+            "name": name,
+            "email": payload.email,
+            "created_at": created_at.isoformat(),
+            "message": "Login successful."
+        }
 
     finally:
         cur.close()

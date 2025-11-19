@@ -9,12 +9,11 @@ function Menu() {
     { label: 'Upload', path: '/upload' },
     { label: 'Assignments', path: '/assignments' },
     { label: 'Chatbot', path: '/chatbot' },
+    { label: 'Settings', path: '/settings' }
   ];
 
   const goTo = (path) => {
-    if (currentPath === path) {
-      return;
-    }
+    if (currentPath === path) return;
     window.location.href = path;
   };
 
@@ -26,7 +25,11 @@ function Menu() {
 
   return (
     <header className="menu-bar">
-      <button type="button" className="brand" onClick={() => goTo('/dashboard')}>
+      <button
+        type="button"
+        className="brand"
+        onClick={() => goTo('/dashboard')}
+      >
         AllocAIte
       </button>
 

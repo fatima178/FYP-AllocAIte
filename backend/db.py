@@ -103,6 +103,15 @@ def init_db():
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
+    # 9. SETTINGS TABLE
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS UserSettings (
+            user_id INT PRIMARY KEY REFERENCES Users(user_id) ON DELETE CASCADE,
+            theme VARCHAR(20) DEFAULT 'light',
+            font_size VARCHAR(20) DEFAULT 'medium'
+        );
+    """) 
+
 
     # ----------------------------------------------------------------------
     # 8. INDEXES (makes availability + dashboard queries fast)

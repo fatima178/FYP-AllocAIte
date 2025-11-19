@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import './App.css';
 import LoginPage from './Pages/Login';
 import UploadPage from './Pages/Upload';
@@ -6,10 +7,20 @@ import TasksPage from './Pages/Tasks';
 import AssignmentsPage from './Pages/Assignments';
 import ChatbotPage from './Pages/Chatbot';
 import RecommendationsPage from './Pages/Recommendations';
+import SettingsPage from "./Pages/Settings";
 
 
 
 function App() {
+  useEffect(() => {
+    const storedTheme = localStorage.getItem('theme') || 'light';
+    document.body.classList.toggle('dark-theme', storedTheme === 'dark');
+
+    const storedFontSize = localStorage.getItem('fontSize') || 'medium';
+    document.documentElement.style.fontSize =
+      storedFontSize === 'small' ? '14px' : storedFontSize === 'large' ? '18px' : '16px';
+  }, []);
+
   const path = window.location.pathname || '/';
   const hasUser = Boolean(localStorage.getItem('user_id'));
 
@@ -28,7 +39,8 @@ function App() {
     '/upload': <UploadPage />,
     '/assignments': <AssignmentsPage />,
     '/chatbot': <ChatbotPage />,
-    '/recommendations': <RecommendationsPage />  
+    '/recommendations': <RecommendationsPage />,
+    "/settings": <SettingsPage /> 
   };
 
   return pages[path] || <UploadPage />;

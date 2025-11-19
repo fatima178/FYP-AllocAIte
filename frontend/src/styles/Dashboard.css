@@ -1,7 +1,8 @@
 /* === DASHBOARD SUMMARY SECTION === */
 .dashboard-container {
   padding: 3rem 2rem;
-  background-color: #f8fafc;
+  background-color: var(--bg);
+  color: var(--text);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -12,7 +13,7 @@
 .dashboard-container h1 {
   font-size: 1.9rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text);
   margin-bottom: 2rem;
   text-align: center;
 }
@@ -30,8 +31,8 @@
 }
 
 .card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--card);
+  border: 1px solid var(--card-border);
   border-radius: 12px;
   flex: 1 1 250px;
   max-width: 280px;
@@ -42,7 +43,7 @@
   justify-content: center;
   align-items: center;
   text-align: center;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
   transition: all 0.2s ease;
 }
 
@@ -53,7 +54,7 @@
 
 .card h3 {
   font-size: 1rem;
-  color: #334155;
+  color: var(--text);
   font-weight: 600;
   margin: 0;
 }
@@ -77,10 +78,11 @@
 .dashboard-filters input,
 .dashboard-filters select {
   padding: 0.55rem 0.85rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--card-border);
   border-radius: 10px;
   font-size: 0.95rem;
-  background: #ffffff;
+  background: var(--card);
+  color: var(--text);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
@@ -105,11 +107,11 @@
 
 /* === EMPLOYEE CARD === */
 .employee-card {
-  background: #ffffff;
+  background: var(--card);
   border-radius: 12px;
   padding: 1.5rem 1.8rem;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--card-border);
   transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
@@ -134,7 +136,7 @@
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: #e0e7ff;
+  background: rgba(37, 99, 235, 0.15);
   color: #1d4ed8;
   display: flex;
   align-items: center;
@@ -152,13 +154,14 @@
 .info h3 {
   font-size: 1.05rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text);
   margin: 0;
 }
 
 .role {
   font-size: 0.9rem;
-  color: #64748b;
+  color: var(--text);
+  opacity: 0.75;
   margin-top: 2px;
 }
 
@@ -190,7 +193,7 @@
 .skills-section h4 {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--text);
   margin-bottom: 0.3rem;
 }
 
@@ -202,24 +205,26 @@
 }
 
 .skill-tag {
-  background: #f1f5f9;
-  color: #334155;
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text);
   padding: 0.35rem 0.7rem;
   border-radius: 6px;
   font-size: 0.8rem;
   font-weight: 500;
+  border: 1px solid var(--card-border);
 }
 
 .no-skills {
   font-size: 0.85rem;
-  color: #94a3b8;
+  color: var(--text);
+  opacity: 0.6;
   margin: 0.3rem 0 0.8rem 0;
 }
 
 
 /* EXPERIENCE */
 .experience {
-  color: #1e293b;
+  color: var(--text);
   font-size: 0.9rem;
   font-weight: 500;
   margin-bottom: 0.6rem;
@@ -233,7 +238,7 @@
 .active-assignments h4 {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--text);
   margin-bottom: 0.3rem;
 }
 
@@ -245,19 +250,20 @@
 
 .active-assignments li {
   font-size: 0.85rem;
-  color: #475569;
+  color: var(--text);
+  opacity: 0.75;
 }
 
 /* AVAILABILITY PERCENT */
 .availability {
   margin-top: auto;
   padding-top: 0.5rem;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--card-border);
 }
 
 .availability h4 {
   font-size: 0.9rem;
-  color: #0f172a;
+  color: var(--text);
   font-weight: 600;
   margin-bottom: 0.2rem;
 }
@@ -267,4 +273,23 @@
   font-weight: 700;
   color: #2563eb;
   margin-top: 0.2rem;
+}
+
+.dark-theme .card,
+.dark-theme .employee-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.dark-theme .card:hover,
+.dark-theme .employee-card:hover {
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.5);
+}
+
+.dark-theme .skill-tag {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.dark-theme .dashboard-filters input,
+.dark-theme .dashboard-filters select {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
