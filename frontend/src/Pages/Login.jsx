@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import '../styles/Login.css';
 import groupChat from '../images/group-chat.png';
-
-// if there’s no environment variable set, use the local backend
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+import { apiFetch, APIError } from '../api';
 
 // keeping both forms (login + register) in one state
 const initialState = {
@@ -91,41 +89,11 @@ function LoginPage() {
     }
 
     try {
-      // send request to backend
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      const body = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
-      // parse response 
-      const body = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        const detail = body.detail || `Unable to ${mode}.`;
-
-        // handle case where email already exists
-        if (mode === 'register' && detail.includes('Email already registered')) {
-          setStatus({
-            type: 'error',
-            message: (
-              <>
-                {detail}
-                <button
-                  type="button"
-                  className="inline-link"
-                  onClick={() => switchMode('login')}
-                >
-                  Go to login
-                </button>
-              </>
-            ),
-          });
-        } else {
-          throw new Error(detail);
-        }
-        return;
-      }
 
       if (body.user_id && payload.email) {
         localStorage.setItem('user_id', body.user_id);
@@ -140,6 +108,30 @@ function LoginPage() {
       // reset form fields after submission
       setFormData((prev) => ({ ...prev, [mode]: initialState[mode] }));
     } catch (error) {
+      if (
+        mode === 'register' &&
+        error instanceof APIError &&
+        typeof error.body?.detail === 'string' &&
+        error.body.detail.includes('Email already registered')
+      ) {
+        setStatus({
+          type: 'error',
+          message: (
+            <>
+              {error.body.detail}
+              <button
+                type="button"
+                className="inline-link"
+                onClick={() => switchMode('login')}
+              >
+                Go to login
+              </button>
+            </>
+          ),
+        });
+        return;
+      }
+
       // handles network or backend errors
       setStatus({ type: 'error', message: error.message });
     } finally {

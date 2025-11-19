@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Menu from './Menu';
 import '../styles/Dashboard.css';
+import { apiFetch } from '../api';
 
 function DashboardPage() {
   const [userId, setUserId] = useState(null);
@@ -27,9 +28,7 @@ function DashboardPage() {
     if (!userId) return;
     const fetchSummary = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:8001/api/dashboard/summary?user_id=${userId}`);
-        if (!response.ok) throw new Error('Server returned ' + response.status);
-        const json = await response.json();
+        const json = await apiFetch(`/dashboard/summary?user_id=${userId}`);
         setData(json);
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
@@ -55,9 +54,7 @@ function DashboardPage() {
           params.append('availability', availability);
         }
 
-        const response = await fetch(`http://127.0.0.1:8001/api/dashboard/employees?${params.toString()}`);
-        if (!response.ok) throw new Error('Server returned ' + response.status);
-        const json = await response.json();
+        const json = await apiFetch(`/dashboard/employees?${params.toString()}`);
         setEmployees(json.employees || []);
       } catch (err) {
         console.error('Error fetching employees:', err);
@@ -71,9 +68,7 @@ function DashboardPage() {
     if (!userId) return;
     const fetchSkills = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:8001/api/dashboard/skills?user_id=${userId}`);
-        if (!response.ok) throw new Error('Server returned ' + response.status);
-        const json = await response.json();
+        const json = await apiFetch(`/dashboard/skills?user_id=${userId}`);
         setAvailableSkills(json.skills || []);
       } catch (err) {
         console.error('Error fetching skills:', err);

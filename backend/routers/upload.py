@@ -1,15 +1,15 @@
-from db import get_connection
-from datetime import date
-import json
-import pandas as pd
+# routers/upload.py
+
+from fastapi import APIRouter, HTTPException, File, Form, UploadFile
 from io import BytesIO
 from pathlib import Path
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-from processing.availability_processing import calculate_availability  # availability helper
+import pandas as pd
+import json
+
+from db import get_connection
 
 router = APIRouter()
 
-# required columns for uploads
 REQUIRED_COLUMNS = [
     "Employee Name",
     "Role",
@@ -30,127 +30,109 @@ ALLOWED_EXTENSIONS = {".xlsx", ".xls"}
 
 @router.post("/upload")
 async def upload_excel(user_id: int = Form(...), file: UploadFile = File(...)):
-    # check file type
     extension = Path(file.filename or "").suffix.lower()
     if extension not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail="Only Excel files (.xlsx or .xls) are allowed.")
+        raise HTTPException(400, "Only Excel files (.xlsx or .xls) are allowed.")
 
-    # read excel file
     try:
-        contents = await file.read()
-        df = pd.read_excel(BytesIO(contents), sheet_name=0)
+        df = pd.read_excel(BytesIO(await file.read()), sheet_name=0)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Could not read file: {exc}")
+        raise HTTPException(400, f"Could not read file: {exc}")
 
-    # make sure all required columns exist
+    # Check required columns
     missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
     if missing:
-        raise HTTPException(status_code=400, detail=f"Missing required columns: {', '.join(missing)}")
+        raise HTTPException(400, f"Missing required columns: {', '.join(missing)}")
 
     conn = get_connection()
     cur = conn.cursor()
-    try:
-        # deactivate this user's previous uploads and clear only their data
-        cur.execute("UPDATE uploads SET is_active = FALSE WHERE user_id = %s;", (user_id,))
-        cur.execute(
-            """
-            DELETE FROM employees
-            WHERE upload_id IN (
-                SELECT upload_id FROM uploads WHERE user_id = %s
-            );
-            """,
-            (user_id,),
-        )
-        cur.execute(
-            """
-            DELETE FROM assignments
-            WHERE upload_id IN (
-                SELECT upload_id FROM uploads WHERE user_id = %s
-            );
-            """,
-            (user_id,),
-        )
 
-        # record upload in uploads table
-        cur.execute(
-            """
+    try:
+        # Deactivate previous uploads for this user
+        cur.execute("UPDATE Uploads SET is_active = FALSE WHERE user_id = %s;", (user_id,))
+
+        # Delete old employees and assignments for this user
+        cur.execute("""
+            DELETE FROM Employees
+            WHERE upload_id IN (SELECT upload_id FROM Uploads WHERE user_id = %s);
+        """, (user_id,))
+
+        cur.execute("""
+            DELETE FROM Assignments
+            WHERE upload_id IN (SELECT upload_id FROM Uploads WHERE user_id = %s);
+        """, (user_id,))
+
+        # Insert new upload record
+        cur.execute("""
             INSERT INTO Uploads (user_id, file_name, is_active)
             VALUES (%s, %s, TRUE)
             RETURNING upload_id;
-            """,
-            (user_id, file.filename),
-        )
+        """, (user_id, file.filename))
         upload_id = cur.fetchone()[0]
 
-        # group rows by employee name to handle multiple assignments per person
         grouped = df.groupby("Employee Name")
 
         for name, group in grouped:
-            first_row = group.iloc[0]
-            availability_status, availability_percent = calculate_availability(first_row)
+            first = group.iloc[0]
 
-            # normalise and clean skills
-            skills_raw = str(first_row.get("Skill Set", "")).strip()
+            # Parse skills
+            skills_raw = str(first.get("Skill Set", "")).strip()
             skills = [s.strip() for s in skills_raw.split(",") if s.strip()] if skills_raw else []
+            skills_json = json.dumps(skills)
 
-            # build list of all active assignments for this employee
-            assignments = []
+            # Insert employee
+            cur.execute("""
+                INSERT INTO Employees (upload_id, name, role, department, experience_years, skills)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING employee_id;
+            """, (
+                upload_id,
+                name,
+                first["Role"],
+                first["Department"],
+                float(first["Experience (Years)"]),
+                skills_json
+            ))
+            employee_id = cur.fetchone()[0]
+
+            # Insert assignments
             for _, row in group.iterrows():
                 title = str(row.get("Current Project", "")).strip()
-                if not title or title in ["—", "-", "NaN", "None", "nan"]:
-                    continue  # skip invalid or empty rows
+                if not title or title.lower() in ["none", "nan", "-", "—"]:
+                    continue
 
                 start_date = pd.to_datetime(row.get("Start Date"), errors="coerce")
                 end_date = pd.to_datetime(row.get("End Date"), errors="coerce")
 
                 if pd.isna(start_date) or pd.isna(end_date):
-                    continue  # skip if missing valid date range
+                    continue
 
-                assignments.append({
-                    "title": title,
-                    "start_date": str(start_date.date()),
-                    "end_date": str(end_date.date()),
-                    "total_hours": float(row.get("Total Hours", 0)) if not pd.isna(row.get("Total Hours")) else 0,
-                    "remaining_hours": float(row.get("Remaining Hours", 0)) if not pd.isna(row.get("Remaining Hours")) else 0,
-                    "priority": str(row.get("Priority", "")).strip(),
-                })
+                total_hours = float(row.get("Total Hours", 0) or 0)
+                remaining_hours = float(row.get("Remaining Hours", 0) or 0)
+                priority = str(row.get("Priority", "")).strip() or None
 
-            # insert single employee record with multiple assignments stored in a list
-            cur.execute(
-                """
-                INSERT INTO Employees (
-                    upload_id,
-                    name,
-                    role,
-                    department,
-                    experience_years,
-                    skills,
-                    availability_status,
-                    availability_percent,
-                    active_assignments
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
-                """,
-                (
-                    upload_id,
-                    name,
-                    first_row["Role"],
-                    first_row["Department"],
-                    float(first_row["Experience (Years)"]),
-                    json.dumps(skills),
-                    availability_status,
-                    availability_percent,
-                    json.dumps(assignments) if assignments else None,
-                ),
-            )
+                cur.execute("""
+                    INSERT INTO Assignments (
+                        employee_id, upload_id, title, start_date, end_date,
+                        total_hours, remaining_hours, priority
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+                """, (
+                    employee_id, upload_id, title,
+                    start_date.date(), end_date.date(),
+                    total_hours, remaining_hours, priority
+                ))
 
         conn.commit()
+
+        return {
+            "message": "File uploaded successfully.",
+            "rows": len(df)
+        }
+
     except Exception as exc:
         conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Error saving data: {exc}")
+        raise HTTPException(500, f"Error saving data: {exc}")
     finally:
         cur.close()
         conn.close()
-
-    # return message to frontend
-    return {"message": "File uploaded and availability processed.", "rows": len(df)}

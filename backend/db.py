@@ -1,10 +1,12 @@
+# db.py
 import psycopg2
+
 
 def get_connection():
     conn = psycopg2.connect(
         dbname="allocaite",
         user="fatima",
-        password=" ",  
+        password=" ",
         host="localhost",
         port="5433"
     )
@@ -15,7 +17,18 @@ def init_db():
     conn = get_connection()
     cur = conn.cursor()
 
-    # USERS TABLE
+    # ----------------------------------------------------------------------
+    # 1. CLEAN OLD STRUCTURES
+    # ----------------------------------------------------------------------
+    # Nukes obsolete versions of the tables so your schema doesn't explode.
+    cur.execute("DROP TABLE IF EXISTS Assignments CASCADE;")
+    cur.execute("DROP TABLE IF EXISTS Employees CASCADE;")
+    cur.execute("DROP TABLE IF EXISTS Uploads CASCADE;")
+    # NOTE: Users is preserved because you shouldn't nuke your accounts.
+
+    # ----------------------------------------------------------------------
+    # 2. USERS TABLE
+    # ----------------------------------------------------------------------
     cur.execute("""
         CREATE TABLE IF NOT EXISTS Users (
             user_id SERIAL PRIMARY KEY,
@@ -26,64 +39,70 @@ def init_db():
         );
     """)
 
-    # UPLOADS TABLE
+    # ----------------------------------------------------------------------
+    # 3. UPLOADS TABLE
+    # ----------------------------------------------------------------------
     cur.execute("""
         CREATE TABLE IF NOT EXISTS Uploads (
             upload_id SERIAL PRIMARY KEY,
             user_id INT REFERENCES Users(user_id),
             file_name VARCHAR(255),
             upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            is_active BOOLEAN
+            is_active BOOLEAN DEFAULT TRUE
         );
     """)
 
-    # EMPLOYEES TABLE
+    # ----------------------------------------------------------------------
+    # 4. EMPLOYEES TABLE (normalized, no assignment JSON)
+    # ----------------------------------------------------------------------
     cur.execute("""
         CREATE TABLE IF NOT EXISTS Employees (
             employee_id SERIAL PRIMARY KEY,
-            upload_id INT REFERENCES Uploads(upload_id),
+            upload_id INT REFERENCES Uploads(upload_id) ON DELETE CASCADE,
             name VARCHAR(100),
             role VARCHAR(100),
-            experience_years FLOAT,
-            skills JSON,
-            availability_status VARCHAR(20),
-            availability_percent FLOAT,
             department VARCHAR(100),
-            active_assignments JSON
+            experience_years FLOAT,
+            skills JSON
         );
     """)
-    cur.execute("""
-        ALTER TABLE Employees
-        ADD COLUMN IF NOT EXISTS availability_percent FLOAT;
-    """)
 
-    # ASSIGNMENTS TABLE
+    # ----------------------------------------------------------------------
+    # 5. ASSIGNMENTS TABLE (normalized, one row per project/task)
+    # ----------------------------------------------------------------------
     cur.execute("""
         CREATE TABLE IF NOT EXISTS Assignments (
             assignment_id SERIAL PRIMARY KEY,
-            upload_id INT REFERENCES Uploads(upload_id),
+            employee_id INT REFERENCES Employees(employee_id) ON DELETE CASCADE,
+            upload_id INT REFERENCES Uploads(upload_id) ON DELETE CASCADE,
+
             title VARCHAR(150),
-            description TEXT,
-            required_skills JSON,
             start_date DATE,
             end_date DATE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+            total_hours FLOAT,
+            remaining_hours FLOAT,
+            priority VARCHAR(50)
         );
     """)
 
-    # RECOMMENDATIONS TABLE
+    # ----------------------------------------------------------------------
+    # 6. RECOMMENDATIONS TABLE (future NLP)
+    # ----------------------------------------------------------------------
     cur.execute("""
         CREATE TABLE IF NOT EXISTS Recommendations (
             rec_id SERIAL PRIMARY KEY,
-            assignment_id INT REFERENCES Assignments(assignment_id),
-            employee_id INT REFERENCES Employees(employee_id),
+            assignment_id INT REFERENCES Assignments(assignment_id) ON DELETE CASCADE,
+            employee_id INT REFERENCES Employees(employee_id) ON DELETE CASCADE,
             match_score FLOAT,
             reason TEXT,
             generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
 
-    # CHATLOGS TABLE
+    # ----------------------------------------------------------------------
+    # 7. CHATLOGS TABLE (for your rule-based chatbot)
+    # ----------------------------------------------------------------------
     cur.execute("""
         CREATE TABLE IF NOT EXISTS ChatLogs (
             chat_id SERIAL PRIMARY KEY,
@@ -93,6 +112,14 @@ def init_db():
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
+
+    # ----------------------------------------------------------------------
+    # 8. INDEXES (makes availability + dashboard queries fast)
+    # ----------------------------------------------------------------------
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_assign_employee ON Assignments(employee_id);")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_assign_dates ON Assignments(start_date, end_date);")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_emp_upload ON Employees(upload_id);")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_upload_active ON Uploads(user_id, is_active);")
 
     conn.commit()
     cur.close()

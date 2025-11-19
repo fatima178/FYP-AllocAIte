@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Menu from './Menu';
 import '../styles/Upload.css';
 import uploadIcon from '../images/upload.png';
+import { apiFetch } from '../api';
 
 const REQUIRED_COLUMNS = [
   'Employee Name',
@@ -93,16 +94,10 @@ function UploadPage() {
       formData.append('user_id', userId);
       formData.append('file', file);
 
-      const response = await fetch('http://localhost:8001/api/upload', {
+      const body = await apiFetch('/upload', {
         method: 'POST',
         body: formData,
       });
-
-      const body = await response.json();
-
-      if (!response.ok) {
-        throw new Error(body.detail || 'Unable to upload file.');
-      }
 
       setStatus({
         type: 'success',

@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import '../styles/Register.css';
-
-// if there’s no environment variable set, use the local backend
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+import { apiFetch, APIError } from '../api';
 
 function Register() {
   // stores user input from the form
@@ -65,38 +63,11 @@ function Register() {
 
     try {
       // send the data to backend API
-      const response = await fetch(`${API_BASE_URL}/register`, {
+      const body = await apiFetch('/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
-      // check if backend responded with an error
-      if (!response.ok) {
-        const errorBody = await response.json();
-
-        // if the email already exists, show login link instead of generic error
-        if (errorBody.detail === 'Email already registered.') {
-          setStatus({
-            type: 'error',
-            message: (
-              <>
-                Email already registered.
-                <button type="button" className="inline-link" onClick={goToLogin}>
-                  Go to login
-                </button>
-              </>
-            ),
-          });
-          return;
-        }
-
-        // show normal error if something else went wrong
-        throw new Error(errorBody.detail || 'Registration failed.');
-      }
-
-      // if everything works fine, clear form and show success message
-      const body = await response.json();
 
       if (body.user_id && payload.email) {
         localStorage.setItem('user_id', body.user_id);
@@ -108,6 +79,25 @@ function Register() {
       setStatus({ type: 'success', message: 'Account created successfully.' });
       setFormData({ name: '', email: '', password: '', confirmPassword: '' });
     } catch (error) {
+      if (
+        error instanceof APIError &&
+        typeof error.body?.detail === 'string' &&
+        error.body.detail.includes('Email already registered')
+      ) {
+        setStatus({
+          type: 'error',
+          message: (
+            <>
+              {error.body.detail}
+              <button type="button" className="inline-link" onClick={goToLogin}>
+                Go to login
+              </button>
+            </>
+          ),
+        });
+        return;
+      }
+
       // catch any network or unexpected error
       setStatus({ type: 'error', message: error.message });
     } finally {
