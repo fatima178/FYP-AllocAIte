@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import './App.css';
+
 import LoginPage from './Pages/Login';
 import UploadPage from './Pages/Upload';
 import DashboardPage from './Pages/Dashboard';
@@ -8,8 +9,7 @@ import AssignmentsPage from './Pages/Assignments';
 import ChatbotPage from './Pages/Chatbot';
 import RecommendationsPage from './Pages/Recommendations';
 import SettingsPage from "./Pages/Settings";
-
-
+import ChatbotPopup from "./Pages/ChatbotPopup";
 
 function App() {
   useEffect(() => {
@@ -18,7 +18,9 @@ function App() {
 
     const storedFontSize = localStorage.getItem('fontSize') || 'medium';
     document.documentElement.style.fontSize =
-      storedFontSize === 'small' ? '14px' : storedFontSize === 'large' ? '18px' : '16px';
+      storedFontSize === 'small' ? '14px' :
+      storedFontSize === 'large' ? '18px' :
+      '16px';
   }, []);
 
   const path = window.location.pathname || '/';
@@ -40,10 +42,15 @@ function App() {
     '/assignments': <AssignmentsPage />,
     '/chatbot': <ChatbotPage />,
     '/recommendations': <RecommendationsPage />,
-    "/settings": <SettingsPage /> 
+    '/settings': <SettingsPage />
   };
 
-  return pages[path] || <UploadPage />;
+  return (
+    <>
+      {pages[path] || <UploadPage />}
+      <ChatbotPopup />   {/* Always visible on every page */}
+    </>
+  );
 }
 
 export default App;

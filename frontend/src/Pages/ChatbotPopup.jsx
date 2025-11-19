@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import Menu from "./Menu";
 import "../styles/Chatbot.css";
 import { apiFetch } from "../api";
 
-function ChatbotPage() {
+export default function ChatbotPopup() {
+  const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
 
@@ -34,7 +34,7 @@ function ChatbotPage() {
     } catch (err) {
       setMessages(prev => [
         ...prev,
-        { sender: "bot", text: "Server error. Try again." }
+        { sender: "bot", text: "Server error. Try again." },
       ]);
     }
 
@@ -45,21 +45,27 @@ function ChatbotPage() {
     "Who is available next week?",
     "Who has Python skills?",
     "What is Emma doing this week?",
-    "Show all backend developers",
+    "Show all backend developers"
   ];
 
   return (
     <>
-      <Menu />
+      {/* Floating “Chatbot” Button */}
+      {!open && (
+        <button className="chatbot-button" onClick={() => setOpen(true)}>
+          Chatbot
+        </button>
+      )}
 
-      <div className="chatbot-full-wrapper">
+      {/* Chatbot Popup */}
+      {open && (
+        <div className="chatbot-popup">
+          <div className="chatbot-header">
+            <span>AllocAIte Assistant</span>
+            <button className="close-btn" onClick={() => setOpen(false)}>×</button>
+          </div>
 
-        <div className="chatbot-full-container">
-
-          <h1 className="chatbot-title">AllocAIte Assistant</h1>
-          <p className="chatbot-subtitle">Ask questions about employees, skills, schedules and more.</p>
-
-          <div className="chatbot-full-messages">
+          <div className="chatbot-messages">
             {messages.map((msg, i) => (
               <div key={i} className={`chat-msg ${msg.sender}`}>
                 {msg.text}
@@ -68,14 +74,14 @@ function ChatbotPage() {
             <div ref={chatEndRef}></div>
           </div>
 
-          <div className="chatbot-full-suggestions">
+          <div className="suggestions">
             <span>Suggestions:</span>
             <div className="suggestion-list">
               {suggestions.map((s, i) => (
                 <button
                   key={i}
-                  onClick={() => setInput(s)}
                   className="suggestion-btn"
+                  onClick={() => setInput(s)}
                 >
                   {s}
                 </button>
@@ -86,18 +92,15 @@ function ChatbotPage() {
           <div className="chatbot-input-area">
             <input
               type="text"
-              placeholder="Type your question..."
+              placeholder="Type message..."
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && sendMessage()}
             />
             <button onClick={sendMessage}>Send</button>
           </div>
-
         </div>
-      </div>
+      )}
     </>
   );
 }
-
-export default ChatbotPage;
