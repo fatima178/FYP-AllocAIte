@@ -81,16 +81,6 @@ function DashboardPage() {
     setSelectedSkill(event.target.value);
   };
 
-  const getAvailabilityPercentage = (employee) => {
-    if (typeof employee?.availability_percent === 'number') {
-      return employee.availability_percent;
-    }
-    const status = employee?.availability_status?.toLowerCase?.() || '';
-    if (status === 'available') return 100;
-    if (status === 'partial') return 50;
-    return 20;
-  };
-
   return (
     <>
       <Menu />
@@ -200,7 +190,10 @@ function DashboardPage() {
                     <div className="availability">
                       <h4>Weekly Availability</h4>
                       <p className="availability-percent">
-                        {getAvailabilityPercentage(emp)}%
+                        {typeof emp.availability_percent === 'number'
+                          ? emp.availability_percent
+                          : 0}
+                        %
                       </p>
                     </div>
                   </div>

@@ -25,7 +25,6 @@ function UploadPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // only authenticated users allowed in
   useEffect(() => {
     const storedUser = localStorage.getItem('user_id');
     if (!storedUser) {
@@ -33,13 +32,10 @@ function UploadPage() {
     }
   }, []);
 
-  // make sure we nudge users toward providing the spreadsheet we expect
   const acceptedColumnsText = REQUIRED_COLUMNS.join(', ');
 
   const validateAndStoreFile = (incomingFile) => {
-    if (!incomingFile) {
-      return;
-    }
+    if (!incomingFile) return;
 
     const extension = incomingFile.name.split('.').pop()?.toLowerCase();
     if (extension !== 'xlsx') {
@@ -52,13 +48,11 @@ function UploadPage() {
     setFile(incomingFile);
   };
 
-  // Handle the standard file picker workflow
   const handleFileChange = (event) => {
     const selectedFile = event.target.files?.[0];
     validateAndStoreFile(selectedFile);
   };
 
-  // Support drag-and-drop for convenience
   const handleDrop = (event) => {
     event.preventDefault();
     setIsDragging(false);
@@ -75,6 +69,7 @@ function UploadPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
     if (!file) {
       setStatus({ type: 'error', message: 'Please choose an .xlsx file first.' });
       return;
@@ -99,11 +94,17 @@ function UploadPage() {
         body: formData,
       });
 
+      // Save the upload_id for NLP recommendations
+      if (body.upload_id) {
+        localStorage.setItem('active_upload_id', body.upload_id);
+      }
+
       setStatus({
         type: 'success',
         message: `File uploaded successfully. Rows processed: ${body.rows}.`,
       });
       setFile(null);
+
     } catch (error) {
       setStatus({ type: 'error', message: error.message });
     } finally {

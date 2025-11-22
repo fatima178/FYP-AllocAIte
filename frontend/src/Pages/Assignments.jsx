@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import Menu from "./Menu";
 import "../styles/Assignments.css";
+import { apiFetch } from "../api";
 
 function AssignmentsPage() {
   const [taskDescription, setTaskDescription] = useState("");
@@ -13,26 +14,48 @@ function AssignmentsPage() {
     setLoading(true);
     setError("");
 
+    const userId = localStorage.getItem("user_id");
+    if (!userId) {
+      setError("Please log in before requesting recommendations.");
+      setLoading(false);
+      return;
+    }
+
+    if (!taskDescription.trim()) {
+      setError("Task description is required.");
+      setLoading(false);
+      return;
+    }
+
+    if (!startDate || !endDate) {
+      setError("Please provide both start and end dates.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const res = await fetch("http://localhost:8001/api/recommend", {
+      const payload = {
+        task_description: taskDescription,
+        start_date: startDate,
+        end_date: endDate,
+        user_id: Number(userId),
+      };
+
+      const uploadId = localStorage.getItem("active_upload_id");
+      if (uploadId) {
+        payload.upload_id = Number(uploadId);
+      }
+
+      const data = await apiFetch("/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task_description: taskDescription,
-          start_date: startDate,
-          end_date: endDate
-        })
+        body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Recommendation request failed");
-
-      const data = await res.json();
       localStorage.setItem("recommendations", JSON.stringify(data));
-
       window.location.href = "/recommendations";
-
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Recommendation request failed.");
     } finally {
       setLoading(false);
     }
