@@ -18,6 +18,15 @@ export default function ChatbotPopup() {
   const sendMessage = async () => {
     if (!input.trim()) return;
 
+    const userId = localStorage.getItem("user_id");
+    if (!userId) {
+      setMessages(prev => [
+        ...prev,
+        { sender: "bot", text: "Please log in before using the assistant." },
+      ]);
+      return;
+    }
+
     const userMsg = { sender: "user", text: input };
     setMessages(prev => [...prev, userMsg]);
 
@@ -27,7 +36,7 @@ export default function ChatbotPopup() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: input }),
+        body: JSON.stringify({ message: input, user_id: Number(userId) }),
       });
       const botMsg = { sender: "bot", text: res.response };
       setMessages(prev => [...prev, botMsg]);

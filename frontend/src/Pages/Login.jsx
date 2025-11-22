@@ -82,10 +82,16 @@ function LoginPage() {
     // create payload depending on which mode we’re in
     let payload;
     if (mode === 'login') {
-      payload = formData.login;
+      payload = {
+        ...formData.login,
+        email: formData.login.email.trim().toLowerCase(),
+      };
     } else {
       const { confirmPassword, ...registerPayload } = formData.register;
-      payload = registerPayload;
+      payload = {
+        ...registerPayload,
+        email: registerPayload.email.trim().toLowerCase(),
+      };
     }
 
     try {
@@ -110,7 +116,16 @@ function LoginPage() {
         if (body.created_at) {
           localStorage.setItem('member_since', body.created_at);
         }
-        window.location.href = '/upload';
+
+        if (body.active_upload_id) {
+          localStorage.setItem('active_upload_id', body.active_upload_id);
+        } else {
+          localStorage.removeItem('active_upload_id');
+        }
+
+        const redirectPath =
+          body.has_upload || body.active_upload_id ? '/dashboard' : '/upload';
+        window.location.href = redirectPath;
         return;
       }
 
