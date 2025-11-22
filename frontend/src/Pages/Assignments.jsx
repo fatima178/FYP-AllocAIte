@@ -53,6 +53,14 @@ function AssignmentsPage() {
       });
 
       localStorage.setItem("recommendations", JSON.stringify(data));
+      localStorage.setItem(
+        "recommendations_context",
+        JSON.stringify({
+          task_description: taskDescription.trim(),
+          start_date: startDate,
+          end_date: endDate,
+        })
+      );
       window.location.href = "/recommendations";
     } catch (err) {
       setError(err.message || "Recommendation request failed.");
