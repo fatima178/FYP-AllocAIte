@@ -24,6 +24,7 @@ def calculate_availability(employee_id: int, window_start: date, window_end: dat
     cur = conn.cursor()
 
     try:
+        # get relevant assignments
         cur.execute("""
             SELECT title, start_date, end_date, total_hours, remaining_hours
             FROM Assignments

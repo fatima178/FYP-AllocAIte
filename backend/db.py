@@ -43,9 +43,7 @@ def init_db():
         );
     """)
 
-    # ----------------------------------------------------------------------
-    # 4. EMPLOYEES TABLE (normalized, no assignment JSON)
-    # ----------------------------------------------------------------------
+    # EMPLOYEES TABLE 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS Employees (
             employee_id SERIAL PRIMARY KEY,
@@ -58,9 +56,7 @@ def init_db():
         );
     """)
 
-    # ----------------------------------------------------------------------
-    # 5. ASSIGNMENTS TABLE (normalized, one row per project/task)
-    # ----------------------------------------------------------------------
+    # ASSIGNMENTS TABLE 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS Assignments (
             assignment_id SERIAL PRIMARY KEY,

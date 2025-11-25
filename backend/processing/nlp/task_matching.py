@@ -7,12 +7,12 @@ from .task_scoring import (
     build_recommendation_entry,
 )
 
-# Load SBERT model once
+# load SBERT model once
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
 
 # ----------------------------------------------------------
-# Load employees cleanly from DB
+# get employees + clean skills
 # ----------------------------------------------------------
 def fetch_employees(upload_id):
     conn = get_connection()
@@ -23,22 +23,24 @@ def fetch_employees(upload_id):
         FROM Employees
         WHERE upload_id = %s
     """, (upload_id,))
-
     rows = cur.fetchall()
+
     cur.close()
     conn.close()
 
     employees = []
+
     for r in rows:
         raw_skills = r[4]
 
+        # decode skills JSON safely
         if isinstance(raw_skills, bytes):
             raw_skills = raw_skills.decode("utf-8")
 
         if isinstance(raw_skills, str):
             try:
                 skills = json.loads(raw_skills)
-            except json.JSONDecodeError:
+            except:
                 skills = []
         elif isinstance(raw_skills, (list, tuple)):
             skills = list(raw_skills)
@@ -57,51 +59,52 @@ def fetch_employees(upload_id):
 
 
 # ----------------------------------------------------------
-# SEMANTIC + KEYWORD SKILL MATCHING
+# semantic + keyword skill matching
 # ----------------------------------------------------------
 def semantic_skill_match(task_description, skills, threshold=0.45):
-    """
-    Returns a list of dicts that describe which skills are relevant
-    to the task, along with a similarity score. Uses a mix of direct
-    keyword matching and SBERT similarity so that “API integration”
-    can match “build backend services”, etc.
-    """
     if not skills or not task_description:
         return []
 
     description = task_description.lower()
     description_tokens = set(description.replace(",", " ").split())
+
+    # embed task text
     task_emb = model.encode(description, convert_to_tensor=True)
 
     matches = []
+
     for raw_skill in skills:
         label = str(raw_skill).strip()
         if not label:
             continue
 
-        normalized = label.lower()
-        similarity = 0.0
+        normal = label.lower()
+        sim = 0.0
 
-        if normalized in description:
-            similarity = 1.0
+        # direct text match
+        if normal in description:
+            sim = 1.0
         else:
-            for token in normalized.replace("/", " ").split():
-                if token and token in description_tokens:
-                    similarity = 0.75
+            # keyword overlap
+            for tok in normal.replace("/", " ").split():
+                if tok and tok in description_tokens:
+                    sim = 0.75
                     break
 
-        if similarity < 0.75:
-            skill_emb = model.encode(normalized, convert_to_tensor=True)
-            similarity = max(similarity, util.cos_sim(task_emb, skill_emb).item())
+        # SBERT match if needed
+        if sim < 0.75:
+            skill_emb = model.encode(normal, convert_to_tensor=True)
+            sim = max(sim, util.cos_sim(task_emb, skill_emb).item())
 
-        if similarity >= threshold:
-            matches.append({"label": label, "score": similarity})
+        # only keep useful skills
+        if sim >= threshold:
+            matches.append({"label": label, "score": sim})
 
     return matches
 
 
 # ----------------------------------------------------------
-# Availability from Assignments table
+# calculate employee availability
 # ----------------------------------------------------------
 def calculate_availability(employee_id, start, end):
     conn = get_connection()
@@ -114,11 +117,12 @@ def calculate_availability(employee_id, start, end):
           AND start_date <= %s
           AND end_date >= %s
     """, (employee_id, end, start))
-
     rows = cur.fetchall()
+
     cur.close()
     conn.close()
 
+    # no assignments = fully free
     if not rows:
         return 1.0
 
@@ -132,7 +136,7 @@ def calculate_availability(employee_id, start, end):
 
 
 # ----------------------------------------------------------
-# SBERT encoders for employees + task
+# helper to build SBERT embedding text
 # ----------------------------------------------------------
 def build_employee_text(emp):
     skills = ", ".join(emp["skills"])
@@ -149,43 +153,55 @@ def encode_employees(emps):
 
 
 # ----------------------------------------------------------
-# MAIN MATCHING ENGINE (with your weights)
+# main matching pipeline
 # ----------------------------------------------------------
 def match_employees(task_description, upload_id, start_date, end_date):
+    # get employees
     employees = fetch_employees(upload_id)
     if not employees:
         return []
 
-    max_experience = max((emp["experience"] for emp in employees), default=0) or 1
+    # used for experience normalisation
+    max_exp = max((e["experience"] for e in employees), default=1)
 
+    # embed task + employees once
     task_emb = encode_task(task_description)
     emp_embs = encode_employees(employees)
+
+    # SBERT similarities
     sims = util.cos_sim(task_emb, emp_embs)[0]
 
     ranked = []
 
     for idx, emp in enumerate(employees):
 
-        semantic = float(sims[idx])  # SBERT embedding similarity
-        exp_score = normalize_experience(emp["experience"], max_experience)
+        semantic = float(sims[idx])              # SBERT score
+        exp_score = normalize_experience(emp["experience"], max_exp)
         role_score = compute_role_match(task_description, emp["role"])
 
-        matched_skill_data = semantic_skill_match(task_description, emp["skills"])
-        matched_skills = [item["label"] for item in matched_skill_data]
-        avg_skill_similarity = (
-            sum(item["score"] for item in matched_skill_data) / len(matched_skill_data)
-            if matched_skill_data
-            else 0
+        # full semantic skill matching
+        skill_matches = semantic_skill_match(task_description, emp["skills"])
+        matched_labels = [m["label"] for m in skill_matches]
+
+        # average SBERT skill similarity
+        avg_skill_sim = (
+            sum(m["score"] for m in skill_matches) / len(skill_matches)
+            if skill_matches else 0
         )
-        skill_coverage = (
-            len(matched_skills) / len(emp["skills"]) if emp["skills"] else 0
+
+        # % of skills that matched
+        coverage = (
+            len(matched_labels) / len(emp["skills"]) if emp["skills"] else 0
         )
-        skill_score = max(avg_skill_similarity, skill_coverage)
+
+        # pick best skill score
+        skill_score = max(avg_skill_sim, coverage)
 
         availability = calculate_availability(
             emp["employee_id"], start_date, end_date
         )
 
+        # build final entry with all scores
         ranked.append(
             build_recommendation_entry(
                 emp,
@@ -194,8 +210,9 @@ def match_employees(task_description, upload_id, start_date, end_date):
                 exp_score,
                 role_score,
                 availability,
-                matched_skills,
+                matched_labels,
             )
         )
 
+    # sort by final score
     return sorted(ranked, key=lambda x: x["final_score"], reverse=True)

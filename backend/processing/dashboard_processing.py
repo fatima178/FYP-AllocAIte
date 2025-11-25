@@ -4,7 +4,7 @@ from datetime import date
 from db import get_connection
 from processing.availability_processing import calculate_availability, dashboard_window
 
-
+# get the latest update for user
 def get_latest_upload_id(cur, user_id: int):
     cur.execute("""
         SELECT upload_id
@@ -118,13 +118,13 @@ def get_employees_data(user_id: int, search=None, skills=None, availability=None
                 except:
                     parsed_skills = []
 
-            # APPLY SEARCH FILTER
+            # apply search filter
             if search:
                 st = search.lower()
                 if st not in name.lower() and st not in role.lower():
                     continue
 
-            # APPLY SKILL FILTER
+            # apply skill filter
             if skills:
                 lower_emp = [s.lower() for s in parsed_skills]
                 lower_filt = [s.lower() for s in skills]

@@ -48,7 +48,7 @@ function App() {
   return (
     <>
       {pages[path] || <UploadPage />}
-      <ChatbotPopup />   {/* Always visible on every page */}
+      <ChatbotPopup /> 
     </>
   );
 }
