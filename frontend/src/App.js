@@ -13,14 +13,19 @@ import ChatbotPopup from "./Pages/ChatbotPopup";
 
 function App() {
   useEffect(() => {
-    const storedTheme = localStorage.getItem('theme') || 'light';
+    const resolveFontSizeValue = (size) =>
+      size === 'small' ? '14px' : size === 'large' ? '18px' : '16px';
+    const userId = localStorage.getItem('user_id');
+    if (!userId) {
+      document.body.classList.remove('dark-theme');
+      document.documentElement.style.fontSize = resolveFontSizeValue('medium');
+      return;
+    }
+    const storedTheme = localStorage.getItem(`theme_${userId}`) || 'light';
     document.body.classList.toggle('dark-theme', storedTheme === 'dark');
 
-    const storedFontSize = localStorage.getItem('fontSize') || 'medium';
-    document.documentElement.style.fontSize =
-      storedFontSize === 'small' ? '14px' :
-      storedFontSize === 'large' ? '18px' :
-      '16px';
+    const storedFontSize = localStorage.getItem(`fontSize_${userId}`) || 'medium';
+    document.documentElement.style.fontSize = resolveFontSizeValue(storedFontSize);
   }, []);
 
   const path = window.location.pathname || '/';

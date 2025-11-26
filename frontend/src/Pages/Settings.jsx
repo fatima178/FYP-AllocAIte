@@ -3,6 +3,35 @@ import Menu from "./Menu";
 import "../styles/Settings.css";
 import { apiFetch } from "../api";
 
+const DEFAULT_THEME = "light";
+const DEFAULT_FONT_SIZE = "medium";
+
+const applyThemeClass = (value) => {
+  document.body.classList.toggle("dark-theme", value === "dark");
+};
+
+const applyFontSize = (value) => {
+  document.documentElement.style.fontSize =
+    value === "small" ? "14px" : value === "large" ? "18px" : "16px";
+};
+
+const getPreferenceKey = (base) => {
+  const userId = localStorage.getItem("user_id");
+  return userId ? `${base}_${userId}` : null;
+};
+
+const readPreference = (base, fallback) => {
+  const key = getPreferenceKey(base);
+  if (!key) return fallback;
+  return localStorage.getItem(key) || fallback;
+};
+
+const writePreference = (base, value) => {
+  const key = getPreferenceKey(base);
+  if (!key) return;
+  localStorage.setItem(key, value);
+};
+
 function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -42,8 +71,8 @@ function SettingsPage() {
   };
 
   // Theme + Font state
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
-  const [fontSize, setFontSize] = useState(localStorage.getItem("fontSize") || "medium");
+  const [theme, setTheme] = useState(() => readPreference("theme", DEFAULT_THEME));
+  const [fontSize, setFontSize] = useState(() => readPreference("fontSize", DEFAULT_FONT_SIZE));
 
   useEffect(() => {
     const userId = localStorage.getItem("user_id");
@@ -63,11 +92,11 @@ function SettingsPage() {
         });
         if (data.theme) {
           setTheme(data.theme);
-          localStorage.setItem("theme", data.theme);
+          writePreference("theme", data.theme);
         }
         if (data.font_size) {
           setFontSize(data.font_size);
-          localStorage.setItem("fontSize", data.font_size);
+          writePreference("fontSize", data.font_size);
         }
       } catch (err) {
         setError(err.message || "Unable to load settings.");
@@ -81,9 +110,8 @@ function SettingsPage() {
 
   // Apply theme & font size on load
   useEffect(() => {
-    document.body.classList.toggle("dark-theme", theme === "dark");
-    document.documentElement.style.fontSize =
-      fontSize === "small" ? "14px" : fontSize === "large" ? "18px" : "16px";
+    applyThemeClass(theme);
+    applyFontSize(fontSize);
   }, [theme, fontSize]);
 
   // Theme change handler
@@ -106,17 +134,17 @@ function SettingsPage() {
   };
 
   const changeTheme = (value) => {
+    applyThemeClass(value);
     setTheme(value);
-    localStorage.setItem("theme", value);
+    writePreference("theme", value);
     updateSettings({ theme: value });
   };
 
   // Font size change handler
   const changeFontSize = (value) => {
     setFontSize(value);
-    localStorage.setItem("fontSize", value);
-    document.documentElement.style.fontSize =
-      value === "small" ? "14px" : value === "large" ? "18px" : "16px";
+    writePreference("fontSize", value);
+    applyFontSize(value);
     updateSettings({ font_size: value });
   };
 
