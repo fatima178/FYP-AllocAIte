@@ -22,6 +22,8 @@ code {
   --card-border: rgba(0, 0, 0, 0.1);
   --button-bg: #2563eb;
   --button-text: #ffffff;
+  --button-hover-bg: #1d4ed8;
+  --button-hover-text: #ffffff;
   --muted-text: #6b7280;
   --surface-muted: #f3f4f6;
   --surface-soft: #f9fafb;
@@ -42,6 +44,8 @@ code {
   --card-border: rgba(255, 255, 255, 0.1);
   --button-bg: #3b82f6;
   --button-text: #ffffff;
+  --button-hover-bg: #2563eb;
+  --button-hover-text: #ffffff;
   --muted-text: #9ca3af;
   --surface-muted: #1f2937;
   --surface-soft: #111827;
