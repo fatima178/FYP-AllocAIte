@@ -67,3 +67,116 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
+.settings-form {
+  margin-top: 20px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 15px;
+}
+
+.settings-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.settings-form input {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.status-message {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.status-message.success,
+.status-message.info {
+  background: rgba(34, 197, 94, 0.15);
+  color: #047857;
+}
+
+.status-message.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+}
+
+.muted {
+  color: var(--muted-text);
+  font-size: 14px;
+  margin: 10px 0 0;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.modal-card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 24px;
+  width: min(520px, 100%);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text);
+  padding: 4px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.cancel-button {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: var(--danger-border);
+  border-radius: 999px;
+}
+
+.cancel-button:hover {
+  background: var(--danger-hover-bg);
+  color: var(--danger-hover-text);
+  border-color: var(--danger-hover-bg);
+}

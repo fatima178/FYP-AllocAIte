@@ -1,39 +1,41 @@
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException
-from db import get_connection
+from pydantic import BaseModel, EmailStr
+
+from processing.settings_processing import (
+    change_user_password,
+    fetch_user_settings,
+    persist_user_settings,
+    update_account_details as process_account_details,
+    verify_user_password,
+)
 
 router = APIRouter()
+
+
+class UpdateDetailsRequest(BaseModel):
+    user_id: int
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+
+
+class ChangePasswordRequest(BaseModel):
+    user_id: int
+    current_password: str
+    new_password: str
+
+
+class VerifyPasswordRequest(BaseModel):
+    user_id: int
+    current_password: str
 
 # -------------------------------------
 # GET USER SETTINGS
 # -------------------------------------
 @router.get("/settings")
 def get_settings(user_id: int):
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute("""
-        SELECT u.name, u.email, u.created_at,
-               COALESCE(s.theme, 'light'),
-               COALESCE(s.font_size, 'medium')
-        FROM Users u
-        LEFT JOIN UserSettings s ON u.user_id = s.user_id
-        WHERE u.user_id = %s;
-    """, (user_id,))
-
-    row = cur.fetchone()
-    cur.close()
-    conn.close()
-
-    if not row:
-        raise HTTPException(404, "User not found")
-
-    return {
-        "name": row[0],
-        "email": row[1],
-        "member_since": row[2],
-        "theme": row[3],
-        "font_size": row[4],
-    }
+    return fetch_user_settings(user_id)
 
 
 # -------------------------------------
@@ -48,26 +50,28 @@ def update_settings(data: dict):
     if not user_id:
         raise HTTPException(400, "user_id is required")
 
-    conn = get_connection()
-    cur = conn.cursor()
+    return persist_user_settings(int(user_id), theme, font_size)
 
-    # Ensure row exists
-    cur.execute("""
-        INSERT INTO UserSettings (user_id)
-        VALUES (%s)
-        ON CONFLICT (user_id) DO NOTHING;
-    """, (user_id,))
 
-    # Update fields
-    cur.execute("""
-        UPDATE UserSettings
-        SET theme = COALESCE(%s, theme),
-            font_size = COALESCE(%s, font_size)
-        WHERE user_id = %s;
-    """, (theme, font_size, user_id))
+# -------------------------------------
+# UPDATE ACCOUNT DETAILS
+# -------------------------------------
+@router.put("/settings/details")
+def update_account_details(payload: UpdateDetailsRequest):
+    if payload.name is None and payload.email is None:
+        raise HTTPException(400, "No changes supplied.")
 
-    conn.commit()
-    cur.close()
-    conn.close()
+    return process_account_details(payload.user_id, payload.name, payload.email)
 
-    return {"message": "Settings updated"}
+
+# -------------------------------------
+# CHANGE PASSWORD
+# -------------------------------------
+@router.post("/settings/password/verify")
+def verify_password(payload: VerifyPasswordRequest):
+    return verify_user_password(payload.user_id, payload.current_password)
+
+
+@router.post("/settings/password")
+def change_password(payload: ChangePasswordRequest):
+    return change_user_password(payload.user_id, payload.current_password, payload.new_password)

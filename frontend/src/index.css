@@ -28,6 +28,11 @@ code {
   --border-subtle: rgba(0, 0, 0, 0.05);
   --input-bg: #ffffff;
   --input-border: rgba(0, 0, 0, 0.15);
+  --danger-bg: #fee2e2;
+  --danger-text: #b91c1c;
+  --danger-border: #fecaca;
+  --danger-hover-bg: #ef4444;
+  --danger-hover-text: #ffffff;
 }
 
 .dark-theme {
@@ -43,6 +48,11 @@ code {
   --border-subtle: rgba(255, 255, 255, 0.08);
   --input-bg: #111827;
   --input-border: rgba(255, 255, 255, 0.2);
+  --danger-bg: rgba(239, 68, 68, 0.15);
+  --danger-text: #fecaca;
+  --danger-border: rgba(239, 68, 68, 0.4);
+  --danger-hover-bg: #ef4444;
+  --danger-hover-text: #ffffff;
 }
 
 /* ---------------------------------------------------
