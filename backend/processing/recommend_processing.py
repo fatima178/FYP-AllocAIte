@@ -41,9 +41,9 @@ def resolve_upload_id(user_id: Optional[int], upload_id: Optional[int]) -> Optio
             # check if the upload actually belongs to this user
             cur.execute(
                 """
-                select upload_id
-                from uploads
-                where upload_id = %s and user_id = %s;
+                SELECT upload_id
+                FROM "Uploads"
+                WHERE upload_id = %s AND user_id = %s;
                 """,
                 (upload_id, user_id),
             )
@@ -61,11 +61,11 @@ def resolve_upload_id(user_id: Optional[int], upload_id: Optional[int]) -> Optio
         # try active upload for the user first
         cur.execute(
             """
-            select upload_id
-            from uploads
-            where user_id = %s and is_active = true
-            order by upload_date desc
-            limit 1;
+            SELECT upload_id
+            FROM "Uploads"
+            WHERE user_id = %s AND is_active = true
+            ORDER BY upload_date DESC
+            LIMIT 1;
             """,
             (user_id,),
         )
@@ -76,11 +76,11 @@ def resolve_upload_id(user_id: Optional[int], upload_id: Optional[int]) -> Optio
         # fallback: the latest upload regardless of active flag
         cur.execute(
             """
-            select upload_id
-            from uploads
-            where user_id = %s
-            order by upload_date desc
-            limit 1;
+            SELECT upload_id
+            FROM "Uploads"
+            WHERE user_id = %s
+            ORDER BY upload_date DESC
+            LIMIT 1;
             """,
             (user_id,),
         )

@@ -26,11 +26,11 @@ def calculate_availability(employee_id: int, window_start: date, window_end: dat
         # fetch any assignments that overlap with the requested window
         # overlap rule: assignment.start <= window_end AND assignment.end >= window_start
         cur.execute("""
-            select title, start_date, end_date, total_hours, remaining_hours
-            from assignments
-            where employee_id = %s
-              and start_date <= %s
-              and end_date >= %s;
+            SELECT title, start_date, end_date, total_hours, remaining_hours
+            FROM "Assignments"
+            WHERE employee_id = %s
+              AND start_date <= %s
+              AND end_date >= %s;
         """, (employee_id, window_end, window_start))
 
         rows = cur.fetchall()

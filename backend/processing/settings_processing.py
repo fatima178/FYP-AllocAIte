@@ -20,12 +20,12 @@ def fetch_user_settings(user_id: int):
 
     try:
         cur.execute("""
-            select u.name, u.email, u.created_at,
-                   coalesce(s.theme, 'light'),
-                   coalesce(s.font_size, 'medium')
-            from users u
-            left join usersettings s on u.user_id = s.user_id
-            where u.user_id = %s;
+            SELECT u.name, u.email, u.created_at,
+                   COALESCE(s.theme, 'light'),
+                   COALESCE(s.font_size, 'medium')
+            FROM "Users" u
+            LEFT JOIN "UserSettings" s ON u.user_id = s.user_id
+            WHERE u.user_id = %s;
         """, (user_id,))
 
         row = cur.fetchone()
@@ -57,17 +57,17 @@ def persist_user_settings(user_id: int, theme: Optional[str], font_size: Optiona
     try:
         # ensure settings row exists
         cur.execute("""
-            insert into usersettings (user_id)
-            values (%s)
-            on conflict (user_id) do nothing;
+            INSERT INTO "UserSettings" (user_id)
+            VALUES (%s)
+            ON CONFLICT (user_id) DO NOTHING;
         """, (user_id,))
 
         # update provided fields, keep previous values if null
         cur.execute("""
-            update usersettings
-            set theme = coalesce(%s, theme),
-                font_size = coalesce(%s, font_size)
-            where user_id = %s;
+            UPDATE "UserSettings"
+            SET theme = COALESCE(%s, theme),
+                font_size = COALESCE(%s, font_size)
+            WHERE user_id = %s;
         """, (theme, font_size, user_id))
 
         conn.commit()
@@ -91,14 +91,14 @@ def update_account_details(user_id: int, name: Optional[str], email: Optional[st
 
     try:
         # ensure user exists
-        cur.execute("select user_id from users where user_id = %s;", (user_id,))
+        cur.execute('SELECT user_id FROM "Users" WHERE user_id = %s;', (user_id,))
         if not cur.fetchone():
             raise HTTPException(404, "user not found.")
 
         # check email uniqueness (if provided)
         if email:
             cur.execute(
-                "select user_id from users where email = %s and user_id <> %s;",
+                'SELECT user_id FROM "Users" WHERE email = %s AND user_id <> %s;',
                 (email, user_id),
             )
             if cur.fetchone():
@@ -106,12 +106,12 @@ def update_account_details(user_id: int, name: Optional[str], email: Optional[st
 
         # update and return updated profile info
         cur.execute("""
-            update users
-            set
-                name = coalesce(%s, name),
-                email = coalesce(%s, email)
-            where user_id = %s
-            returning name, email, created_at;
+            UPDATE "Users"
+            SET
+                name = COALESCE(%s, name),
+                email = COALESCE(%s, email)
+            WHERE user_id = %s
+            RETURNING name, email, created_at;
         """, (name, email, user_id))
 
         updated = cur.fetchone()
@@ -140,7 +140,7 @@ def verify_user_password(user_id: int, current_password: str):
     cur = conn.cursor()
 
     try:
-        cur.execute("select password_hash from users where user_id = %s;", (user_id,))
+        cur.execute('SELECT password_hash FROM "Users" WHERE user_id = %s;', (user_id,))
         row = cur.fetchone()
         if not row:
             raise HTTPException(404, "user not found.")
@@ -186,7 +186,7 @@ def change_user_password(user_id: int, current_password: str, new_password: str)
 
     try:
         # fetch existing password hash
-        cur.execute("select password_hash from users where user_id = %s;", (user_id,))
+        cur.execute('SELECT password_hash FROM "Users" WHERE user_id = %s;', (user_id,))
         row = cur.fetchone()
         if not row:
             raise HTTPException(404, "user not found.")
@@ -201,7 +201,7 @@ def change_user_password(user_id: int, current_password: str, new_password: str)
         # store new password hash
         new_hash = hashlib.sha256(new_password.encode("utf-8")).hexdigest()
         cur.execute(
-            "update users set password_hash = %s where user_id = %s;",
+            'UPDATE "Users" SET password_hash = %s WHERE user_id = %s;',
             (new_hash, user_id),
         )
 

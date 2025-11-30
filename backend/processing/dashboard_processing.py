@@ -12,11 +12,11 @@ from processing.availability_processing import calculate_availability, dashboard
 # if no active upload exists, returns none.
 def get_latest_upload_id(cur, user_id: int):
     cur.execute("""
-        select upload_id
-        from uploads
-        where user_id = %s and is_active = true
-        order by upload_date desc
-        limit 1;
+        SELECT upload_id
+        FROM "Uploads"
+        WHERE user_id = %s AND is_active = TRUE
+        ORDER BY upload_date DESC
+        LIMIT 1;
     """, (user_id,))
     result = cur.fetchone()
     return result[0] if result else None
@@ -48,20 +48,20 @@ def get_dashboard_summary(user_id: int):
 
         # 1. total employees tied to this upload
         cur.execute("""
-            select count(*) 
-            from employees 
-            where upload_id = %s;
+            SELECT COUNT(*) 
+            FROM "Employees" 
+            WHERE upload_id = %s;
         """, (upload_id,))
         total_employees = cur.fetchone()[0]
 
         # 2. active projects: assignments overlapping today's date
         today = date.today()
         cur.execute("""
-            select count(*)
-            from assignments
-            where upload_id = %s
-              and start_date <= %s
-              and end_date >= %s;
+            SELECT COUNT(*)
+            FROM "Assignments"
+            WHERE upload_id = %s
+              AND start_date <= %s
+              AND end_date >= %s;
         """, (upload_id, today, today))
         active_projects = cur.fetchone()[0]
 
@@ -69,9 +69,9 @@ def get_dashboard_summary(user_id: int):
         window_start, window_end = dashboard_window()
 
         cur.execute("""
-            select employee_id
-            from employees
-            where upload_id = %s;
+            SELECT employee_id
+            FROM "Employees"
+            WHERE upload_id = %s;
         """, (upload_id,))
         employees = cur.fetchall()
 
@@ -129,10 +129,10 @@ def get_employees_data(user_id: int, search=None, skills=None, availability=None
 
         # fetch full employee records
         cur.execute("""
-            select employee_id, name, role, department, experience_years, skills
-            from employees
-            where upload_id = %s
-            order by name asc;
+            SELECT employee_id, name, role, department, experience_years, skills
+            FROM "Employees"
+            WHERE upload_id = %s
+            ORDER BY name ASC;
         """, (upload_id,))
         rows = cur.fetchall()
 
@@ -181,11 +181,11 @@ def get_employees_data(user_id: int, search=None, skills=None, availability=None
             # fetch assignments active today
             today = date.today()
             cur.execute("""
-                select title, start_date, end_date, priority
-                from assignments
-                where employee_id = %s
-                  and start_date <= %s
-                  and end_date >= %s;
+                SELECT title, start_date, end_date, priority
+                FROM "Assignments"
+                WHERE employee_id = %s
+                  AND start_date <= %s
+                  AND end_date >= %s;
             """, (employee_id, today, today))
 
             assignments = []

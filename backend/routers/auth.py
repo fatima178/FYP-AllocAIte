@@ -50,15 +50,15 @@ def register_user(payload: RegisterRequest):
 
     try:
         # check email uniqueness before inserting
-        cur.execute("select 1 from users where email = %s;", (payload.email,))
+        cur.execute('SELECT 1 FROM "Users" WHERE email = %s;', (payload.email,))
         if cur.fetchone():
             raise HTTPException(400, "email already registered.")
 
         # insert new user
         cur.execute("""
-            insert into users (name, email, password_hash)
-            values (%s, %s, %s)
-            returning user_id, created_at;
+            INSERT INTO "Users" (name, email, password_hash)
+            VALUES (%s, %s, %s)
+            RETURNING user_id, created_at;
         """, (payload.name, payload.email, password_hash))
 
         user_id, created_at = cur.fetchone()
@@ -98,9 +98,9 @@ def login_user(payload: LoginRequest):
     try:
         # find account by email
         cur.execute("""
-            select user_id, name, password_hash, created_at
-            from users
-            where email = %s;
+            SELECT user_id, name, password_hash, created_at
+            FROM "Users"
+            WHERE email = %s;
         """, (payload.email,))
         record = cur.fetchone()
 
@@ -119,11 +119,11 @@ def login_user(payload: LoginRequest):
         # fetch user's latest upload info
         cur.execute(
             """
-            select upload_id, is_active
-            from uploads
-            where user_id = %s
-            order by upload_date desc
-            limit 1;
+            SELECT upload_id, is_active
+            FROM "Uploads"
+            WHERE user_id = %s
+            ORDER BY upload_date DESC
+            LIMIT 1;
             """,
             (user_id,),
         )

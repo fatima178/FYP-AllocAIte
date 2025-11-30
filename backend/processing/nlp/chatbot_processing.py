@@ -100,7 +100,7 @@ def parse_employee(cur, upload_id, text: str):
 
     # fetch all employees from this upload so we can match names locally
     cur.execute(
-        "select employee_id, name from employees where upload_id = %s;",
+        'SELECT employee_id, name FROM "Employees" WHERE upload_id = %s;',
         (upload_id,),
     )
     rows = cur.fetchall()
@@ -158,13 +158,13 @@ def handle_availability(cur, upload_id: int, message: str):
     # overlapping condition: assignment.start <= query.end and assignment.end >= query.start
     cur.execute(
         """
-        select name from employees
-        where upload_id = %s
-          and employee_id not in (
-              select employee_id from assignments
-              where upload_id = %s
-                and start_date <= %s
-                and end_date >= %s
+        SELECT name FROM "Employees"
+        WHERE upload_id = %s
+          AND employee_id NOT IN (
+              SELECT employee_id FROM "Assignments"
+              WHERE upload_id = %s
+                AND start_date <= %s
+                AND end_date >= %s
           );
         """,
         (upload_id, upload_id, end, start),
@@ -192,16 +192,16 @@ def handle_skills(cur, upload_id: int, message: str):
     conditions = []
     params = [upload_id]
     for skill in skills:
-        conditions.append("skills::text ilike %s")
+        conditions.append("skills::text ILIKE %s")
         params.append(f"%{skill}%")
 
-    where_clause = " and ".join(conditions)
+    where_clause = " AND ".join(conditions)
 
     query = f"""
-        select name
-        from employees
-        where upload_id = %s
-          and {where_clause};
+        SELECT name
+        FROM "Employees"
+        WHERE upload_id = %s
+          AND {where_clause};
     """
     cur.execute(query, params)
 
@@ -235,12 +235,12 @@ def handle_assignment(cur, upload_id: int, message: str):
     # get all assignments overlapping this date range for this employee
     cur.execute(
         """
-        select title
-        from assignments
-        where employee_id = %s
-          and upload_id = %s
-          and start_date <= %s
-          and end_date >= %s;
+        SELECT title
+        FROM "Assignments"
+        WHERE employee_id = %s
+          AND upload_id = %s
+          AND start_date <= %s
+          AND end_date >= %s;
         """,
         (emp_id, upload_id, end, start),
     )
@@ -258,13 +258,13 @@ def handle_assignment(cur, upload_id: int, message: str):
 def handle_role(cur, upload_id: int):
     cur.execute(
         """
-        select name from employees
-        where upload_id = %s
-          and (
-              lower(role) like '%%backend%%'
-              or lower(role) like '%%developer%%'
-              or lower(role) like '%%designer%%'
-              or lower(role) like '%%analyst%%'
+        SELECT name FROM "Employees"
+        WHERE upload_id = %s
+          AND (
+              lower(role) LIKE '%%backend%%'
+              OR lower(role) LIKE '%%developer%%'
+              OR lower(role) LIKE '%%designer%%'
+              OR lower(role) LIKE '%%analyst%%'
           );
         """,
         (upload_id,),
@@ -283,11 +283,11 @@ def resolve_upload_id(cur, user_id: int):
     # check for an explicitly active upload
     cur.execute(
         """
-        select upload_id
-        from uploads
-        where user_id = %s and is_active = true
-        order by upload_date desc
-        limit 1;
+        SELECT upload_id
+        FROM "Uploads"
+        WHERE user_id = %s AND is_active = TRUE
+        ORDER BY upload_date DESC
+        LIMIT 1;
         """,
         (user_id,),
     )
@@ -298,11 +298,11 @@ def resolve_upload_id(cur, user_id: int):
     # fallback to last upload ever made by this user
     cur.execute(
         """
-        select upload_id
-        from uploads
-        where user_id = %s
-        order by upload_date desc
-        limit 1;
+        SELECT upload_id
+        FROM "Uploads"
+        WHERE user_id = %s
+        ORDER BY upload_date DESC
+        LIMIT 1;
         """,
         (user_id,),
     )

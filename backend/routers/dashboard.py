@@ -65,11 +65,11 @@ def dashboard_skills(user_id: int):
     try:
         # find active upload for this user
         cur.execute("""
-            select upload_id
-            from uploads
-            where user_id = %s and is_active = true
-            order by upload_date desc
-            limit 1;
+            SELECT upload_id
+            FROM "Uploads"
+            WHERE user_id = %s AND is_active = true
+            ORDER BY upload_date DESC
+            LIMIT 1;
         """, (user_id,))
         row = cur.fetchone()
 
@@ -81,9 +81,9 @@ def dashboard_skills(user_id: int):
 
         # fetch skills column from all employees
         cur.execute("""
-            select skills
-            from employees
-            where upload_id = %s;
+            SELECT skills
+            FROM "Employees"
+            WHERE upload_id = %s;
         """, (upload_id,))
         raw = cur.fetchall()
 

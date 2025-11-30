@@ -65,9 +65,9 @@ def _insert_upload(cur, user_id: int, filename: str) -> int:
     # deactivate older uploads
     cur.execute(
         """
-        update uploads
-        set is_active = false
-        where user_id = %s;
+        UPDATE "Uploads"
+        SET is_active = FALSE
+        WHERE user_id = %s;
         """,
         (user_id,),
     )
@@ -75,9 +75,9 @@ def _insert_upload(cur, user_id: int, filename: str) -> int:
     # insert new upload and set it as active
     cur.execute(
         """
-        insert into uploads (user_id, file_name, is_active)
-        values (%s, %s, true)
-        returning upload_id;
+        INSERT INTO "Uploads" (user_id, file_name, is_active)
+        VALUES (%s, %s, TRUE)
+        RETURNING upload_id;
         """,
         (user_id, filename),
     )
@@ -97,9 +97,9 @@ def _insert_employee(cur, upload_id: int, group_name: str, row: pd.Series) -> in
 
     cur.execute(
         """
-        insert into employees (upload_id, name, role, department, experience_years, skills)
-        values (%s, %s, %s, %s, %s, %s)
-        returning employee_id;
+        INSERT INTO "Employees" (upload_id, name, role, department, experience_years, skills)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        RETURNING employee_id;
         """,
         (
             upload_id,
@@ -140,13 +140,13 @@ def _insert_assignments(cur, upload_id: int, employee_id: int, group: pd.DataFra
 
         # insert assignment entry
         cur.execute(
-            """
-            insert into assignments (
+        """
+            INSERT INTO "Assignments" (
                 employee_id, upload_id, title, start_date, end_date,
                 total_hours, remaining_hours, priority
             )
-            values (%s, %s, %s, %s, %s, %s, %s, %s);
-            """,
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+        """,
             (
                 employee_id,
                 upload_id,

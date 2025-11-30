@@ -51,9 +51,9 @@ def fetch_employees_by_upload(upload_id: int) -> List[Dict[str, Any]]:
 
     try:
         cur.execute("""
-            select employee_id, name, role, experience_years, skills
-            from employees
-            where upload_id = %s
+            SELECT employee_id, name, role, experience_years, skills
+            FROM "Employees"
+            WHERE upload_id = %s
         """, (upload_id,))
         rows = cur.fetchall()
     finally:
@@ -89,11 +89,11 @@ def calculate_assignment_availability(employee_id: int, start, end) -> float:
 
     try:
         cur.execute("""
-            select remaining_hours, total_hours
-            from assignments
-            where employee_id = %s
-              and start_date <= %s
-              and end_date >= %s
+            SELECT remaining_hours, total_hours
+            FROM "Assignments"
+            WHERE employee_id = %s
+              AND start_date <= %s
+              AND end_date >= %s
         """, (employee_id, end, start))
         rows = cur.fetchall()
     finally:

@@ -24,11 +24,11 @@ class TaskProcessingError(Exception):
 def _get_active_upload_id(cur, user_id: int) -> Optional[int]:
     cur.execute(
         """
-        select upload_id
-        from uploads
-        where user_id = %s and is_active = true
-        order by upload_date desc
-        limit 1;
+        SELECT upload_id
+        FROM "Uploads"
+        WHERE user_id = %s AND is_active = TRUE
+        ORDER BY upload_date DESC
+        LIMIT 1;
         """,
         (user_id,),
     )
@@ -39,11 +39,11 @@ def _get_active_upload_id(cur, user_id: int) -> Optional[int]:
     # fallback to latest upload if no active one exists
     cur.execute(
         """
-        select upload_id
-        from uploads
-        where user_id = %s
-        order by upload_date desc
-        limit 1;
+        SELECT upload_id
+        FROM "Uploads"
+        WHERE user_id = %s
+        ORDER BY upload_date DESC
+        LIMIT 1;
         """,
         (user_id,),
     )
@@ -120,10 +120,10 @@ def fetch_weekly_tasks(user_id: int, week_start: Optional[date]) -> dict:
         # fetch employee list for this upload
         cur.execute(
             """
-            select employee_id, name
-            from employees
-            where upload_id = %s
-            order by name asc;
+            SELECT employee_id, name
+            FROM "Employees"
+            WHERE upload_id = %s
+            ORDER BY name ASC;
             """,
             (upload_id,),
         )
@@ -132,19 +132,19 @@ def fetch_weekly_tasks(user_id: int, week_start: Optional[date]) -> dict:
         # fetch all assignments overlapping the requested week
         cur.execute(
             """
-            select
+            SELECT
                 a.assignment_id,
                 a.employee_id,
                 a.title,
                 a.start_date,
                 a.end_date,
                 e.name
-            from assignments a
-            left join employees e on a.employee_id = e.employee_id
-            where a.upload_id = %s
-              and a.start_date <= %s
-              and a.end_date >= %s
-            order by e.name nulls last, a.start_date asc;
+            FROM "Assignments" a
+            LEFT JOIN "Employees" e ON a.employee_id = e.employee_id
+            WHERE a.upload_id = %s
+              AND a.start_date <= %s
+              AND a.end_date >= %s
+            ORDER BY e.name NULLS LAST, a.start_date ASC;
             """,
             (upload_id, week_end_day, week_start_day),
         )
@@ -232,9 +232,9 @@ def create_task_entry(
         if employee_id is not None:
             cur.execute(
                 """
-                select 1
-                from employees
-                where employee_id = %s and upload_id = %s;
+                SELECT 1
+                FROM "Employees"
+                WHERE employee_id = %s AND upload_id = %s;
                 """,
                 (employee_id, upload_id),
             )
@@ -244,7 +244,7 @@ def create_task_entry(
         # insert new assignment
         cur.execute(
             """
-            insert into assignments (
+            INSERT INTO "Assignments" (
                 employee_id,
                 upload_id,
                 title,
@@ -254,8 +254,8 @@ def create_task_entry(
                 remaining_hours,
                 priority
             )
-            values (%s, %s, %s, %s, %s, null, null, null)
-            returning assignment_id;
+            VALUES (%s, %s, %s, %s, %s, NULL, NULL, NULL)
+            RETURNING assignment_id;
             """,
             (employee_id, upload_id, clean_title, start_date, end_date),
         )

@@ -17,10 +17,10 @@ def _resolve_upload_id(cur, user_id: int, requested_upload_id: Optional[int] = N
     if requested_upload_id is not None:
         cur.execute(
             """
-            select upload_id
-            from uploads
-            where upload_id = %s and user_id = %s
-            limit 1;
+            SELECT upload_id
+            FROM "Uploads"
+            WHERE upload_id = %s AND user_id = %s
+            LIMIT 1;
             """,
             (requested_upload_id, user_id),
         )
@@ -32,11 +32,11 @@ def _resolve_upload_id(cur, user_id: int, requested_upload_id: Optional[int] = N
     # else: automatically select user's latest active upload
     cur.execute(
         """
-        select upload_id
-        from uploads
-        where user_id = %s and is_active = true
-        order by upload_date desc
-        limit 1;
+        SELECT upload_id
+        FROM "Uploads"
+        WHERE user_id = %s AND is_active = TRUE
+        ORDER BY upload_date DESC
+        LIMIT 1;
         """,
         (user_id,),
     )
@@ -47,11 +47,11 @@ def _resolve_upload_id(cur, user_id: int, requested_upload_id: Optional[int] = N
     # fallback: use most recent upload even if it's inactive
     cur.execute(
         """
-        select upload_id
-        from uploads
-        where user_id = %s
-        order by upload_date desc
-        limit 1;
+        SELECT upload_id
+        FROM "Uploads"
+        WHERE user_id = %s
+        ORDER BY upload_date DESC
+        LIMIT 1;
         """,
         (user_id,),
     )
@@ -107,9 +107,9 @@ def assign_recommended_task(
         # ensure employee exists within this upload dataset
         cur.execute(
             """
-            select 1
-            from employees
-            where employee_id = %s and upload_id = %s;
+            SELECT 1
+            FROM "Employees"
+            WHERE employee_id = %s AND upload_id = %s;
             """,
             (employee_id, resolved_upload_id),
         )
@@ -120,7 +120,7 @@ def assign_recommended_task(
         # total_hours, remaining_hours, priority are left null, to be filled later
         cur.execute(
             """
-            insert into assignments (
+            INSERT INTO "Assignments" (
                 employee_id,
                 upload_id,
                 title,
@@ -130,8 +130,8 @@ def assign_recommended_task(
                 remaining_hours,
                 priority
             )
-            values (%s, %s, %s, %s, %s, null, null, null)
-            returning assignment_id;
+            VALUES (%s, %s, %s, %s, %s, NULL, NULL, NULL)
+            RETURNING assignment_id;
             """,
             (
                 employee_id,
