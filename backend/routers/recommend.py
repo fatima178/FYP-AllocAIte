@@ -117,7 +117,7 @@ def assign_recommendation(data: dict):
             resolved_upload_id,
         )
 
-        return {"message": "task assigned successfully.", **result}
+        return {"message": "Task assigned successfully.", **result}
 
     except ValueError as exc:
         raise HTTPException(400, str(exc))

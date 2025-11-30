@@ -37,7 +37,7 @@ def calculate_availability(employee_id: int, window_start: date, window_end: dat
 
         # no assignments means fully available
         if not rows:
-            return {"status": "available", "percent": 100.0}
+            return {"status": "Available", "percent": 100.0}
 
         total_hours = 0.0
         remaining_hours = 0.0
@@ -56,18 +56,18 @@ def calculate_availability(employee_id: int, window_start: date, window_end: dat
 
         # if total hours somehow equal zero, assume full availability
         if total_hours <= 0:
-            return {"status": "available", "percent": 100.0}
+            return {"status": "Available", "percent": 100.0}
 
         # compute remaining capacity as percentage
         percent = max(0.0, min(100.0, (remaining_hours / total_hours) * 100))
 
         # determine availability label
         if percent <= 30:
-            status = "busy"
+            status = "Busy"
         elif 31 <= percent <= 50:
-            status = "partial"
+            status = "Partial"
         else:
-            status = "available"
+            status = "Available"
 
         return {"status": status, "percent": round(percent, 1)}
 

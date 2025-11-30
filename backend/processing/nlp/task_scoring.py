@@ -60,10 +60,10 @@ def _determine_weights(skill_score):
 # converts a numeric % availability into a human-friendly label.
 def _availability_label(percent):
     if percent >= 70:
-        return "high availability"
+        return "High availability"
     if percent >= 40:
-        return "partial availability"
-    return "limited availability"
+        return "Partial availability"
+    return "Limited availability"
 
 
 # ----------------------------------------------------------
@@ -79,31 +79,31 @@ def _build_reason(skills, role_score, role, experience, availability_percent):
 
     # skills summary
     if skills:
-        explanation.append(f"direct skill matches: {', '.join(skills)}")
+        explanation.append(f"Direct skill matches: {', '.join(skills)}")
     else:
-        explanation.append("no direct skill overlap with this task")
+        explanation.append("No direct skill overlap with this task")
 
     # role relevance summary
     if role_score >= 0.8:
-        explanation.append(f"role as {role} fits the task directly")
+        explanation.append(f"Role as {role} fits the task directly")
     elif role_score >= 0.5:
-        explanation.append(f"role as {role} is related to the task")
+        explanation.append(f"Role as {role} is related to the task")
     else:
-        explanation.append(f"role as {role} provides partial relevance")
+        explanation.append(f"Role as {role} provides partial relevance")
 
     # experience summary
     if experience >= 5:
-        explanation.append(f"strong experience ({experience} years)")
+        explanation.append(f"Strong experience ({experience} years)")
     else:
         explanation.append(f"{experience} years of experience")
 
     # availability summary
     if availability_percent >= 70:
-        explanation.append("fully available during the required timeframe")
+        explanation.append("Fully available during the required timeframe")
     elif availability_percent >= 40:
-        explanation.append("partially available during the timeframe")
+        explanation.append("Partially available during the timeframe")
     else:
-        explanation.append("availability is limited for this period")
+        explanation.append("Availability is limited for this period")
 
     return ". ".join(explanation) + "."
 

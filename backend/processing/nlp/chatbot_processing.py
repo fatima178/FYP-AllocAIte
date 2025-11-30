@@ -149,7 +149,7 @@ def handle_availability(cur, upload_id: int, message: str):
     if not start:
         return {
             "response": (
-                "i couldn’t understand the timeframe. try 'next week', 'tomorrow', "
+                "I couldn’t understand the timeframe. Try 'next week', 'tomorrow', "
                 "or a date like 2025-02-10."
             )
         }
@@ -174,10 +174,10 @@ def handle_availability(cur, upload_id: int, message: str):
     names = sorted(set([r[0] for r in cur.fetchall()]))
 
     if not names:
-        return {"response": f"no one is available between {start} and {end}."}
+        return {"response": f"No one is available between {start} and {end}."}
 
     return {
-        "response": f"available between {start} and {end}: " + ", ".join(names)
+        "response": f"Available between {start} and {end}: " + ", ".join(names)
     }
 
 
@@ -185,7 +185,7 @@ def handle_availability(cur, upload_id: int, message: str):
 def handle_skills(cur, upload_id: int, message: str):
     skills = parse_skills(message)
     if not skills:
-        return {"response": "specify a skill (e.g., python, sql, ui design)."}
+        return {"response": "Specify a skill (e.g., python, sql, ui design)."}
 
     # build dynamic sql conditions based on number of skills detected
     # each condition checks whether the skill appears inside the skills json/text field
@@ -208,9 +208,9 @@ def handle_skills(cur, upload_id: int, message: str):
     names = sorted(set([r[0] for r in cur.fetchall()]))
 
     if not names:
-        return {"response": "no employees found with those skills."}
+        return {"response": "No employees found with those skills."}
 
-    return {"response": f"employees with {', '.join(skills)}: " + ", ".join(names)}
+    return {"response": f"Employees with {', '.join(skills)}: " + ", ".join(names)}
 
 
 # handles questions like "what is alice doing next week?"
@@ -220,7 +220,7 @@ def handle_assignment(cur, upload_id: int, message: str):
     emp_id, full_name = parse_employee(cur, upload_id, message)
     if not emp_id:
         return {
-            "response": "i couldn’t find that employee. try full or first name."
+            "response": "I couldn’t find that employee. Try full or first name."
         }
 
     # figure out the date range the user mentioned
@@ -228,7 +228,7 @@ def handle_assignment(cur, upload_id: int, message: str):
     if not start:
         return {
             "response": (
-                "specify a timeframe (e.g., 'this week', 'tomorrow', or '2025-02-05')."
+                "Specify a timeframe (e.g., 'this week', 'tomorrow', or '2025-02-05')."
             )
         }
 
@@ -272,9 +272,9 @@ def handle_role(cur, upload_id: int):
     names = sorted(set([r[0] for r in cur.fetchall()]))
 
     if not names:
-        return {"response": "no developers found."}
+        return {"response": "No developers found."}
 
-    return {"response": "developers: " + ", ".join(names)}
+    return {"response": "Developers: " + ", ".join(names)}
 
 
 # finds the current active upload for this user.
@@ -333,7 +333,7 @@ def handle_chatbot_query(message: str, user_id: int):
         upload_id = resolve_upload_id(cur, user_id)
         if not upload_id:
             return {
-                "response": "no employee data found. please upload your team sheet first."
+                "response": "No employee data found. Please upload your team sheet first."
             }
 
         # call the correct handler depending on intent
@@ -348,7 +348,7 @@ def handle_chatbot_query(message: str, user_id: int):
 
         # default fallback response when nothing matches
         return {
-            "response": "i didn’t understand that. try asking about availability, skills, roles, or assignments."
+            "response": "I didn’t understand that. Try asking about availability, skills, roles, or assignments."
         }
     finally:
         # always close database cursor and connection to avoid leaks

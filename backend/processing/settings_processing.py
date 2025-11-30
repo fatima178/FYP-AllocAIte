@@ -76,7 +76,7 @@ def persist_user_settings(user_id: int, theme: Optional[str], font_size: Optiona
         cur.close()
         conn.close()
 
-    return {"message": "settings updated"}
+    return {"message": "Settings updated"}
 
 
 # ----------------------------------------------------------
@@ -118,7 +118,7 @@ def update_account_details(user_id: int, name: Optional[str], email: Optional[st
         conn.commit()
 
         return {
-            "message": "account details updated.",
+            "message": "Account details updated.",
             "name": updated[0],
             "email": updated[1],
             "member_since": updated[2],
@@ -151,7 +151,7 @@ def verify_user_password(user_id: int, current_password: str):
         if stored_hash != current_hash:
             raise HTTPException(401, "current password is incorrect.")
 
-        return {"message": "password verified."}
+        return {"message": "Password verified."}
 
     finally:
         cur.close()
@@ -206,7 +206,7 @@ def change_user_password(user_id: int, current_password: str, new_password: str)
         )
 
         conn.commit()
-        return {"message": "password updated successfully."}
+        return {"message": "Password updated successfully."}
 
     finally:
         cur.close()
