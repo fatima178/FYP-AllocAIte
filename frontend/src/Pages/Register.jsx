@@ -3,7 +3,7 @@ import '../styles/Register.css';
 import { apiFetch, APIError } from '../api';
 
 function Register() {
-  // stores user input from the form
+  // stores the values typed in the form fields
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -11,38 +11,40 @@ function Register() {
     confirmPassword: '',
   });
 
-  // handles success/error messages
+  // stores an error or success message (shown under the submit button)
   const [status, setStatus] = useState({ type: null, message: null });
 
-  // shows loading state while the form is being submitted
+  // used to disable the button + show loading state
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // takes the user to the login page when they click the link
+  // sends the user back to login page
   const goToLogin = () => {
     window.location.href = '/';
   };
 
-  // updates form values as the user types
+  // updates the form state every time user types something
   const handleChange = (event) => {
     const { name, value } = event.target;
+    // override only the input that changed
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // handles everything that happens when the user clicks "Sign up"
+  // runs when the user presses "Sign up"
   const handleSubmit = async (event) => {
     event.preventDefault();
     setIsSubmitting(true);
     setStatus({ type: null, message: '' });
 
-    // basic name validation (checks if both first and last name are entered)
+    // make sure the user typed first + last name
     if (formData.name.trim().split(/\s+/).length < 2) {
       setStatus({ type: 'error', message: 'Please enter your full name.' });
       setIsSubmitting(false);
       return;
     }
 
-    // checks password strength (must include a capital letter + special character)
-    if (!/[A-Z]/.test(formData.password) || !/[^A-Za-z0-9]/.test(formData.password)) {
+    // enforce password rule (capital letter + special character)
+    const password = formData.password;
+    if (!/[A-Z]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
       setStatus({
         type: 'error',
         message: 'Password must include an uppercase letter and special character.',
@@ -51,34 +53,41 @@ function Register() {
       return;
     }
 
-    // makes sure the two password fields match
+    // ensure the 2 passwords match
     if (formData.password !== formData.confirmPassword) {
       setStatus({ type: 'error', message: 'Passwords do not match.' });
       setIsSubmitting(false);
       return;
     }
 
-    // removes confirmPassword before sending to backend
+    // remove confirmPassword before sending to backend
     const { confirmPassword, ...payload } = formData;
 
     try {
-      // send the data to backend API
+      // send register request
       const body = await apiFetch('/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
+      // if backend returns a user_id, registration succeeded
       if (body.user_id && payload.email) {
         localStorage.setItem('user_id', body.user_id);
         localStorage.setItem('email', payload.email);
+
+        // after register, user goes to upload page
         window.location.href = '/upload';
         return;
       }
 
+      // fallback success message (if backend doesn't return full object)
       setStatus({ type: 'success', message: 'Account created successfully.' });
+
+      // reset form state
       setFormData({ name: '', email: '', password: '', confirmPassword: '' });
     } catch (error) {
+      // handle special case: email already exists
       if (
         error instanceof APIError &&
         typeof error.body?.detail === 'string' &&
@@ -89,7 +98,12 @@ function Register() {
           message: (
             <>
               {error.body.detail}
-              <button type="button" className="inline-link" onClick={goToLogin}>
+              {/* quick link to login */}
+              <button
+                type="button"
+                className="inline-link"
+                onClick={goToLogin}
+              >
                 Go to login
               </button>
             </>
@@ -98,21 +112,20 @@ function Register() {
         return;
       }
 
-      // catch any network or unexpected error
+      // generic error message (network issues, etc.)
       setStatus({ type: 'error', message: error.message });
     } finally {
-      // stop loading state after process finishes
+      // remove loading state
       setIsSubmitting(false);
     }
   };
 
   return (
     <div className="register-page">
-      {/* the main registration form card */}
       <form className="register-card" onSubmit={handleSubmit}>
         <h1>Create an account</h1>
 
-        {/* full name input */}
+        {/* full name field */}
         <label>
           Full name
           <input
@@ -125,7 +138,7 @@ function Register() {
           />
         </label>
 
-        {/* email input */}
+        {/* email field */}
         <label>
           Email address
           <input
@@ -138,7 +151,7 @@ function Register() {
           />
         </label>
 
-        {/* password input */}
+        {/* password field */}
         <label>
           Password
           <input
@@ -152,7 +165,7 @@ function Register() {
           />
         </label>
 
-        {/* confirm password input */}
+        {/* confirm password */}
         <label>
           Confirm password
           <input
@@ -160,18 +173,18 @@ function Register() {
             name="confirmPassword"
             value={formData.confirmPassword}
             onChange={handleChange}
+            minLength={6}
             placeholder="Repeat your password"
             required
-            minLength={6}
           />
         </label>
 
-        {/* submit button */}
+        {/* submit button with loading state */}
         <button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Creating account...' : 'Sign up'}
         </button>
 
-        {/* feedback messages for user */}
+        {/* success or error messages */}
         {status.type && (
           <p className={`status ${status.type}`}>{status.message}</p>
         )}

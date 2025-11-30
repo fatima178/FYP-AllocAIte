@@ -1,8 +1,10 @@
 import '../styles/Menu.css';
 
 function Menu() {
+  // track the current URL so we can highlight the active page
   const currentPath = window.location.pathname;
 
+  // list of navigation links shown in the menu bar
   const links = [
     { label: 'Dashboard', path: '/dashboard' },
     { label: 'Tasks', path: '/tasks' },
@@ -12,11 +14,15 @@ function Menu() {
     { label: 'Settings', path: '/settings' }
   ];
 
+  // helper for navigation without refreshing the component
+  // but still using a full redirect
   const goTo = (path) => {
+    // prevents unnecessary redirect if user is already on the page
     if (currentPath === path) return;
     window.location.href = path;
   };
 
+  // logout removes user session and returns to home page
   const handleLogout = () => {
     localStorage.removeItem('user_id');
     localStorage.removeItem('email');
@@ -25,6 +31,7 @@ function Menu() {
 
   return (
     <header className="menu-bar">
+      {/* logo / brand button that leads to dashboard */}
       <button
         type="button"
         className="brand"
@@ -33,6 +40,7 @@ function Menu() {
         AllocAIte
       </button>
 
+      {/* main navigation links */}
       <nav className="menu-links">
         {links.map((link) => (
           <button
@@ -46,7 +54,12 @@ function Menu() {
         ))}
       </nav>
 
-      <button type="button" className="logout-button" onClick={handleLogout}>
+      {/* logout button on the right side */}
+      <button
+        type="button"
+        className="logout-button"
+        onClick={handleLogout}
+      >
         Logout
       </button>
     </header>

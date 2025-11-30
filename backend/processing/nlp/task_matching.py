@@ -1,74 +1,46 @@
 from sentence_transformers import SentenceTransformer, util
-import json
-from db import get_connection
+from ..task_data_access import (
+    fetch_employees_by_upload,
+    calculate_assignment_availability,
+)
 from .task_scoring import (
     normalize_experience,
     compute_role_match,
     build_recommendation_entry,
 )
 
-# load SBERT model once
-model = SentenceTransformer("all-MiniLM-L6-v2")
+# cached global reference to avoid repeatedly loading the model
+_DEFAULT_MODEL = None
 
 
-# ----------------------------------------------------------
-# get employees + clean skills
-# ----------------------------------------------------------
-def fetch_employees(upload_id):
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute("""
-        SELECT employee_id, name, role, experience_years, skills
-        FROM Employees
-        WHERE upload_id = %s
-    """, (upload_id,))
-    rows = cur.fetchall()
-
-    cur.close()
-    conn.close()
-
-    employees = []
-
-    for r in rows:
-        raw_skills = r[4]
-
-        # decode skills JSON safely
-        if isinstance(raw_skills, bytes):
-            raw_skills = raw_skills.decode("utf-8")
-
-        if isinstance(raw_skills, str):
-            try:
-                skills = json.loads(raw_skills)
-            except:
-                skills = []
-        elif isinstance(raw_skills, (list, tuple)):
-            skills = list(raw_skills)
-        else:
-            skills = []
-
-        employees.append({
-            "employee_id": r[0],
-            "name": r[1],
-            "role": r[2],
-            "experience": r[3] if r[3] else 0,
-            "skills": skills
-        })
-
-    return employees
+def get_sentence_model():
+    # lazy-load the default sentence transformer model so we only load it once.
+    global _DEFAULT_MODEL
+    if _DEFAULT_MODEL is None:
+        # all-minilm-l6-v2 is compact and fast enough for real-time ranking
+        _DEFAULT_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
+    return _DEFAULT_MODEL
 
 
 # ----------------------------------------------------------
 # semantic + keyword skill matching
 # ----------------------------------------------------------
-def semantic_skill_match(task_description, skills, threshold=0.45):
+# this function checks if the employee's skills relate to the task description.
+# it combines three techniques:
+#   1) direct text match (strongest)
+#   2) keyword overlap (medium strength)
+#   3) sbert similarity (fallback if others don't trigger)
+# the result is a list of matched skills with similarity scores.
+def semantic_skill_match(model, task_description, skills, threshold=0.45):
     if not skills or not task_description:
         return []
 
     description = task_description.lower()
+
+    # pre-tokenise description to allow cheap keyword overlap checks
     description_tokens = set(description.replace(",", " ").split())
 
-    # embed task text
+    # embed the task once because this will be reused for each skill
     task_emb = model.encode(description, convert_to_tensor=True)
 
     matches = []
@@ -81,22 +53,23 @@ def semantic_skill_match(task_description, skills, threshold=0.45):
         normal = label.lower()
         sim = 0.0
 
-        # direct text match
+        # strongest match: skill appears directly in the task text
         if normal in description:
             sim = 1.0
+
         else:
-            # keyword overlap
+            # medium match: any token inside the skill label appears in the task tokens
             for tok in normal.replace("/", " ").split():
                 if tok and tok in description_tokens:
                     sim = 0.75
                     break
 
-        # SBERT match if needed
+        # fallback: compute semantic similarity with sbert
         if sim < 0.75:
             skill_emb = model.encode(normal, convert_to_tensor=True)
             sim = max(sim, util.cos_sim(task_emb, skill_emb).item())
 
-        # only keep useful skills
+        # keep only useful matches based on threshold
         if sim >= threshold:
             matches.append({"label": label, "score": sim})
 
@@ -104,50 +77,25 @@ def semantic_skill_match(task_description, skills, threshold=0.45):
 
 
 # ----------------------------------------------------------
-# calculate employee availability
-# ----------------------------------------------------------
-def calculate_availability(employee_id, start, end):
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute("""
-        SELECT remaining_hours, total_hours
-        FROM Assignments
-        WHERE employee_id = %s
-          AND start_date <= %s
-          AND end_date >= %s
-    """, (employee_id, end, start))
-    rows = cur.fetchall()
-
-    cur.close()
-    conn.close()
-
-    # no assignments = fully free
-    if not rows:
-        return 1.0
-
-    remaining = sum([r[0] for r in rows if r[0] is not None])
-    total = sum([r[1] for r in rows if r[1] is not None])
-
-    if total == 0:
-        return 1.0
-
-    return max(0.0, min(1.0, remaining / total))
-
-
-# ----------------------------------------------------------
 # helper to build SBERT embedding text
 # ----------------------------------------------------------
+# for each employee, build a descriptive text block that sbert can embed.
+# this text combines:
+#   - their role
+#   - their full skills list
+#   - their years of experience
 def build_employee_text(emp):
     skills = ", ".join(emp["skills"])
-    return f"{emp['role']} with skills: {skills}. Experience: {emp['experience']} years."
+    return f"{emp['role']} with skills: {skills}. experience: {emp['experience']} years."
 
 
-def encode_task(desc):
+# encode a task description into an sbert embedding
+def encode_task(model, desc):
     return model.encode(desc, convert_to_tensor=True)
 
 
-def encode_employees(emps):
+# encode all employees into embeddings using the descriptive text builder
+def encode_employees(model, emps):
     texts = [build_employee_text(e) for e in emps]
     return model.encode(texts, convert_to_tensor=True)
 
@@ -155,53 +103,75 @@ def encode_employees(emps):
 # ----------------------------------------------------------
 # main matching pipeline
 # ----------------------------------------------------------
-def match_employees(task_description, upload_id, start_date, end_date):
-    # get employees
-    employees = fetch_employees(upload_id)
+# this is the core function that:
+#   1) loads employees
+#   2) embeds task and employees
+#   3) computes semantic similarity (sbert)
+#   4) computes skill match score
+#   5) computes experience score
+#   6) computes role relevance
+#   7) calculates availability
+#   8) produces a final ranking
+def match_employees(task_description, upload_id, start_date, end_date, model=None):
+    # fetch employees linked to this upload
+    employees = fetch_employees_by_upload(upload_id)
     if not employees:
+        # nothing to match against
         return []
 
-    # used for experience normalisation
+    # ensure we have a model instance
+    model = model or get_sentence_model()
+
+    # precompute maximum experience to normalise scores to 0-1 scale
+    # avoid division by zero by using default 1
     max_exp = max((e["experience"] for e in employees), default=1)
 
-    # embed task + employees once
-    task_emb = encode_task(task_description)
-    emp_embs = encode_employees(employees)
+    # embed task and employees once
+    task_emb = encode_task(model, task_description)
+    emp_embs = encode_employees(model, employees)
 
-    # SBERT similarities
+    # compute similarity between task and all employees in one batch
     sims = util.cos_sim(task_emb, emp_embs)[0]
 
     ranked = []
 
+    # evaluate each employee individually
     for idx, emp in enumerate(employees):
 
-        semantic = float(sims[idx])              # SBERT score
+        # semantic similarity between task and employee profile
+        semantic = float(sims[idx])
+
+        # normalise experience to a 0-1 scale
         exp_score = normalize_experience(emp["experience"], max_exp)
+
+        # evaluate whether the employee's role fits the task title/keywords
         role_score = compute_role_match(task_description, emp["role"])
 
-        # full semantic skill matching
-        skill_matches = semantic_skill_match(task_description, emp["skills"])
+        # full semantic skill-level matching
+        skill_matches = semantic_skill_match(model, task_description, emp["skills"])
         matched_labels = [m["label"] for m in skill_matches]
 
-        # average SBERT skill similarity
+        # average match score across matched skills
         avg_skill_sim = (
             sum(m["score"] for m in skill_matches) / len(skill_matches)
             if skill_matches else 0
         )
 
-        # % of skills that matched
+        # coverage: what percentage of the employee's skills are relevant
         coverage = (
             len(matched_labels) / len(emp["skills"]) if emp["skills"] else 0
         )
 
-        # pick best skill score
+        # final skill score picks whichever is stronger:
+        # semantic similarity vs. skill coverage
         skill_score = max(avg_skill_sim, coverage)
 
-        availability = calculate_availability(
+        # availability score ranges from 0 (fully unavailable) to 1 (fully available)
+        availability = calculate_assignment_availability(
             emp["employee_id"], start_date, end_date
         )
 
-        # build final entry with all scores
+        # combine all computed scores into a single result entry
         ranked.append(
             build_recommendation_entry(
                 emp,
@@ -214,5 +184,5 @@ def match_employees(task_description, upload_id, start_date, end_date):
             )
         )
 
-    # sort by final score
+    # final sorting: highest score first
     return sorted(ranked, key=lambda x: x["final_score"], reverse=True)

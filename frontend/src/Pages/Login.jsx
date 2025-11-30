@@ -3,34 +3,37 @@ import '../styles/Login.css';
 import groupChat from '../images/group-chat.png';
 import { apiFetch, APIError } from '../api';
 
-// keeping both forms (login + register) in one state
+// both login + register form fields stored together
+// only one "mode" is active at any time
 const initialState = {
   login: { email: '', password: '' },
   register: { name: '', email: '', password: '', confirmPassword: '' },
 };
 
 function LoginPage() {
-  // handles whether user is on login or register mode
+  // determines which form the user sees: login or register
   const [mode, setMode] = useState('login');
 
-  // stores form input values for both modes
+  // stores typed input values for both modes
   const [formData, setFormData] = useState(initialState);
 
-  // handles any success or error messages shown to user
+  // shows success/error messages to user
   const [status, setStatus] = useState({ type: null, message: null });
 
-  // shows loading state when form is being submitted
+  // prevents double submissions by disabling the button during request
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // switch between login and register tabs
+  // switch login/register tabs and clear any previous messages
   const switchMode = (value) => {
     setMode(value);
     setStatus({ type: null, message: null });
   };
 
-  // updates input fields when user types
+  // update form fields when user types
+  // dynamic: updates whichever "mode" is currently active
   const handleChange = (event) => {
     const { name, value } = event.target;
+
     setFormData((prev) => ({
       ...prev,
       [mode]: {
@@ -40,24 +43,25 @@ function LoginPage() {
     }));
   };
 
-  // handles form submission (works for both login + register)
+  // main form submission handler for login and register
   const handleSubmit = async (event) => {
     event.preventDefault();
     setIsSubmitting(true);
     setStatus({ type: null, message: null });
 
+    // choose API endpoint depending on login/register
     const endpoint = mode === 'login' ? '/login' : '/register';
 
-    // basic validation for register form only
+    // register-only validation
     if (mode === 'register') {
-      // check if user entered both first and last name
+      // require a full name (first + last)
       if (formData.register.name.trim().split(/\s+/).length < 2) {
         setStatus({ type: 'error', message: 'Please enter your full name.' });
         setIsSubmitting(false);
         return;
       }
 
-      // password strength: one capital and one special char
+      // ensure password contains uppercase + special character
       if (
         !/[A-Z]/.test(formData.register.password) ||
         !/[^A-Za-z0-9]/.test(formData.register.password)
@@ -71,7 +75,7 @@ function LoginPage() {
         return;
       }
 
-      // make sure both password fields match
+      // check that passwords match
       if (formData.register.password !== formData.register.confirmPassword) {
         setStatus({ type: 'error', message: 'Passwords do not match.' });
         setIsSubmitting(false);
@@ -79,7 +83,7 @@ function LoginPage() {
       }
     }
 
-    // create payload depending on which mode we’re in
+    // prepare payload for API depending on login/register
     let payload;
     if (mode === 'login') {
       payload = {
@@ -95,46 +99,47 @@ function LoginPage() {
     }
 
     try {
+      // send login/register request
       const body = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
+      // if user_id exists, login/register succeeded
       if (body.user_id) {
         const resolvedEmail = body.email || payload.email || '';
         const resolvedName =
           body.name || (mode === 'register' ? payload.name : null) || '';
 
+        // store user session in local storage
         localStorage.setItem('user_id', body.user_id);
-        if (resolvedEmail) {
-          localStorage.setItem('email', resolvedEmail);
-        }
-        if (resolvedName) {
-          localStorage.setItem('name', resolvedName);
-        }
-        if (body.created_at) {
-          localStorage.setItem('member_since', body.created_at);
-        }
 
+        if (resolvedEmail) localStorage.setItem('email', resolvedEmail);
+        if (resolvedName) localStorage.setItem('name', resolvedName);
+        if (body.created_at) localStorage.setItem('member_since', body.created_at);
+
+        // store active_upload_id if backend returned it
         if (body.active_upload_id) {
           localStorage.setItem('active_upload_id', body.active_upload_id);
         } else {
           localStorage.removeItem('active_upload_id');
         }
 
+        // redirect user depending on whether they already uploaded a file
         const redirectPath =
           body.has_upload || body.active_upload_id ? '/dashboard' : '/upload';
         window.location.href = redirectPath;
         return;
       }
 
-      // if everything works, show success message
+      // show success message for register
       setStatus({ type: 'success', message: body.message || 'Success.' });
 
-      // reset form fields after submission
+      // reset form inputs
       setFormData((prev) => ({ ...prev, [mode]: initialState[mode] }));
     } catch (error) {
+      // special case: email already registered
       if (
         mode === 'register' &&
         error instanceof APIError &&
@@ -159,7 +164,7 @@ function LoginPage() {
         return;
       }
 
-      // handles network or backend errors
+      // generic backend/network error
       setStatus({ type: 'error', message: error.message });
     } finally {
       setIsSubmitting(false);
@@ -168,19 +173,21 @@ function LoginPage() {
 
   return (
     <div className="auth-page">
-      {/* left side - hero section */}
+
+      {/* HERO SECTION (left side) */}
       <section className="hero">
         <div className="hero-brand">
           <div className="logo">
             <img src={groupChat} alt="AllocAIte" />
           </div>
+
           <div>
             <h1>AllocAIte</h1>
             <p>Staffing Management for Tech Teams</p>
           </div>
         </div>
 
-        {/* feature highlights */}
+        {/* feature highlights displayed as bullet cards */}
         <div className="hero-points">
           <div>
             <span>✔</span>
@@ -192,6 +199,7 @@ function LoginPage() {
               </p>
             </div>
           </div>
+
           <div>
             <span>✔</span>
             <div>
@@ -202,6 +210,7 @@ function LoginPage() {
               </p>
             </div>
           </div>
+
           <div>
             <span>✔</span>
             <div>
@@ -212,9 +221,10 @@ function LoginPage() {
         </div>
       </section>
 
-      {/* right side - login/register panel */}
+      {/* RIGHT SIDE: AUTH PANEL (login/register) */}
       <section className="auth-panel">
-        {/* switch between login/register */}
+
+        {/* tabs to switch between login + register */}
         <div className="tab-switcher">
           {['login', 'register'].map((value) => (
             <button
@@ -228,7 +238,7 @@ function LoginPage() {
           ))}
         </div>
 
-        {/* form section */}
+        {/* actual form card */}
         <form className="auth-card" onSubmit={handleSubmit}>
           <div>
             <h2>{mode === 'login' ? 'Welcome back' : 'Create an account'}</h2>
@@ -239,7 +249,7 @@ function LoginPage() {
             </p>
           </div>
 
-          {/* register form shows full name */}
+          {/* full name required only in register mode */}
           {mode === 'register' && (
             <label>
               Full name
@@ -281,7 +291,7 @@ function LoginPage() {
             />
           </label>
 
-          {/* confirm password only shows on register */}
+          {/* confirm password for register mode */}
           {mode === 'register' && (
             <label>
               Confirm password
@@ -297,7 +307,7 @@ function LoginPage() {
             </label>
           )}
 
-          {/* submit button */}
+          {/* submit button for login/register */}
           <button type="submit" className="primary" disabled={isSubmitting}>
             {isSubmitting
               ? 'Please wait…'

@@ -12,6 +12,9 @@ from db import get_connection
 router = APIRouter()
 
 
+# ----------------------------------------------------------
+# request models for register + login
+# ----------------------------------------------------------
 class RegisterRequest(BaseModel):
     name: str
     email: EmailStr
@@ -23,31 +26,39 @@ class LoginRequest(BaseModel):
     password: str
 
 
+# ----------------------------------------------------------
+# register a new user
+# ----------------------------------------------------------
+# steps:
+#   1) validate password complexity
+#   2) hash password using sha256
+#   3) ensure email is not already taken
+#   4) insert user and return metadata
 @router.post("/register")
 def register_user(payload: RegisterRequest):
     conn = get_connection()
     cur = conn.cursor()
 
-    # password rules
+    # basic password rules
     if not (re.search(r"[A-Z]", payload.password) and re.search(r"[^A-Za-z0-9]", payload.password)):
         raise HTTPException(
             400,
-            "Password must include at least one uppercase letter and one special character."
+            "password must include at least one uppercase letter and one special character."
         )
 
     password_hash = hashlib.sha256(payload.password.encode("utf-8")).hexdigest()
 
     try:
-        # check if email exists
-        cur.execute("SELECT 1 FROM Users WHERE email = %s;", (payload.email,))
+        # check email uniqueness before inserting
+        cur.execute("select 1 from users where email = %s;", (payload.email,))
         if cur.fetchone():
-            raise HTTPException(400, "Email already registered.")
+            raise HTTPException(400, "email already registered.")
 
-        # insert user
+        # insert new user
         cur.execute("""
-            INSERT INTO Users (name, email, password_hash)
-            VALUES (%s, %s, %s)
-            RETURNING user_id, created_at;
+            insert into users (name, email, password_hash)
+            values (%s, %s, %s)
+            returning user_id, created_at;
         """, (payload.name, payload.email, password_hash))
 
         user_id, created_at = cur.fetchone()
@@ -58,50 +69,66 @@ def register_user(payload: RegisterRequest):
             "name": payload.name,
             "email": payload.email,
             "created_at": created_at.isoformat(),
-            "message": "User registered successfully."
+            "message": "user registered successfully."
         }
 
     except psycopg2.IntegrityError:
+        # db-level unique constraint fallback
         conn.rollback()
-        raise HTTPException(400, "Email already registered.")
+        raise HTTPException(400, "email already registered.")
+
     finally:
         cur.close()
         conn.close()
 
 
+# ----------------------------------------------------------
+# login user
+# ----------------------------------------------------------
+# steps:
+#   1) lookup user by email
+#   2) hash provided password and compare with stored hash
+#   3) if valid, fetch latest upload for convenience
+#   4) return login success response
 @router.post("/login")
 def login_user(payload: LoginRequest):
     conn = get_connection()
     cur = conn.cursor()
 
     try:
+        # find account by email
         cur.execute("""
-            SELECT user_id, name, password_hash, created_at
-            FROM Users
-            WHERE email = %s;
+            select user_id, name, password_hash, created_at
+            from users
+            where email = %s;
         """, (payload.email,))
         record = cur.fetchone()
 
         if not record:
-            raise HTTPException(401, "Invalid email or password.")
+            raise HTTPException(401, "invalid email or password.")
 
         user_id, name, stored_hash, created_at = record
+
+        # hash incoming password
         given_hash = hashlib.sha256(payload.password.encode("utf-8")).hexdigest()
 
+        # compare stored and incoming hash
         if stored_hash != given_hash:
-            raise HTTPException(401, "Invalid email or password.")
+            raise HTTPException(401, "invalid email or password.")
 
+        # fetch user's latest upload info
         cur.execute(
             """
-            SELECT upload_id, is_active
-            FROM Uploads
-            WHERE user_id = %s
-            ORDER BY upload_date DESC
-            LIMIT 1;
+            select upload_id, is_active
+            from uploads
+            where user_id = %s
+            order by upload_date desc
+            limit 1;
             """,
             (user_id,),
         )
         upload_row = cur.fetchone()
+
         active_upload_id = upload_row[0] if upload_row else None
         has_upload = bool(upload_row)
 
@@ -112,7 +139,7 @@ def login_user(payload: LoginRequest):
             "created_at": created_at.isoformat(),
             "has_upload": has_upload,
             "active_upload_id": active_upload_id,
-            "message": "Login successful."
+            "message": "login successful."
         }
 
     finally:

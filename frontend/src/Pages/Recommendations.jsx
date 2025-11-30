@@ -4,6 +4,8 @@ import "../styles/Recommendations.css";
 import { apiFetch } from "../api";
 
 function RecommendationsPage() {
+  // load saved recommendations from localStorage (generated on previous page)
+  // useMemo so it doesn't re-parse on every re-render
   const recommendations = useMemo(() => {
     const saved = localStorage.getItem("recommendations");
     if (!saved) return [];
@@ -12,15 +14,20 @@ function RecommendationsPage() {
       const parsed = JSON.parse(saved);
       return Array.isArray(parsed) ? parsed : [];
     } catch {
+      // corrupted JSON -> return empty list
       return [];
     }
   }, []);
 
+  // load the context: task description + start/end dates from the request that generated recs
   const taskContext = useMemo(() => {
     const saved = localStorage.getItem("recommendations_context");
     if (!saved) return null;
+
     try {
       const parsed = JSON.parse(saved);
+
+      // validate the stored object structure
       if (
         parsed &&
         typeof parsed.task_description === "string" &&
@@ -29,19 +36,29 @@ function RecommendationsPage() {
       ) {
         return parsed;
       }
+
       return null;
     } catch {
       return null;
     }
   }, []);
 
+  // general status messages (error, success, info)
   const [status, setStatus] = useState({ type: null, message: "" });
+
+  // modal / assignment state
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+
+  // loading state during assignment API request
   const [assignLoading, setAssignLoading] = useState(false);
+
+  // editable label shown in the modal before confirming assignment
   const [taskLabel, setTaskLabel] = useState("");
 
+  // opens modal for assigning employee
   const openAssignModal = (emp) => {
+    // recommendations depend on saved taskContext, so ensure we have it
     if (!taskContext) {
       setStatus({
         type: "error",
@@ -50,6 +67,7 @@ function RecommendationsPage() {
       return;
     }
 
+    // require login to assign tasks
     const userId = localStorage.getItem("user_id");
     if (!userId) {
       setStatus({
@@ -61,20 +79,25 @@ function RecommendationsPage() {
 
     setStatus({ type: null, message: "" });
     setSelectedEmployee(emp);
+
+    // default pre-filled label is the original task description
     setTaskLabel(taskContext.task_description || "");
     setModalOpen(true);
   };
 
+  // close modal safely
   const handleCloseModal = () => {
-    if (assignLoading) return;
+    if (assignLoading) return; // prevent closing mid-request
     setModalOpen(false);
     setSelectedEmployee(null);
     setTaskLabel("");
   };
 
+  // send assignment request to backend
   const confirmAssign = async () => {
     if (!selectedEmployee || !taskContext) return;
 
+    // meaningful label required
     const cleanedLabel = (taskLabel || "").trim();
     if (!cleanedLabel) {
       setStatus({
@@ -95,6 +118,7 @@ function RecommendationsPage() {
 
     setAssignLoading(true);
     setStatus({ type: "info", message: "Assigning task..." });
+
     try {
       const payload = {
         user_id: Number(userId),
@@ -104,11 +128,13 @@ function RecommendationsPage() {
         end_date: taskContext.end_date,
       };
 
+      // include upload id if available
       const uploadId = localStorage.getItem("active_upload_id");
       if (uploadId) {
         payload.upload_id = Number(uploadId);
       }
 
+      // call backend API to create assignment
       const response = await apiFetch("/recommend/assign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -119,6 +145,8 @@ function RecommendationsPage() {
         type: "success",
         message: response.message || "Task assigned successfully.",
       });
+
+      // reset modal
       setModalOpen(false);
       setSelectedEmployee(null);
       setTaskLabel("");
@@ -132,6 +160,7 @@ function RecommendationsPage() {
     }
   };
 
+  // if user visits this page with no stored recommendations
   if (recommendations.length === 0) {
     return (
       <>
@@ -152,23 +181,30 @@ function RecommendationsPage() {
 
       <div className="recommendations-container">
         <h2>Recommended Employees</h2>
+
+        {/* show messages above recommendation list */}
         {status.message && (
           <p className={`status-message ${status.type || ""}`}>
             {status.message}
           </p>
         )}
 
+        {/* list of recommendation cards */}
         <div className="recommendations-list">
           {recommendations.map((emp, index) => {
+            // defensive parsing of backend values
             const scorePercent =
               typeof emp.score_percent === "number" ? emp.score_percent : 0;
+
             const availabilityPercent =
               typeof emp.availability_percent === "number"
                 ? emp.availability_percent
                 : 0;
-            const availabilityLabel =
-              emp.availability_label || "Availability";
+
+            const availabilityLabel = emp.availability_label || "Availability";
+
             const skills = Array.isArray(emp.skills) ? emp.skills : [];
+
             const reason =
               typeof emp.reason === "string" && emp.reason.trim().length > 0
                 ? emp.reason
@@ -179,6 +215,7 @@ function RecommendationsPage() {
                 key={emp.employee_id || index}
                 className="rec-card"
               >
+                {/* card header with name + score */}
                 <div className="rec-header">
                   <div>
                     <h3>{emp.name || "Unknown employee"}</h3>
@@ -187,21 +224,25 @@ function RecommendationsPage() {
                   <div className="score-circle">{scorePercent}%</div>
                 </div>
 
+                {/* availability line */}
                 <p>
                   <strong>Availability:</strong>{" "}
                   {availabilityLabel} ({availabilityPercent}%)
                 </p>
 
+                {/* skills summary */}
                 <p>
                   <strong>Applicable Skills:</strong>{" "}
                   {skills.length > 0 ? skills.join(", ") : "None matched"}
                 </p>
 
+                {/* explanation box from NLP engine */}
                 <div className="reason-box">
                   <strong>Why this match:</strong>
                   <p>{reason}</p>
                 </div>
 
+                {/* open modal to assign */}
                 <button
                   type="button"
                   className="assign-btn"
@@ -215,14 +256,19 @@ function RecommendationsPage() {
         </div>
       </div>
 
+      {/* assignment modal */}
       {modalOpen && selectedEmployee && (
         <div className="assign-modal-overlay">
           <div className="assign-modal">
             <h3>Confirm Assignment</h3>
+
+            {/* employee being assigned */}
             <p>
               Are you sure you want to assign{" "}
               <strong>{selectedEmployee.name}</strong> to this task?
             </p>
+
+            {/* user enters visible label for Tasks page */}
             <label className="modal-label">
               Task label (appears on Tasks page)
               <input
@@ -233,6 +279,8 @@ function RecommendationsPage() {
                 disabled={assignLoading}
               />
             </label>
+
+            {/* show original task description + dates underneath */}
             <div className="modal-task-details">
               <p>{taskContext?.task_description}</p>
               {taskContext?.start_date && taskContext?.end_date && (
@@ -243,6 +291,8 @@ function RecommendationsPage() {
                 </p>
               )}
             </div>
+
+            {/* modal actions: cancel + confirm */}
             <div className="modal-actions">
               <button
                 type="button"
@@ -252,6 +302,7 @@ function RecommendationsPage() {
               >
                 Cancel
               </button>
+
               <button
                 type="button"
                 className="primary-btn"

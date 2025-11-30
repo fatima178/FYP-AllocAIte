@@ -4,6 +4,11 @@ from typing import Optional
 from db import get_connection
 
 
+# ----------------------------------------------------------
+# custom error for task/assignment-related failures
+# ----------------------------------------------------------
+# allows raising structured errors that can later be mapped to
+# http responses or frontend alerts.
 class TaskProcessingError(Exception):
     def __init__(self, status_code: int, message: str):
         super().__init__(message)
@@ -11,14 +16,19 @@ class TaskProcessingError(Exception):
         self.message = message
 
 
+# ----------------------------------------------------------
+# fetch active upload or fall back to latest upload
+# ----------------------------------------------------------
+# used across all task-related endpoints to know which dataset
+# (employees + assignments) should be used.
 def _get_active_upload_id(cur, user_id: int) -> Optional[int]:
     cur.execute(
         """
-        SELECT upload_id
-        FROM Uploads
-        WHERE user_id = %s AND is_active = TRUE
-        ORDER BY upload_date DESC
-        LIMIT 1;
+        select upload_id
+        from uploads
+        where user_id = %s and is_active = true
+        order by upload_date desc
+        limit 1;
         """,
         (user_id,),
     )
@@ -26,13 +36,14 @@ def _get_active_upload_id(cur, user_id: int) -> Optional[int]:
     if row:
         return row[0]
 
+    # fallback to latest upload if no active one exists
     cur.execute(
         """
-        SELECT upload_id
-        FROM Uploads
-        WHERE user_id = %s
-        ORDER BY upload_date DESC
-        LIMIT 1;
+        select upload_id
+        from uploads
+        where user_id = %s
+        order by upload_date desc
+        limit 1;
         """,
         (user_id,),
     )
@@ -40,23 +51,36 @@ def _get_active_upload_id(cur, user_id: int) -> Optional[int]:
     return row[0] if row else None
 
 
+# ----------------------------------------------------------
+# normalize a week start date
+# ----------------------------------------------------------
+# ensures any provided date resolves to the monday of that week.
+# if no date provided → default to today's week.
 def _normalize_week_start(target: Optional[date]) -> date:
     base = target or date.today()
     return base - timedelta(days=base.weekday())
 
 
+# ----------------------------------------------------------
+# build task payload for weekly timeline display
+# ----------------------------------------------------------
+# calculates offsets and spans within a 7-day visual grid:
+#   - visible_start/end clamp the assignment to the visible calendar window
+#   - start_offset is number of days from beginning of week
+#   - span is number of visible days the assignment covers
 def _build_task_payload(row, week_start: date, week_end: date):
     assignment_id, employee_id, title, start_date, end_date, employee_name = row
 
     visible_start = max(start_date, week_start)
     visible_end = min(end_date, week_end)
+
     start_offset = (visible_start - week_start).days
     span = (visible_end - visible_start).days + 1
 
     return {
         "assignment_id": assignment_id,
         "employee_id": employee_id,
-        "employee_name": employee_name or "Unassigned",
+        "employee_name": employee_name or "unassigned",
         "title": title,
         "start_date": str(start_date),
         "end_date": str(end_date),
@@ -65,6 +89,14 @@ def _build_task_payload(row, week_start: date, week_end: date):
     }
 
 
+# ----------------------------------------------------------
+# fetch weekly tasks for timeline/calendar UI
+# ----------------------------------------------------------
+# returns:
+#   - list of employees and their tasks (grouped per person)
+#   - list of unassigned tasks
+#   - employee options for dropdown selection
+#   - week boundaries (monday to sunday)
 def fetch_weekly_tasks(user_id: int, week_start: Optional[date]) -> dict:
     week_start_day = _normalize_week_start(week_start)
     week_end_day = week_start_day + timedelta(days=6)
@@ -74,41 +106,45 @@ def fetch_weekly_tasks(user_id: int, week_start: Optional[date]) -> dict:
 
     try:
         upload_id = _get_active_upload_id(cur, user_id)
+
+        # if user has no dataset yet, return empty structure
         if not upload_id:
             return {
                 "week_start": str(week_start_day),
                 "week_end": str(week_end_day),
                 "employees": [],
                 "unassigned": [],
-                "employee_options": [{"employee_id": None, "name": "Unassigned"}],
+                "employee_options": [{"employee_id": None, "name": "unassigned"}],
             }
 
+        # fetch employee list for this upload
         cur.execute(
             """
-            SELECT employee_id, name
-            FROM Employees
-            WHERE upload_id = %s
-            ORDER BY name ASC;
+            select employee_id, name
+            from employees
+            where upload_id = %s
+            order by name asc;
             """,
             (upload_id,),
         )
         employee_rows = cur.fetchall()
 
+        # fetch all assignments overlapping the requested week
         cur.execute(
             """
-            SELECT
+            select
                 a.assignment_id,
                 a.employee_id,
                 a.title,
                 a.start_date,
                 a.end_date,
                 e.name
-            FROM Assignments a
-            LEFT JOIN Employees e ON a.employee_id = e.employee_id
-            WHERE a.upload_id = %s
-              AND a.start_date <= %s
-              AND a.end_date >= %s
-            ORDER BY e.name NULLS LAST, a.start_date ASC;
+            from assignments a
+            left join employees e on a.employee_id = e.employee_id
+            where a.upload_id = %s
+              and a.start_date <= %s
+              and a.end_date >= %s
+            order by e.name nulls last, a.start_date asc;
             """,
             (upload_id, week_end_day, week_start_day),
         )
@@ -117,9 +153,11 @@ def fetch_weekly_tasks(user_id: int, week_start: Optional[date]) -> dict:
         employees = {}
         unassigned = []
 
+        # group tasks by employee and separate unassigned tasks
         for row in rows:
             payload = _build_task_payload(row, week_start_day, week_end_day)
             emp_id = payload["employee_id"]
+
             if emp_id is None:
                 unassigned.append(payload)
             else:
@@ -131,11 +169,13 @@ def fetch_weekly_tasks(user_id: int, week_start: Optional[date]) -> dict:
                     }
                 employees[emp_id]["tasks"].append(payload)
 
+        # sort both groups for consistent ui
         employee_list = list(employees.values())
         employee_list.sort(key=lambda item: item["name"].lower())
         unassigned.sort(key=lambda item: item["title"].lower())
 
-        employee_options = [{"employee_id": None, "name": "Unassigned"}]
+        # build dropdown selection list (includes "unassigned")
+        employee_options = [{"employee_id": None, "name": "unassigned"}]
         employee_options.extend(
             {"employee_id": emp_id, "name": name}
             for emp_id, name in employee_rows
@@ -148,13 +188,24 @@ def fetch_weekly_tasks(user_id: int, week_start: Optional[date]) -> dict:
             "unassigned": unassigned,
             "employee_options": employee_options,
         }
+
     except Exception as exc:
+        # wrap unexpected errors into structured exception
         raise TaskProcessingError(500, str(exc))
+
     finally:
         cur.close()
         conn.close()
 
 
+# ----------------------------------------------------------
+# create new assignment entry
+# ----------------------------------------------------------
+# validates:
+#   - title present
+#   - start <= end
+#   - user has active upload
+#   - if assigning to employee, validate employee belongs to upload
 def create_task_entry(
     user_id: int,
     title: str,
@@ -165,6 +216,7 @@ def create_task_entry(
     clean_title = (title or "").strip()
     if not clean_title:
         raise TaskProcessingError(400, "title is required")
+
     if start_date > end_date:
         raise TaskProcessingError(400, "start date cannot be after end date")
 
@@ -176,21 +228,23 @@ def create_task_entry(
         if not upload_id:
             raise TaskProcessingError(400, "no active upload found for this user")
 
+        # if employee assigned, verify they belong to this dataset
         if employee_id is not None:
             cur.execute(
                 """
-                SELECT 1
-                FROM Employees
-                WHERE employee_id = %s AND upload_id = %s;
+                select 1
+                from employees
+                where employee_id = %s and upload_id = %s;
                 """,
                 (employee_id, upload_id),
             )
             if not cur.fetchone():
                 raise TaskProcessingError(404, "employee not found for this upload")
 
+        # insert new assignment
         cur.execute(
             """
-            INSERT INTO Assignments (
+            insert into assignments (
                 employee_id,
                 upload_id,
                 title,
@@ -200,8 +254,8 @@ def create_task_entry(
                 remaining_hours,
                 priority
             )
-            VALUES (%s, %s, %s, %s, %s, NULL, NULL, NULL)
-            RETURNING assignment_id;
+            values (%s, %s, %s, %s, %s, null, null, null)
+            returning assignment_id;
             """,
             (employee_id, upload_id, clean_title, start_date, end_date),
         )
@@ -209,12 +263,17 @@ def create_task_entry(
         assignment_id = cur.fetchone()[0]
         conn.commit()
         return {"assignment_id": assignment_id}
+
     except TaskProcessingError:
+        # expected error →-rethrow after rollback
         conn.rollback()
         raise
+
     except Exception as exc:
+        # unexpected error - wrap into structured exception
         conn.rollback()
         raise TaskProcessingError(500, str(exc))
+
     finally:
         cur.close()
         conn.close()

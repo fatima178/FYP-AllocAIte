@@ -1,6 +1,11 @@
-"""Helpers for computing task matching scores and explanations."""
+"""helpers for computing task matching scores and explanations."""
 
-# scale experience 0–1 based on max value
+# ----------------------------------------------------------
+# experience normalisation
+# ----------------------------------------------------------
+# converts experience years into a 0–1 scale so it can be
+# combined fairly with other metrics. this prevents someone
+# with huge years of experience from dominating the score.
 def normalize_experience(experience, max_experience):
     if not max_experience:
         return 0.0
@@ -8,7 +13,12 @@ def normalize_experience(experience, max_experience):
     return max(0.0, safe_exp / max_experience)
 
 
-# quick role relevance check using text overlap
+# ----------------------------------------------------------
+# role relevance scoring
+# ----------------------------------------------------------
+# checks how strongly the employee's role name relates to
+# the task description. this is intentionally lightweight and
+# meant to complement semantic similarity rather than replace it.
 def compute_role_match(task_description, role):
     if not role:
         return 0.0
@@ -16,73 +26,98 @@ def compute_role_match(task_description, role):
     td = task_description.lower()
     role_lower = role.lower()
 
-    # full phrase match
+    # strongest match: full role phrase appears in task text
     if role_lower in td:
         return 1.0
 
-    # partial word match
+    # medium match: any individual word overlaps
     for word in role_lower.split():
         if word and word in td:
             return 0.6
 
-    # default low relevance
+    # default low relevance when nothing overlaps
     return 0.3
 
 
-# choose weights depending on whether skills matched
+# ----------------------------------------------------------
+# weighting strategy
+# ----------------------------------------------------------
+# chooses how much each metric should influence the final score.
+# this changes depending on whether the employee actually had any skill matches.
+# if skills matched: skill + experience become more important
+# if no skills matched: semantic + experience dominate
 def _determine_weights(skill_score):
-    # if skills matched more weight to skills + experience
     if skill_score > 0:
+        # skills matched: emphasize skills + experience
         return 0.30, 0.30, 0.20, 0.10, 0.10
-    # if no skill match more weight to semantic + experience
+    # no skill match: emphasize semantic understanding
     return 0.30, 0.10, 0.35, 0.15, 0.10
 
 
-# convert availability % into a simple text label
+# ----------------------------------------------------------
+# availability readability helper
+# ----------------------------------------------------------
+# converts a numeric % availability into a human-friendly label.
 def _availability_label(percent):
     if percent >= 70:
-        return "High availability"
+        return "high availability"
     if percent >= 40:
-        return "Partial availability"
-    return "Limited availability"
+        return "partial availability"
+    return "limited availability"
 
 
-# create short natural explanation for user
+# ----------------------------------------------------------
+# construct natural sounding explanatory text
+# ----------------------------------------------------------
+# produces a short, human readable explanation summarising:
+#   - skill matches
+#   - role relevance
+#   - experience level
+#   - availability
 def _build_reason(skills, role_score, role, experience, availability_percent):
     explanation = []
 
     # skills summary
     if skills:
-        explanation.append(f"Direct skill matches: {', '.join(skills)}")
+        explanation.append(f"direct skill matches: {', '.join(skills)}")
     else:
-        explanation.append("No direct skill overlap with this task")
+        explanation.append("no direct skill overlap with this task")
 
     # role relevance summary
     if role_score >= 0.8:
-        explanation.append(f"Role as {role} fits the task directly")
+        explanation.append(f"role as {role} fits the task directly")
     elif role_score >= 0.5:
-        explanation.append(f"Role as {role} is related to the task")
+        explanation.append(f"role as {role} is related to the task")
     else:
-        explanation.append(f"Role as {role} provides partial relevance")
+        explanation.append(f"role as {role} provides partial relevance")
 
-    # experience note
+    # experience summary
     if experience >= 5:
-        explanation.append(f"Strong experience ({experience} years)")
+        explanation.append(f"strong experience ({experience} years)")
     else:
         explanation.append(f"{experience} years of experience")
 
-    # availability note
+    # availability summary
     if availability_percent >= 70:
-        explanation.append("Fully available during the required timeframe")
+        explanation.append("fully available during the required timeframe")
     elif availability_percent >= 40:
-        explanation.append("Partially available during the timeframe")
+        explanation.append("partially available during the timeframe")
     else:
-        explanation.append("Availability is limited for this period")
+        explanation.append("availability is limited for this period")
 
     return ". ".join(explanation) + "."
 
 
-# build final dict for the ranked employee entry
+# ----------------------------------------------------------
+# build final recommendation record
+# ----------------------------------------------------------
+# constructs the complete result dictionary for one employee,
+# including:
+#   - all individual scores
+#   - weighted final score
+#   - readable percentages
+#   - labels
+#   - explanation for the user
 def build_recommendation_entry(
     employee,
     semantic_score,
@@ -92,7 +127,7 @@ def build_recommendation_entry(
     availability_score,
     matched_skills,
 ):
-    # decide which weights to use
+    # choose weighting strategy based on skill match outcome
     (
         weight_semantic,
         weight_skill,
@@ -101,7 +136,7 @@ def build_recommendation_entry(
         weight_availability,
     ) = _determine_weights(skill_score)
 
-    # weighted score calculation
+    # weighted sum combining all signals into a single relevance score
     final_score = (
         weight_semantic * semantic_score +
         weight_skill * skill_score +
@@ -110,12 +145,12 @@ def build_recommendation_entry(
         weight_availability * availability_score
     )
 
-    # convert to readable %
+    # convert continuous scores into readable percentages
     score_percent = max(0, min(100, round(final_score * 100)))
     availability_percent = max(0, min(100, round(availability_score * 100)))
     availability_label = _availability_label(availability_percent)
 
-    # build explanation text
+    # generate explanation text
     reason = _build_reason(
         matched_skills,
         role_score,
@@ -124,7 +159,7 @@ def build_recommendation_entry(
         availability_percent,
     )
 
-    # packaged result for frontend
+    # final structure to return to frontend / api
     return {
         "employee_id": employee["employee_id"],
         "name": employee["name"],
