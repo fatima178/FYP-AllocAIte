@@ -128,7 +128,7 @@ function UploadPage() {
 
       setStatus({
         type: 'success',
-        message: `File uploaded successfully. Rows processed: ${body.rows}.`,
+        message: `File uploaded successfully. Rows processed: ${body.row_count ?? 'Unknown'}.`,
       });
       setFile(null);
     } catch (error) {
