@@ -7,7 +7,9 @@ from pydantic import BaseModel, Field
 from processing.task_processing import (
     TaskProcessingError,
     create_task_entry,
+    delete_task_entry,
     fetch_weekly_tasks,
+    update_task_entry,
 )
 
 router = APIRouter()
@@ -21,6 +23,16 @@ class TaskCreate(BaseModel):
     start_date: date                             # start date must be valid iso (handled by pydantic)
     end_date: date                               # same for end date
     employee_id: Optional[int] = None            # optional: allows unassigned tasks
+
+
+# pydantic model for updating a task
+# mirrors the create model
+class TaskUpdate(BaseModel):
+    user_id: int
+    title: str = Field(..., min_length=1)
+    start_date: date
+    end_date: date
+    employee_id: Optional[int] = None
 
 
 @router.get("/tasks/week")
@@ -45,5 +57,30 @@ def create_task(payload: TaskCreate):
             payload.end_date,
             payload.employee_id,
         )
+    except TaskProcessingError as exc:
+        raise HTTPException(exc.status_code, exc.message)
+
+
+@router.put("/tasks/{assignment_id}")
+def update_task(assignment_id: int, payload: TaskUpdate):
+    # update an existing task assigned to a user
+    try:
+        return update_task_entry(
+            payload.user_id,
+            assignment_id,
+            payload.title,
+            payload.start_date,
+            payload.end_date,
+            payload.employee_id,
+        )
+    except TaskProcessingError as exc:
+        raise HTTPException(exc.status_code, exc.message)
+
+
+@router.delete("/tasks/{assignment_id}")
+def delete_task(assignment_id: int, user_id: int):
+    # delete an existing task assigned to a user
+    try:
+        return delete_task_entry(user_id, assignment_id)
     except TaskProcessingError as exc:
         raise HTTPException(exc.status_code, exc.message)

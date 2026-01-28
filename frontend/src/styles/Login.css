@@ -19,6 +19,7 @@ body {
   grid-template-columns: repeat(2, minmax(360px, 1fr));
   min-height: 100vh;
   align-items: stretch;
+  font-size: 1.7rem;
 }
 
 @media (max-width: 900px) {
@@ -69,6 +70,7 @@ body {
 .hero-brand p {
   margin: 0.2rem 0 0;
   color: rgba(255, 255, 255, 0.85);
+  font-size: 1.05rem;
 }
 
 .hero-points {
@@ -90,12 +92,14 @@ body {
 
 .hero-points h3 {
   margin: 0 0 0.25rem;
+  font-size: 1.25rem;
 }
 
 .hero-points p {
   margin: 0;
   color: rgba(255, 255, 255, 0.8);
   max-width: 30ch;
+  font-size: 1.15rem;
 }
 
 .auth-panel {
@@ -161,6 +165,7 @@ body {
   margin: 0.35rem 0 0;
   color: var(--text);
   opacity: 0.75;
+  font-size: 1.05rem;
 }
 
 label {

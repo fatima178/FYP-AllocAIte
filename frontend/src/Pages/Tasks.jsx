@@ -72,6 +72,7 @@ function TasksPage() {
 
   // modal for adding tasks
   const [showModal, setShowModal] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   // controlled form for "Add task"
   const [formData, setFormData] = useState({
@@ -80,6 +81,19 @@ function TasksPage() {
     endDate: formatDateInput(initialWeekStart),
     employeeId: '',
   });
+
+  // controlled form for editing tasks
+  const [editForm, setEditForm] = useState({
+    title: '',
+    startDate: formatDateInput(initialWeekStart),
+    endDate: formatDateInput(initialWeekStart),
+    employeeId: '',
+  });
+
+  const [editTaskId, setEditTaskId] = useState(null);
+  const [editError, setEditError] = useState('');
+  const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -196,9 +210,36 @@ function TasksPage() {
     setFormError('');
   };
 
+  // open edit modal for a task
+  const openEditModal = (task) => {
+    setEditTaskId(task.assignment_id);
+    setEditForm({
+      title: task.title || '',
+      startDate: task.start_date,
+      endDate: task.end_date,
+      employeeId: task.employee_id ? String(task.employee_id) : '',
+    });
+    setEditError('');
+    setEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    if (updating || deleting) return;
+    setEditModalOpen(false);
+    setEditTaskId(null);
+    setEditError('');
+  };
+
   // synchronises controlled form state
   const handleFormChange = (field, value) => {
     setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleEditChange = (field, value) => {
+    setEditForm((prev) => ({
       ...prev,
       [field]: value,
     }));
@@ -248,6 +289,57 @@ function TasksPage() {
       setFormError(err.message || 'Unable to save task.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUpdateTask = async (event) => {
+    event.preventDefault();
+    if (!userId || !editTaskId) return;
+
+    setUpdating(true);
+    setEditError('');
+
+    try {
+      await apiFetch(`/tasks/${editTaskId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: Number(userId),
+          title: editForm.title,
+          start_date: editForm.startDate,
+          end_date: editForm.endDate,
+          employee_id: editForm.employeeId ? Number(editForm.employeeId) : null,
+        }),
+      });
+
+      setEditModalOpen(false);
+      setEditTaskId(null);
+      fetchWeekData();
+    } catch (err) {
+      setEditError(err.message || 'Unable to update task.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (!userId || !editTaskId) return;
+
+    setDeleting(true);
+    setEditError('');
+
+    try {
+      await apiFetch(`/tasks/${editTaskId}?user_id=${userId}`, {
+        method: 'DELETE',
+      });
+
+      setEditModalOpen(false);
+      setEditTaskId(null);
+      fetchWeekData();
+    } catch (err) {
+      setEditError(err.message || 'Unable to delete task.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -349,6 +441,7 @@ function TasksPage() {
                           <div
                             key={task.assignment_id}
                             className="task-block"
+                            onClick={() => openEditModal(task)}
                             style={{
                               left: `${left}%`,
                               width: `${width}%`,
@@ -444,6 +537,86 @@ function TasksPage() {
 
                 <button type="submit" className="primary-btn" disabled={saving}>
                   {saving ? 'Saving...' : 'Save task'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT TASK MODAL */}
+      {editModalOpen && (
+        <div className="task-modal">
+          <div className="task-modal__content">
+            <div className="task-modal__header">
+              <h2>Edit task</h2>
+              <button type="button" onClick={closeEditModal} aria-label="Close">
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateTask}>
+              <label>
+                Task name
+                <input
+                  type="text"
+                  value={editForm.title}
+                  onChange={(e) => handleEditChange('title', e.target.value)}
+                  required
+                />
+              </label>
+
+              <label>
+                Start date
+                <input
+                  type="date"
+                  value={editForm.startDate}
+                  onChange={(e) => handleEditChange('startDate', e.target.value)}
+                  required
+                />
+              </label>
+
+              <label>
+                End date
+                <input
+                  type="date"
+                  value={editForm.endDate}
+                  onChange={(e) => handleEditChange('endDate', e.target.value)}
+                  required
+                  min={editForm.startDate}
+                />
+              </label>
+
+              <label>
+                Assign to
+                <select
+                  value={editForm.employeeId}
+                  onChange={(e) => handleEditChange('employeeId', e.target.value)}
+                >
+                  {(weekData.employee_options || []).map((option) => (
+                    <option
+                      key={option.employee_id === null ? 'unassigned' : option.employee_id}
+                      value={option.employee_id === null ? '' : option.employee_id}
+                    >
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {editError && <p className="form-error">{editError}</p>}
+
+              <div className="modal-actions">
+                <button type="button" className="ghost-btn" onClick={closeEditModal}>
+                  Cancel
+                </button>
+
+                <button type="button" className="ghost-btn" onClick={handleDeleteTask} disabled={deleting}>
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </button>
+
+                <button type="submit" className="primary-btn" disabled={updating}>
+                  {updating ? 'Saving...' : 'Save changes'}
                 </button>
               </div>
             </form>

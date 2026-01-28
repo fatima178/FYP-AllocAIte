@@ -149,6 +149,9 @@
 .info {
   flex-grow: 1;
   margin-left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .info h3 {
@@ -162,7 +165,7 @@
   font-size: 0.9rem;
   color: var(--text);
   opacity: 0.75;
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 /* STATUS BADGES */

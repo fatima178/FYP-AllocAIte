@@ -17,7 +17,7 @@ function App() {
   useEffect(() => {
     // converts logical font sizes to actual CSS pixel values
     const resolveFontSizeValue = (size) =>
-      size === 'small' ? '14px' : size === 'large' ? '18px' : '16px';
+      size === 'small' ? '16px' : size === 'large' ? '20px' : '18px';
 
     const userId = localStorage.getItem('user_id');
 

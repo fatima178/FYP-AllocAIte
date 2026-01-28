@@ -15,7 +15,7 @@ const applyThemeClass = (value) => {
 // adjusts the base font size for the entire UI
 const applyFontSize = (value) => {
   document.documentElement.style.fontSize =
-    value === "small" ? "14px" : value === "large" ? "18px" : "16px";
+    value === "small" ? "16px" : value === "large" ? "20px" : "18px";
 };
 
 // attaches user_id to localStorage keys so preferences are per-user
@@ -322,6 +322,7 @@ function SettingsPage() {
     }
   };
 
+
   // update password form fields
   const handlePasswordChange = (event) => {
     const { name, value } = event.target;
@@ -575,6 +576,7 @@ function SettingsPage() {
             )}
           </form>
         </div>
+
       </div>
 
       {/* EDIT DETAILS MODAL */}

@@ -267,3 +267,164 @@ def create_task_entry(
     finally:
         cur.close()
         conn.close()
+
+
+# ----------------------------------------------------------
+# validate assignment ownership
+# ----------------------------------------------------------
+# ensures the assignment belongs to the user, either via user_id
+# or via the linked employee relationship.
+def _validate_assignment_owner(cur, assignment_id: int, user_id: int) -> bool:
+    cur.execute(
+        """
+        SELECT 1
+        FROM "Assignments" a
+        LEFT JOIN "Employees" e ON a.employee_id = e.employee_id
+        WHERE a.assignment_id = %s
+          AND (
+            a.user_id = %s
+            OR (a.user_id IS NULL AND e.user_id = %s)
+          );
+        """,
+        (assignment_id, user_id, user_id),
+    )
+    return bool(cur.fetchone())
+
+
+# ----------------------------------------------------------
+# update assignment entry
+# ----------------------------------------------------------
+# validates:
+#   - title present
+#   - start <= end
+#   - assignment belongs to user
+#   - if employee assigned, validate employee belongs to user
+def update_task_entry(
+    user_id: int,
+    assignment_id: int,
+    title: str,
+    start_date: date,
+    end_date: date,
+    employee_id: Optional[int] = None,
+) -> dict:
+    clean_title = (title or "").strip()
+    if not clean_title:
+        raise TaskProcessingError(400, "title is required")
+
+    if start_date > end_date:
+        raise TaskProcessingError(400, "start date cannot be after end date")
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        if not _validate_assignment_owner(cur, assignment_id, user_id):
+            raise TaskProcessingError(404, "task not found for this user")
+
+        # if employee assigned, verify they belong to this user
+        if employee_id is not None:
+            cur.execute(
+                """
+                SELECT 1
+                FROM "Employees"
+                WHERE employee_id = %s AND user_id = %s;
+                """,
+                (employee_id, user_id),
+            )
+            if not cur.fetchone():
+                raise TaskProcessingError(404, "employee not found for this user")
+
+        # preserve existing hours unless missing
+        cur.execute(
+            """
+            SELECT total_hours, remaining_hours
+            FROM "Assignments"
+            WHERE assignment_id = %s;
+            """,
+            (assignment_id,),
+        )
+        row = cur.fetchone()
+        total_hours = row[0] if row else None
+        remaining_hours = row[1] if row else None
+
+        if total_hours is None:
+            days = (end_date - start_date).days + 1
+            total_hours = float(days * 8)
+        if remaining_hours is None:
+            remaining_hours = total_hours
+
+        cur.execute(
+            """
+            UPDATE "Assignments"
+            SET title = %s,
+                start_date = %s,
+                end_date = %s,
+                employee_id = %s,
+                user_id = %s,
+                total_hours = %s,
+                remaining_hours = %s
+            WHERE assignment_id = %s;
+            """,
+            (
+                clean_title,
+                start_date,
+                end_date,
+                employee_id,
+                user_id,
+                total_hours,
+                remaining_hours,
+                assignment_id,
+            ),
+        )
+
+        conn.commit()
+        return {"assignment_id": assignment_id}
+
+    except TaskProcessingError:
+        conn.rollback()
+        raise
+
+    except Exception as exc:
+        conn.rollback()
+        raise TaskProcessingError(500, str(exc))
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+# ----------------------------------------------------------
+# delete assignment entry
+# ----------------------------------------------------------
+# validates:
+#   - assignment belongs to user
+def delete_task_entry(user_id: int, assignment_id: int) -> dict:
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        if not _validate_assignment_owner(cur, assignment_id, user_id):
+            raise TaskProcessingError(404, "task not found for this user")
+
+        cur.execute(
+            """
+            DELETE FROM "Assignments"
+            WHERE assignment_id = %s;
+            """,
+            (assignment_id,),
+        )
+
+        conn.commit()
+        return {"message": "Task deleted"}
+
+    except TaskProcessingError:
+        conn.rollback()
+        raise
+
+    except Exception as exc:
+        conn.rollback()
+        raise TaskProcessingError(500, str(exc))
+
+    finally:
+        cur.close()
+        conn.close()

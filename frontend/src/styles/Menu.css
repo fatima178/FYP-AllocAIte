@@ -34,6 +34,7 @@
   color: var(--text);
   opacity: 0.75;
   cursor: pointer;
+  font-size: inherit;
 }
 
 .menu-link.active {
@@ -50,6 +51,7 @@
   color: var(--button-bg);
   background: rgba(37, 99, 235, 0.12);
   cursor: pointer;
+  font-size: inherit;
 }
 
 .logout-button:hover {
