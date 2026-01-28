@@ -48,6 +48,7 @@ def init_db():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS "Employees" (
             employee_id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE,
             upload_id INT REFERENCES "Uploads"(upload_id) ON DELETE CASCADE,
             name VARCHAR(100),
             role VARCHAR(100),
@@ -62,6 +63,7 @@ def init_db():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS "Assignments" (
             assignment_id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE,
             employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
             upload_id INT REFERENCES "Uploads"(upload_id) ON DELETE CASCADE,
             title VARCHAR(150),
@@ -105,11 +107,16 @@ def init_db():
         );
     """)
 
+    cur.execute('ALTER TABLE "Employees" ADD COLUMN IF NOT EXISTS user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE;')
+    cur.execute('ALTER TABLE "Uploads" ADD COLUMN IF NOT EXISTS upload_type VARCHAR(50) DEFAULT \'assignments\';')
+    cur.execute('ALTER TABLE "Assignments" ADD COLUMN IF NOT EXISTS user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE;')
     # indexes to speed up availability calculations and dashboard queries
     cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_employee ON "Assignments"(employee_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_dates ON "Assignments"(start_date, end_date);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_user ON "Assignments"(user_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_upload ON "Employees"(upload_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_upload_active ON "Uploads"(user_id, is_active);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_user ON "Employees"(user_id);')
 
     conn.commit()
     cur.close()

@@ -101,26 +101,24 @@ def assign_recommended_task(
     cur = conn.cursor()
 
     try:
-        # determine which upload_id the assignment should attach to
-        resolved_upload_id = _resolve_upload_id(cur, user_id, upload_id)
-
-        # ensure employee exists within this upload dataset
+        # ensure employee exists within this user scope
         cur.execute(
             """
             SELECT 1
             FROM "Employees"
-            WHERE employee_id = %s AND upload_id = %s;
+            WHERE employee_id = %s AND user_id = %s;
             """,
-            (employee_id, resolved_upload_id),
+            (employee_id, user_id),
         )
         if not cur.fetchone():
-            raise ValueError("employee not found for this upload.")
+            raise ValueError("employee not found for this user.")
 
         # insert assignment into database
         # total_hours, remaining_hours, priority are left null, to be filled later
         cur.execute(
             """
             INSERT INTO "Assignments" (
+                user_id,
                 employee_id,
                 upload_id,
                 title,
@@ -130,12 +128,12 @@ def assign_recommended_task(
                 remaining_hours,
                 priority
             )
-            VALUES (%s, %s, %s, %s, %s, NULL, NULL, NULL)
+            VALUES (%s, %s, NULL, %s, %s, %s, NULL, NULL, NULL)
             RETURNING assignment_id;
             """,
             (
+                user_id,
                 employee_id,
-                resolved_upload_id,
                 clean_title,
                 start,
                 end,

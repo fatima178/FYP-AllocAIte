@@ -1,6 +1,6 @@
 from sentence_transformers import SentenceTransformer, util
 from ..task_data_access import (
-    fetch_employees_by_upload,
+    fetch_employees_by_user,
     calculate_assignment_availability,
 )
 from .task_scoring import (
@@ -112,9 +112,9 @@ def encode_employees(model, emps):
 #   6) computes role relevance
 #   7) calculates availability
 #   8) produces a final ranking
-def match_employees(task_description, upload_id, start_date, end_date, model=None):
+def match_employees(task_description, user_id, start_date, end_date, model=None):
     # fetch employees linked to this upload
-    employees = fetch_employees_by_upload(upload_id)
+    employees = fetch_employees_by_user(user_id)
     if not employees:
         # nothing to match against
         return []

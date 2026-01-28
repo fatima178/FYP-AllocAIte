@@ -107,12 +107,8 @@ def generate_recommendations(
     user_id: Optional[int],
     upload_id: Optional[int],
 ):
-    # determine which upload_id the recommendation should use
-    resolved_upload_id = resolve_upload_id(user_id, upload_id)
-
-    if not resolved_upload_id:
-        # user has no uploads - cannot recommend
-        raise RecommendationError(400, "no uploads found for this user")
+    if user_id is None:
+        raise RecommendationError(400, "user_id is required")
 
     # run the matching engine and return ranking results
-    return match_employees(task_description, resolved_upload_id, start_date, end_date)
+    return match_employees(task_description, user_id, start_date, end_date)

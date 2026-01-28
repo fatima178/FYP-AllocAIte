@@ -75,6 +75,44 @@ def fetch_employees_by_upload(upload_id: int) -> List[Dict[str, Any]]:
 
 
 # ----------------------------------------------------------
+# fetch employees for a given user
+# ----------------------------------------------------------
+# returns a list of dicts containing:
+#   - employee_id
+#   - name
+#   - role
+#   - experience years (defaults to 0 if null)
+#   - parsed skills list
+def fetch_employees_by_user(user_id: int) -> List[Dict[str, Any]]:
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            SELECT employee_id, name, role, experience_years, skills
+            FROM "Employees"
+            WHERE user_id = %s
+        """, (user_id,))
+        rows = cur.fetchall()
+    finally:
+        cur.close()
+        conn.close()
+
+    employees: List[Dict[str, Any]] = []
+
+    for employee_id, name, role, experience_years, skills in rows:
+        employees.append({
+            "employee_id": employee_id,
+            "name": name,
+            "role": role,
+            "experience": experience_years or 0,
+            "skills": _parse_skills(skills),
+        })
+
+    return employees
+
+
+# ----------------------------------------------------------
 # calculate assignment-based availability ratio (0 → 1)
 # ----------------------------------------------------------
 # logic:
@@ -89,7 +127,7 @@ def calculate_assignment_availability(employee_id: int, start, end) -> float:
 
     try:
         cur.execute("""
-            SELECT remaining_hours, total_hours
+            SELECT start_date, end_date, remaining_hours, total_hours
             FROM "Assignments"
             WHERE employee_id = %s
               AND start_date <= %s
@@ -104,13 +142,36 @@ def calculate_assignment_availability(employee_id: int, start, end) -> float:
     if not rows:
         return 1.0
 
-    # aggregate hours, ignoring null fields
-    remaining = sum([r[0] for r in rows if r[0] is not None])
-    total = sum([r[1] for r in rows if r[1] is not None])
+    total_hours = 0.0
+    remaining_hours = 0.0
 
-    # if no valid total hours, assume employee is available
-    if total == 0:
-        return 1.0
+    for start_date, end_date, remaining, total in rows:
+        try:
+            total = float(total or 0)
+        except:
+            total = 0
+        try:
+            remaining = float(remaining or 0)
+        except:
+            remaining = 0
 
-    # clamp to [0.0, 1.0]
-    return max(0.0, min(1.0, remaining / total))
+        assignment_days = (end_date - start_date).days + 1
+        window_days = (min(end_date, end) - max(start_date, start)).days + 1
+        if assignment_days <= 0 or window_days <= 0:
+            continue
+
+        base_hours = remaining if remaining > 0 else total
+        if base_hours <= 0:
+            base_hours = float(assignment_days * 8)
+
+        hours_per_day = base_hours / assignment_days
+        total_hours += base_hours
+        remaining_hours += hours_per_day * window_days
+
+    window_days = (end - start).days + 1
+    window_capacity = float(window_days) * 8
+    if window_capacity <= 0:
+        return 0.0
+
+    availability = 1 - (remaining_hours / window_capacity)
+    return max(0.0, min(1.0, availability))

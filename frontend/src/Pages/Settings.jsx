@@ -76,6 +76,17 @@ function SettingsPage() {
     confirm: "",
   });
 
+  // employee creation form
+  const [employeeForm, setEmployeeForm] = useState({
+    name: "",
+    role: "",
+    department: "",
+    experience_years: "",
+    skills: "",
+  });
+  const [employeeStatus, setEmployeeStatus] = useState(null);
+  const [employeeSaving, setEmployeeSaving] = useState(false);
+
   // display formatting for "member since"
   const formatMemberSince = (value) => {
     if (!value || value === "-") return "-";
@@ -265,6 +276,52 @@ function SettingsPage() {
     }
   };
 
+  // handle manual employee creation
+  const handleEmployeeChange = (event) => {
+    const { name, value } = event.target;
+    setEmployeeForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const submitEmployee = async (event) => {
+    event.preventDefault();
+    setEmployeeStatus(null);
+
+    const userId = localStorage.getItem("user_id");
+    if (!userId) {
+      setEmployeeStatus({ type: "error", message: "Please log in again." });
+      return;
+    }
+
+    setEmployeeSaving(true);
+    try {
+      await apiFetch("/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: Number(userId),
+          name: employeeForm.name,
+          role: employeeForm.role,
+          department: employeeForm.department,
+          experience_years: employeeForm.experience_years,
+          skills: employeeForm.skills,
+        }),
+      });
+
+      setEmployeeStatus({ type: "success", message: "Employee added successfully." });
+      setEmployeeForm({
+        name: "",
+        role: "",
+        department: "",
+        experience_years: "",
+        skills: "",
+      });
+    } catch (err) {
+      setEmployeeStatus({ type: "error", message: err.message || "Unable to add employee." });
+    } finally {
+      setEmployeeSaving(false);
+    }
+  };
+
   // update password form fields
   const handlePasswordChange = (event) => {
     const { name, value } = event.target;
@@ -438,6 +495,85 @@ function SettingsPage() {
               Large
             </button>
           </div>
+        </div>
+
+        {/* EMPLOYEE MANAGEMENT SECTION */}
+        <div className="settings-card">
+          <h2>Add Employee</h2>
+          <p className="muted">Create employees directly in the system without Excel.</p>
+
+          <form className="settings-form" onSubmit={submitEmployee}>
+            <div className="form-grid">
+              <label>
+                Name
+                <input
+                  type="text"
+                  name="name"
+                  value={employeeForm.name}
+                  onChange={handleEmployeeChange}
+                  placeholder="Alex Johnson"
+                />
+              </label>
+
+              <label>
+                Role
+                <input
+                  type="text"
+                  name="role"
+                  value={employeeForm.role}
+                  onChange={handleEmployeeChange}
+                  placeholder="Backend Developer"
+                />
+              </label>
+
+              <label>
+                Department
+                <input
+                  type="text"
+                  name="department"
+                  value={employeeForm.department}
+                  onChange={handleEmployeeChange}
+                  placeholder="Engineering"
+                />
+              </label>
+
+              <label>
+                Experience (Years)
+                <input
+                  type="number"
+                  name="experience_years"
+                  value={employeeForm.experience_years}
+                  onChange={handleEmployeeChange}
+                  placeholder="3"
+                  min="0"
+                  step="0.1"
+                />
+              </label>
+
+              <label>
+                Skills (comma-separated)
+                <input
+                  type="text"
+                  name="skills"
+                  value={employeeForm.skills}
+                  onChange={handleEmployeeChange}
+                  placeholder="Python, SQL, API"
+                />
+              </label>
+            </div>
+
+            <div className="button-row">
+              <button className="primary" type="submit" disabled={employeeSaving}>
+                {employeeSaving ? "Saving..." : "Add Employee"}
+              </button>
+            </div>
+
+            {employeeStatus && (
+              <p className={`status-message ${employeeStatus.type || ""}`}>
+                {employeeStatus.message}
+              </p>
+            )}
+          </form>
         </div>
       </div>
 

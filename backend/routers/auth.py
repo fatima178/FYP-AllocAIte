@@ -116,21 +116,11 @@ def login_user(payload: LoginRequest):
         if stored_hash != given_hash:
             raise HTTPException(401, "invalid email or password.")
 
-        # fetch user's latest upload info
         cur.execute(
-            """
-            SELECT upload_id, is_active
-            FROM "Uploads"
-            WHERE user_id = %s
-            ORDER BY upload_date DESC
-            LIMIT 1;
-            """,
+            'SELECT 1 FROM "Employees" WHERE user_id = %s LIMIT 1;',
             (user_id,),
         )
-        upload_row = cur.fetchone()
-
-        active_upload_id = upload_row[0] if upload_row else None
-        has_upload = bool(upload_row)
+        has_upload = bool(cur.fetchone())
 
         return {
             "user_id": user_id,
@@ -138,7 +128,6 @@ def login_user(payload: LoginRequest):
             "email": payload.email,
             "created_at": created_at.isoformat(),
             "has_upload": has_upload,
-            "active_upload_id": active_upload_id,
             "message": "login successful."
         }
 

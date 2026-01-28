@@ -100,7 +100,7 @@ def parse_employee(cur, upload_id, text: str):
 
     # fetch all employees from this upload so we can match names locally
     cur.execute(
-        'SELECT employee_id, name FROM "Employees" WHERE upload_id = %s;',
+        'SELECT employee_id, name FROM "Employees" WHERE user_id = %s;',
         (upload_id,),
     )
     rows = cur.fetchall()
@@ -159,12 +159,14 @@ def handle_availability(cur, upload_id: int, message: str):
     cur.execute(
         """
         SELECT name FROM "Employees"
-        WHERE upload_id = %s
+        WHERE user_id = %s
           AND employee_id NOT IN (
-              SELECT employee_id FROM "Assignments"
-              WHERE upload_id = %s
-                AND start_date <= %s
-                AND end_date >= %s
+              SELECT a.employee_id
+              FROM "Assignments" a
+              JOIN "Employees" e ON a.employee_id = e.employee_id
+              WHERE e.user_id = %s
+                AND a.start_date <= %s
+                AND a.end_date >= %s
           );
         """,
         (upload_id, upload_id, end, start),
@@ -200,7 +202,7 @@ def handle_skills(cur, upload_id: int, message: str):
     query = f"""
         SELECT name
         FROM "Employees"
-        WHERE upload_id = %s
+        WHERE user_id = %s
           AND {where_clause};
     """
     cur.execute(query, params)
@@ -238,7 +240,7 @@ def handle_assignment(cur, upload_id: int, message: str):
         SELECT title
         FROM "Assignments"
         WHERE employee_id = %s
-          AND upload_id = %s
+          AND (user_id = %s OR user_id IS NULL)
           AND start_date <= %s
           AND end_date >= %s;
         """,
@@ -259,7 +261,7 @@ def handle_role(cur, upload_id: int):
     cur.execute(
         """
         SELECT name FROM "Employees"
-        WHERE upload_id = %s
+        WHERE user_id = %s
           AND (
               lower(role) LIKE '%%backend%%'
               OR lower(role) LIKE '%%developer%%'
@@ -329,22 +331,24 @@ def handle_chatbot_query(message: str, user_id: int):
     cur = conn.cursor()
 
     try:
-        # find which dataset (upload) to use
-        upload_id = resolve_upload_id(cur, user_id)
-        if not upload_id:
+        cur.execute(
+            'SELECT 1 FROM "Employees" WHERE user_id = %s LIMIT 1;',
+            (user_id,),
+        )
+        if not cur.fetchone():
             return {
                 "response": "No employee data found. Please upload your team sheet first."
             }
 
         # call the correct handler depending on intent
         if intent == "availability":
-            return handle_availability(cur, upload_id, message)
+            return handle_availability(cur, user_id, message)
         if intent == "skills":
-            return handle_skills(cur, upload_id, message)
+            return handle_skills(cur, user_id, message)
         if intent == "assignment":
-            return handle_assignment(cur, upload_id, message)
+            return handle_assignment(cur, user_id, message)
         if intent == "role":
-            return handle_role(cur, upload_id)
+            return handle_role(cur, user_id)
 
         # default fallback response when nothing matches
         return {

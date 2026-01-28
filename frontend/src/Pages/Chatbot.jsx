@@ -13,8 +13,9 @@ function ChatbotPage() {
   // reference used to scroll to the bottom automatically
   const chatEndRef = useRef(null);
 
-  // auto-scroll whenever messages update
+  // auto-scroll whenever messages update (after first message)
   useEffect(() => {
+    if (messages.length === 0) return;
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: "smooth" });
     }

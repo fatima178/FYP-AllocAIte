@@ -128,12 +128,6 @@ function RecommendationsPage() {
         end_date: taskContext.end_date,
       };
 
-      // include upload id if available
-      const uploadId = localStorage.getItem("active_upload_id");
-      if (uploadId) {
-        payload.upload_id = Number(uploadId);
-      }
-
       // call backend API to create assignment
       const response = await apiFetch("/recommend/assign", {
         method: "POST",

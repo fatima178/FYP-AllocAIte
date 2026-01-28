@@ -63,28 +63,11 @@ def dashboard_skills(user_id: int):
     cur = conn.cursor()
 
     try:
-        # find active upload for this user
-        cur.execute("""
-            SELECT upload_id
-            FROM "Uploads"
-            WHERE user_id = %s AND is_active = true
-            ORDER BY upload_date DESC
-            LIMIT 1;
-        """, (user_id,))
-        row = cur.fetchone()
-
-        if not row:
-            # user has no uploads yet
-            return {"skills": []}
-
-        upload_id = row[0]
-
-        # fetch skills column from all employees
         cur.execute("""
             SELECT skills
             FROM "Employees"
-            WHERE upload_id = %s;
-        """, (upload_id,))
+            WHERE user_id = %s;
+        """, (user_id,))
         raw = cur.fetchall()
 
         all_skills = set()

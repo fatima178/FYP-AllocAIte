@@ -119,16 +119,11 @@ function LoginPage() {
         if (resolvedName) localStorage.setItem('name', resolvedName);
         if (body.created_at) localStorage.setItem('member_since', body.created_at);
 
-        // store active_upload_id if backend returned it
-        if (body.active_upload_id) {
-          localStorage.setItem('active_upload_id', body.active_upload_id);
-        } else {
-          localStorage.removeItem('active_upload_id');
-        }
+        localStorage.removeItem('active_upload_id');
 
         // redirect user depending on whether they already uploaded a file
         const redirectPath =
-          body.has_upload || body.active_upload_id ? '/dashboard' : '/upload';
+          body.has_upload ? '/dashboard' : '/upload';
         window.location.href = redirectPath;
         return;
       }

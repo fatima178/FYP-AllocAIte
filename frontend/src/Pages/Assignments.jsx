@@ -53,12 +53,6 @@ function AssignmentsPage() {
         user_id: Number(userId),
       };
 
-      // add upload id if available
-      const uploadId = localStorage.getItem("active_upload_id");
-      if (uploadId) {
-        payload.upload_id = Number(uploadId);
-      }
-
       // fetch recommendations from backend
       const data = await apiFetch("/recommend", {
         method: "POST",

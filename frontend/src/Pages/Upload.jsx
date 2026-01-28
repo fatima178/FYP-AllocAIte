@@ -9,14 +9,17 @@ import { apiFetch } from '../api';
   Backend will reject uploads that don’t follow this schema,
   so the UI shows them clearly to reduce user mistakes.
 */
-const REQUIRED_COLUMNS = [
+const SETUP_COLUMNS = [
   'Employee Name',
   'Role',
   'Department',
   'Skill Set',
   'Experience (Years)',
-  'Skill Level (1–5)',
-  'Current Project',
+];
+
+const ASSIGNMENT_COLUMNS = [
+  'Employee ID',
+  'Task Title',
   'Start Date',
   'End Date',
   'Total Hours',
@@ -25,17 +28,27 @@ const REQUIRED_COLUMNS = [
 ];
 
 function UploadPage() {
-  // stores the file the user selects/drops
-  const [file, setFile] = useState(null);
+  // stores the setup import file
+  const [setupFile, setSetupFile] = useState(null);
+
+  // stores the assignment upload file
+  const [assignmentFile, setAssignmentFile] = useState(null);
 
   // handles success/error messages
   const [status, setStatus] = useState({ type: null, message: '' });
 
   // shows loading UI during upload
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAssignmentSubmitting, setIsAssignmentSubmitting] = useState(false);
 
   // updates UI when user drags a file over the drop zone
   const [isDragging, setIsDragging] = useState(false);
+
+  // tracks whether employee setup import is allowed
+  const [setupStatus, setSetupStatus] = useState(null);
+
+  // preview data for setup import
+  const [preview, setPreview] = useState(null);
 
   // redirect users who aren’t logged in
   useEffect(() => {
@@ -43,7 +56,25 @@ function UploadPage() {
     if (!storedUser) window.location.href = '/';
   }, []);
 
-  const acceptedColumnsText = REQUIRED_COLUMNS.join(', ');
+  useEffect(() => {
+    const userId = localStorage.getItem('user_id');
+    if (!userId) return;
+
+    const fetchStatus = async () => {
+      try {
+        const data = await apiFetch(`/setup/status?user_id=${userId}`);
+        setSetupStatus(data);
+      } catch (error) {
+        setSetupStatus({ can_import: false, employee_count: 0 });
+      }
+    };
+
+    fetchStatus();
+  }, []);
+
+  const isSetupMode = setupStatus?.can_import;
+  const setupColumnsText = SETUP_COLUMNS.join(', ');
+  const assignmentColumnsText = ASSIGNMENT_COLUMNS.join(', ');
 
   /*
     Validates uploaded file:
@@ -51,32 +82,45 @@ function UploadPage() {
     - must be .xlsx
     Stores the file if valid.
   */
-  const validateAndStoreFile = (incomingFile) => {
+  const validateAndStoreFile = (incomingFile, setter) => {
     if (!incomingFile) return;
 
     const extension = incomingFile.name.split('.').pop()?.toLowerCase();
-    if (extension !== 'xlsx') {
-      setStatus({ type: 'error', message: 'Only .xlsx files are allowed.' });
-      setFile(null);
+    if (extension !== 'xlsx' && extension !== 'xls') {
+      setStatus({ type: 'error', message: 'Only .xlsx or .xls files are allowed.' });
+      setter(null);
       return;
     }
 
     setStatus({ type: null, message: '' });
-    setFile(incomingFile);
+    setPreview(null);
+    setter(incomingFile);
   };
 
   // fires when user selects a file via file input
-  const handleFileChange = (event) => {
+  const handleSetupFileChange = (event) => {
     const selectedFile = event.target.files?.[0];
-    validateAndStoreFile(selectedFile);
+    validateAndStoreFile(selectedFile, setSetupFile);
+  };
+
+  const handleAssignmentFileChange = (event) => {
+    const selectedFile = event.target.files?.[0];
+    validateAndStoreFile(selectedFile, setAssignmentFile);
   };
 
   // fires when user drops a file into the drag area
-  const handleDrop = (event) => {
+  const handleSetupDrop = (event) => {
     event.preventDefault();
     setIsDragging(false);
     const droppedFile = event.dataTransfer.files?.[0];
-    validateAndStoreFile(droppedFile);
+    validateAndStoreFile(droppedFile, setSetupFile);
+  };
+
+  const handleAssignmentDrop = (event) => {
+    event.preventDefault();
+    setIsDragging(false);
+    const droppedFile = event.dataTransfer.files?.[0];
+    validateAndStoreFile(droppedFile, setAssignmentFile);
   };
 
   // triggers UI highlight while dragging
@@ -94,11 +138,11 @@ function UploadPage() {
     - sends FormData to backend
     - stores returned upload_id (required for recommendations later)
   */
-  const handleSubmit = async (event) => {
+  const handleSetupSubmit = async (event) => {
     event.preventDefault();
 
-    if (!file) {
-      setStatus({ type: 'error', message: 'Please choose an .xlsx file first.' });
+    if (!setupFile) {
+      setStatus({ type: 'error', message: 'Please choose an Excel file first.' });
       return;
     }
 
@@ -114,27 +158,76 @@ function UploadPage() {
     try {
       const formData = new FormData();
       formData.append('user_id', userId);
-      formData.append('file', file);
+      formData.append('file', setupFile);
+      formData.append('preview', preview ? 'false' : 'true');
+      const body = await apiFetch('/setup/import-employees', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (preview) {
+        setStatus({
+          type: 'success',
+          message: `Employees imported successfully. Rows processed: ${body.row_count ?? 'Unknown'}.`,
+        });
+        setSetupFile(null);
+        setPreview(null);
+        setSetupStatus({ can_import: false, employee_count: body.row_count });
+        return;
+      }
+
+      setPreview(body);
+      if (body.errors && body.errors.length > 0) {
+        setStatus({ type: 'error', message: body.errors.join(' ') });
+      } else {
+        setStatus({
+          type: 'info',
+          message: 'Preview generated. Review and confirm import.',
+        });
+      }
+    } catch (error) {
+      setStatus({ type: 'error', message: error.message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAssignmentSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!assignmentFile) {
+      setStatus({ type: 'error', message: 'Please choose an Excel file first.' });
+      return;
+    }
+
+    const userId = localStorage.getItem('user_id');
+    if (!userId) {
+      setStatus({ type: 'error', message: 'You need to be logged in before uploading.' });
+      return;
+    }
+
+    setIsAssignmentSubmitting(true);
+    setStatus({ type: null, message: '' });
+
+    try {
+      const formData = new FormData();
+      formData.append('user_id', userId);
+      formData.append('file', assignmentFile);
 
       const body = await apiFetch('/upload', {
         method: 'POST',
         body: formData,
       });
 
-      // system-wide active dataset used for recommendations
-      if (body.upload_id) {
-        localStorage.setItem('active_upload_id', body.upload_id);
-      }
-
       setStatus({
         type: 'success',
         message: `File uploaded successfully. Rows processed: ${body.row_count ?? 'Unknown'}.`,
       });
-      setFile(null);
+      setAssignmentFile(null);
     } catch (error) {
       setStatus({ type: 'error', message: error.message });
     } finally {
-      setIsSubmitting(false);
+      setIsAssignmentSubmitting(false);
     }
   };
 
@@ -143,54 +236,121 @@ function UploadPage() {
       <Menu />
 
       <div className="upload-page">
-        <form className="upload-card" onSubmit={handleSubmit}>
-          <h1>Upload Employee Data</h1>
+        <div className="upload-grid">
+          <form className="upload-card" onSubmit={handleSetupSubmit}>
+            <h1>Import Employees (Setup Only)</h1>
 
-          {/* Explains required spreadsheet structure */}
-          <div className="upload-hint">
-            <span>Accepted format: .xlsx — include columns:</span>
-            <strong>{acceptedColumnsText}</strong>
-          </div>
-
-          {/* Drag and drop zone */}
-          <label
-            className={`drop-zone ${isDragging ? 'active' : ''}`}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-          >
-            <div className="drop-icon">
-              <img src={uploadIcon} alt="Upload icon" />
+            {/* Explains required spreadsheet structure */}
+            <div className="upload-hint">
+              <span>Accepted format: .xlsx — include columns:</span>
+              <strong>{setupColumnsText}</strong>
             </div>
 
-            <p>Drag and drop your Excel file here</p>
-            <span>or</span>
+            {/* Drag and drop zone */}
+            <label
+              className={`drop-zone ${isDragging ? 'active' : ''}`}
+              onDrop={handleSetupDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+            >
+              <div className="drop-icon">
+                <img src={uploadIcon} alt="Upload icon" />
+              </div>
 
-            <button type="button" className="browse-button">
-              Browse File
+              <p>Drag and drop your Excel file here</p>
+              <span>or</span>
+
+              <button type="button" className="browse-button">
+                Browse File
+              </button>
+
+              {/* Hidden input triggered by "Browse File" */}
+              <input type="file" accept=".xlsx" onChange={handleSetupFileChange} />
+            </label>
+
+            {/* Displays selected file name */}
+            {setupFile && <p className="file-name">Selected file: {setupFile.name}</p>}
+
+            {/* Submit button */}
+            <button
+              type="submit"
+              className="primary"
+              disabled={!setupFile || isSubmitting || !setupStatus?.can_import}
+            >
+              {isSubmitting
+                ? 'Uploading…'
+                : preview
+                ? 'Confirm Import'
+                : 'Preview Import'}
             </button>
 
-            {/* Hidden input triggered by "Browse File" */}
-            <input type="file" accept=".xlsx" onChange={handleFileChange} />
-          </label>
+            {!setupStatus?.can_import && (
+              <p className="status info">Employee setup import is disabled once employees exist.</p>
+            )}
 
-          {/* Displays selected file name */}
-          {file && <p className="file-name">Selected file: {file.name}</p>}
+            {preview?.preview && (
+              <div className="upload-preview">
+                <h3>Preview</h3>
+                <ul>
+                  {preview.preview.map((row, index) => (
+                    <li key={index}>
+                      {row.name} ({row.role})
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </form>
 
-          {/* Submit button */}
-          <button
-            type="submit"
-            className="primary"
-            disabled={!file || isSubmitting}
-          >
-            {isSubmitting ? 'Uploading…' : 'Upload File'}
-          </button>
+          <form className="upload-card" onSubmit={handleAssignmentSubmit}>
+            <h1>Upload Assignments</h1>
 
-          {/* Status output */}
-          {status.type && (
-            <p className={`status ${status.type}`}>{status.message}</p>
-          )}
-        </form>
+            {/* Explains required spreadsheet structure */}
+            <div className="upload-hint">
+              <span>Accepted format: .xlsx — include columns:</span>
+              <strong>{assignmentColumnsText}</strong>
+            </div>
+
+            {/* Drag and drop zone */}
+            <label
+              className={`drop-zone ${isDragging ? 'active' : ''}`}
+              onDrop={handleAssignmentDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+            >
+              <div className="drop-icon">
+                <img src={uploadIcon} alt="Upload icon" />
+              </div>
+
+              <p>Drag and drop your Excel file here</p>
+              <span>or</span>
+
+              <button type="button" className="browse-button">
+                Browse File
+              </button>
+
+              {/* Hidden input triggered by "Browse File" */}
+              <input type="file" accept=".xlsx" onChange={handleAssignmentFileChange} />
+            </label>
+
+            {/* Displays selected file name */}
+            {assignmentFile && <p className="file-name">Selected file: {assignmentFile.name}</p>}
+
+            {/* Submit button */}
+            <button
+              type="submit"
+              className="primary"
+              disabled={!assignmentFile || isAssignmentSubmitting}
+            >
+              {isAssignmentSubmitting ? 'Uploading…' : 'Upload File'}
+            </button>
+
+            {/* Status output */}
+            {status.type && (
+              <p className={`status ${status.type}`}>{status.message}</p>
+            )}
+          </form>
+        </div>
       </div>
     </>
   );

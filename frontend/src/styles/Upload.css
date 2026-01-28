@@ -12,8 +12,15 @@
   padding: 2rem;
 }
 
+.upload-grid {
+  width: min(1200px, 100%);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2rem;
+}
+
 .upload-card {
-  width: min(640px, 100%);
+  width: 100%;
   background: var(--card);
   border-radius: 1.5rem;
   padding: clamp(2rem, 4vw, 3rem);
@@ -157,6 +164,28 @@ button.primary:not(:disabled):hover {
   color: #b91c1c;
 }
 
+.status.info {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.upload-preview {
+  text-align: left;
+  background: var(--surface-muted);
+  border: 1px solid var(--card-border);
+  border-radius: 1rem;
+  padding: 1rem;
+}
+
+.upload-preview h3 {
+  margin-top: 0;
+}
+
+.upload-preview ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
 .dark-theme .upload-card {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
@@ -172,6 +201,10 @@ button.primary:not(:disabled):hover {
 @media (max-width: 600px) {
   .upload-page {
     padding: 1.5rem;
+  }
+
+  .upload-grid {
+    grid-template-columns: 1fr;
   }
 
   .drop-zone {

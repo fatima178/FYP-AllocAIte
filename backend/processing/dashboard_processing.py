@@ -35,10 +35,15 @@ def get_dashboard_summary(user_id: int):
     cur = conn.cursor()
 
     try:
-        upload_id = get_latest_upload_id(cur, user_id)
+        cur.execute("""
+            SELECT COUNT(*)
+            FROM "Employees"
+            WHERE user_id = %s;
+        """, (user_id,))
+        total_employees = cur.fetchone()[0]
 
         # if user hasn't uploaded anything yet, return empty numbers
-        if not upload_id:
+        if total_employees == 0:
             return {
                 "total_employees": 0,
                 "active_projects": 0,
@@ -46,23 +51,16 @@ def get_dashboard_summary(user_id: int):
                 "available_this_week": 0,
             }
 
-        # 1. total employees tied to this upload
-        cur.execute("""
-            SELECT COUNT(*) 
-            FROM "Employees" 
-            WHERE upload_id = %s;
-        """, (upload_id,))
-        total_employees = cur.fetchone()[0]
-
         # 2. active projects: assignments overlapping today's date
         today = date.today()
         cur.execute("""
             SELECT COUNT(*)
-            FROM "Assignments"
-            WHERE upload_id = %s
-              AND start_date <= %s
-              AND end_date >= %s;
-        """, (upload_id, today, today))
+            FROM "Assignments" a
+            JOIN "Employees" e ON a.employee_id = e.employee_id
+            WHERE e.user_id = %s
+              AND a.start_date <= %s
+              AND a.end_date >= %s;
+        """, (user_id, today, today))
         active_projects = cur.fetchone()[0]
 
         # 3. employees available in the next 7 days
@@ -71,8 +69,8 @@ def get_dashboard_summary(user_id: int):
         cur.execute("""
             SELECT employee_id
             FROM "Employees"
-            WHERE upload_id = %s;
-        """, (upload_id,))
+            WHERE user_id = %s;
+        """, (user_id,))
         employees = cur.fetchall()
 
         available_count = 0
@@ -120,9 +118,12 @@ def get_employees_data(user_id: int, search=None, skills=None, availability=None
     cur = conn.cursor()
 
     try:
-        upload_id = get_latest_upload_id(cur, user_id)
-        if not upload_id:
-            # user has no upload → dashboard shows empty list
+        cur.execute("""
+            SELECT COUNT(*)
+            FROM "Employees"
+            WHERE user_id = %s;
+        """, (user_id,))
+        if cur.fetchone()[0] == 0:
             return {"employees": []}
 
         window_start, window_end = dashboard_window()
@@ -131,9 +132,9 @@ def get_employees_data(user_id: int, search=None, skills=None, availability=None
         cur.execute("""
             SELECT employee_id, name, role, department, experience_years, skills
             FROM "Employees"
-            WHERE upload_id = %s
+            WHERE user_id = %s
             ORDER BY name ASC;
-        """, (upload_id,))
+        """, (user_id,))
         rows = cur.fetchall()
 
         employees = []

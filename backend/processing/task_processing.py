@@ -105,27 +105,15 @@ def fetch_weekly_tasks(user_id: int, week_start: Optional[date]) -> dict:
     cur = conn.cursor()
 
     try:
-        upload_id = _get_active_upload_id(cur, user_id)
-
-        # if user has no dataset yet, return empty structure
-        if not upload_id:
-            return {
-                "week_start": str(week_start_day),
-                "week_end": str(week_end_day),
-                "employees": [],
-                "unassigned": [],
-                "employee_options": [{"employee_id": None, "name": "unassigned"}],
-            }
-
         # fetch employee list for this upload
         cur.execute(
             """
             SELECT employee_id, name
             FROM "Employees"
-            WHERE upload_id = %s
+            WHERE user_id = %s
             ORDER BY name ASC;
             """,
-            (upload_id,),
+            (user_id,),
         )
         employee_rows = cur.fetchall()
 
@@ -141,12 +129,15 @@ def fetch_weekly_tasks(user_id: int, week_start: Optional[date]) -> dict:
                 e.name
             FROM "Assignments" a
             LEFT JOIN "Employees" e ON a.employee_id = e.employee_id
-            WHERE a.upload_id = %s
+            WHERE (
+              a.user_id = %s
+              OR (a.user_id IS NULL AND e.user_id = %s)
+            )
               AND a.start_date <= %s
               AND a.end_date >= %s
             ORDER BY e.name NULLS LAST, a.start_date ASC;
             """,
-            (upload_id, week_end_day, week_start_day),
+            (user_id, user_id, week_end_day, week_start_day),
         )
         rows = cur.fetchall()
 
@@ -224,27 +215,26 @@ def create_task_entry(
     cur = conn.cursor()
 
     try:
-        upload_id = _get_active_upload_id(cur, user_id)
-        if not upload_id:
-            raise TaskProcessingError(400, "no active upload found for this user")
-
         # if employee assigned, verify they belong to this dataset
         if employee_id is not None:
             cur.execute(
                 """
                 SELECT 1
                 FROM "Employees"
-                WHERE employee_id = %s AND upload_id = %s;
+                WHERE employee_id = %s AND user_id = %s;
                 """,
-                (employee_id, upload_id),
+                (employee_id, user_id),
             )
             if not cur.fetchone():
-                raise TaskProcessingError(404, "employee not found for this upload")
+                raise TaskProcessingError(404, "employee not found for this user")
 
         # insert new assignment
+        days = (end_date - start_date).days + 1
+        total_hours = float(days * 8)
         cur.execute(
             """
             INSERT INTO "Assignments" (
+                user_id,
                 employee_id,
                 upload_id,
                 title,
@@ -254,10 +244,10 @@ def create_task_entry(
                 remaining_hours,
                 priority
             )
-            VALUES (%s, %s, %s, %s, %s, NULL, NULL, NULL)
+            VALUES (%s, %s, NULL, %s, %s, %s, %s, %s, NULL)
             RETURNING assignment_id;
             """,
-            (employee_id, upload_id, clean_title, start_date, end_date),
+            (user_id, employee_id, clean_title, start_date, end_date, total_hours, total_hours),
         )
 
         assignment_id = cur.fetchone()[0]

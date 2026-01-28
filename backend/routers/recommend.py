@@ -4,7 +4,6 @@ from fastapi import APIRouter, HTTPException
 from processing.recommend_processing import (
     RecommendationError,
     generate_recommendations,
-    resolve_upload_id,
 )
 from processing.recommend_assignment import assign_recommended_task
 
@@ -39,7 +38,7 @@ def recommend_task(data: dict):
     except (TypeError, ValueError):
         raise HTTPException(400, "user_id must be an integer")
 
-    # validate upload_id
+    # validate upload_id (metadata only)
     try:
         resolved_upload_id = int(upload_id) if upload_id is not None else None
     except (TypeError, ValueError):
@@ -65,7 +64,7 @@ def recommend_task(data: dict):
             start_dt.isoformat(),
             end_dt.isoformat(),
             resolved_user_id,
-            resolved_upload_id,
+            None,
         )
     except RecommendationError as exc:
         raise HTTPException(exc.status_code, exc.message)
@@ -98,15 +97,6 @@ def assign_recommendation(data: dict):
         raise HTTPException(400, "start_date and end_date are required")
 
     try:
-        # resolve upload for this user (can be auto-detected)
-        resolved_upload_id = resolve_upload_id(
-            int(user_id),
-            int(upload_id) if upload_id is not None else None,
-        )
-
-        if not resolved_upload_id:
-            raise ValueError("no uploads found for this user")
-
         # create assignment
         result = assign_recommended_task(
             int(user_id),
@@ -114,7 +104,7 @@ def assign_recommendation(data: dict):
             title,
             start,
             end,
-            resolved_upload_id,
+            None,
         )
 
         return {"message": "Task assigned successfully.", **result}

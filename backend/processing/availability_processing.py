@@ -46,20 +46,32 @@ def calculate_availability(employee_id: int, window_start: date, window_end: dat
         for title, start_date, end_date, t_hours, r_hours in rows:
             try:
                 t_hours = float(t_hours or 0)
+            except:
+                t_hours = 0
+            try:
                 r_hours = float(r_hours or 0)
             except:
-                # skip rows with invalid numeric fields
+                r_hours = 0
+
+            assignment_days = (end_date - start_date).days + 1
+            window_days = (min(end_date, window_end) - max(start_date, window_start)).days + 1
+            if assignment_days <= 0 or window_days <= 0:
                 continue
 
-            total_hours += t_hours
-            remaining_hours += r_hours
+            base_hours = r_hours if r_hours > 0 else t_hours
+            if base_hours <= 0:
+                base_hours = float(assignment_days * 8)
 
-        # if total hours somehow equal zero, assume full availability
-        if total_hours <= 0:
-            return {"status": "Available", "percent": 100.0}
+            hours_per_day = base_hours / assignment_days
+            total_hours += base_hours
+            remaining_hours += hours_per_day * window_days
+
+        window_capacity = float((window_end - window_start).days + 1) * 8
+        if window_capacity <= 0:
+            return {"status": "Busy", "percent": 0.0}
 
         # compute remaining capacity as percentage
-        percent = max(0.0, min(100.0, (remaining_hours / total_hours) * 100))
+        percent = max(0.0, min(100.0, (1 - (remaining_hours / window_capacity)) * 100))
 
         # determine availability label
         if percent <= 30:
