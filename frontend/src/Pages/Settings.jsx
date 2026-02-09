@@ -81,9 +81,11 @@ function SettingsPage() {
     name: "",
     role: "",
     department: "",
-    experience_years: "",
-    skills: "",
   });
+  const [employeeSkills, setEmployeeSkills] = useState([
+    { skill_name: "", years_experience: "" },
+  ]);
+  const [skillError, setSkillError] = useState(null);
   const [employeeStatus, setEmployeeStatus] = useState(null);
   const [employeeSaving, setEmployeeSaving] = useState(false);
 
@@ -285,6 +287,7 @@ function SettingsPage() {
   const submitEmployee = async (event) => {
     event.preventDefault();
     setEmployeeStatus(null);
+    setSkillError(null);
 
     const userId = localStorage.getItem("user_id");
     if (!userId) {
@@ -294,6 +297,13 @@ function SettingsPage() {
 
     setEmployeeSaving(true);
     try {
+      const skillsPayload = employeeSkills
+        .filter((skill) => String(skill.skill_name || "").trim() || String(skill.years_experience || "").trim())
+        .map((skill) => ({
+          skill_name: skill.skill_name,
+          years_experience: skill.years_experience,
+        }));
+
       await apiFetch("/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -302,8 +312,7 @@ function SettingsPage() {
           name: employeeForm.name,
           role: employeeForm.role,
           department: employeeForm.department,
-          experience_years: employeeForm.experience_years,
-          skills: employeeForm.skills,
+          skills: skillsPayload,
         }),
       });
 
@@ -312,9 +321,8 @@ function SettingsPage() {
         name: "",
         role: "",
         department: "",
-        experience_years: "",
-        skills: "",
       });
+      setEmployeeSkills([{ skill_name: "", years_experience: "" }]);
     } catch (err) {
       setEmployeeStatus({ type: "error", message: err.message || "Unable to add employee." });
     } finally {
@@ -538,30 +546,85 @@ function SettingsPage() {
                 />
               </label>
 
-              <label>
-                Experience (Years)
-                <input
-                  type="number"
-                  name="experience_years"
-                  value={employeeForm.experience_years}
-                  onChange={handleEmployeeChange}
-                  placeholder="3"
-                  min="0"
-                  step="0.1"
-                />
-              </label>
+              {employeeSkills.map((skill, index) => (
+                <div key={index} className="form-grid">
+                  <label>
+                    Skill Name
+                    <input
+                      type="text"
+                      value={skill.skill_name}
+                      onChange={(e) => {
+                        const updated = [...employeeSkills];
+                        updated[index] = {
+                          ...updated[index],
+                          skill_name: e.target.value,
+                        };
+                        setEmployeeSkills(updated);
+                      }}
+                      placeholder="Python"
+                    />
+                  </label>
 
-              <label>
-                Skills (comma-separated)
-                <input
-                  type="text"
-                  name="skills"
-                  value={employeeForm.skills}
-                  onChange={handleEmployeeChange}
-                  placeholder="Python, SQL, API"
-                />
-              </label>
+                  <label>
+                    Skill Experience (Years)
+                    <input
+                      type="number"
+                      value={skill.years_experience}
+                      onChange={(e) => {
+                        const updated = [...employeeSkills];
+                        updated[index] = {
+                          ...updated[index],
+                          years_experience: e.target.value,
+                        };
+                        setEmployeeSkills(updated);
+                      }}
+                      placeholder="3"
+                      min="0"
+                      step="0.1"
+                    />
+                  </label>
+
+                  {employeeSkills.length > 1 && (
+                    <label>
+                      &nbsp;
+                      <button
+                        type="button"
+                        className="ghost-btn"
+                        onClick={() => {
+                          const updated = employeeSkills.filter((_, i) => i !== index);
+                          setEmployeeSkills(updated);
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </label>
+                  )}
+                </div>
+              ))}
             </div>
+
+            <div className="button-row">
+              <button
+                type="button"
+                onClick={() => {
+                  setSkillError(null);
+                  setEmployeeSkills((prev) => [
+                    ...prev,
+                    { skill_name: "", years_experience: "" },
+                  ]);
+                }}
+              >
+                Add Skill
+              </button>
+            </div>
+
+            {skillError && <p className="form-error">{skillError}</p>}
+
+            {employeeSkills.length > 0 && (
+              <p className="muted">
+                Skills: {employeeSkills.map((s) => `${s.skill_name} (${s.years_experience}y)`).join(", ")}
+              </p>
+            )}
 
             <div className="button-row">
               <button className="primary" type="submit" disabled={employeeSaving}>

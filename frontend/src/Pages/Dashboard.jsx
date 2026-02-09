@@ -206,7 +206,7 @@ function DashboardPage() {
                         {emp.skills && emp.skills.length > 0 ? (
                           emp.skills.map((skill, i) => (
                             <span key={i} className="skill-tag">
-                              {skill}
+                              {skill.skill_name} ({skill.years_experience}y)
                             </span>
                           ))
                         ) : (
@@ -214,11 +214,6 @@ function DashboardPage() {
                         )}
                       </div>
                     </div>
-
-                    {/* years of experience */}
-                    <p className="experience">
-                      Experience: {emp.experience_years} years
-                    </p>
 
                     {/* active assignments section */}
                     <div className="active-assignments">

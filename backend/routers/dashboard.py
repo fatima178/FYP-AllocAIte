@@ -64,29 +64,19 @@ def dashboard_skills(user_id: int):
 
     try:
         cur.execute("""
-            SELECT skills
-            FROM "Employees"
-            WHERE user_id = %s;
+            SELECT DISTINCT skill_name
+            FROM "EmployeeSkills"
+            WHERE employee_id IN (
+                SELECT employee_id FROM "Employees" WHERE user_id = %s
+            );
         """, (user_id,))
         raw = cur.fetchall()
 
         all_skills = set()
-        import json
-
-        # normalise/parse skills into a flattened set
-        for (skill_json,) in raw:
-            if isinstance(skill_json, list):
-                skills = skill_json
-            else:
-                try:
-                    skills = json.loads(skill_json)
-                except:
-                    skills = []
-
-            for s in skills:
-                s = str(s).strip()
-                if s:
-                    all_skills.add(s)
+        for (skill_name,) in raw:
+            s = str(skill_name).strip()
+            if s:
+                all_skills.add(s)
 
         # sorted for stable frontend display
         return {"skills": sorted(all_skills, key=lambda x: x.lower())}

@@ -189,20 +189,19 @@ def handle_skills(cur, upload_id: int, message: str):
     if not skills:
         return {"response": "Specify a skill (e.g., python, sql, ui design)."}
 
-    # build dynamic sql conditions based on number of skills detected
-    # each condition checks whether the skill appears inside the skills json/text field
     conditions = []
     params = [upload_id]
     for skill in skills:
-        conditions.append("skills::text ILIKE %s")
+        conditions.append("lower(es.skill_name) LIKE %s")
         params.append(f"%{skill}%")
 
     where_clause = " AND ".join(conditions)
 
     query = f"""
-        SELECT name
-        FROM "Employees"
-        WHERE user_id = %s
+        SELECT DISTINCT e.name
+        FROM "Employees" e
+        JOIN "EmployeeSkills" es ON e.employee_id = es.employee_id
+        WHERE e.user_id = %s
           AND {where_clause};
     """
     cur.execute(query, params)

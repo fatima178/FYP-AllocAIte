@@ -1,39 +1,26 @@
 """database access helpers for recommendation related processing."""
 
-import json
+from datetime import date, datetime
 from typing import Any, Dict, List
 
 from db import get_connection
 
 
 # ----------------------------------------------------------
-# normalise raw skill data into a clean python list
+# fetch skills for a given employee
 # ----------------------------------------------------------
-# skills may be stored as:
-#   - json string
-#   - python list/tuple
-#   - bytes (rare, legacy export formats)
-# this function ensures we always return a list[str] with no empty entries.
-def _parse_skills(raw_skills: Any) -> List[str]:
-    if isinstance(raw_skills, bytes):
-        # decode database byte strings
-        raw_skills = raw_skills.decode("utf-8")
-
-    if isinstance(raw_skills, str):
-        # attempt to parse json list
-        try:
-            value = json.loads(raw_skills)
-        except Exception:
-            value = []
-    elif isinstance(raw_skills, (list, tuple)):
-        # already list-like
-        value = list(raw_skills)
-    else:
-        # unknown format - empty list
-        value = []
-
-    # clean final output: remove blank values, convert everything to strings
-    return [str(skill).strip() for skill in value if str(skill).strip()]
+# returns list of dicts with per-skill experience
+def _fetch_employee_skills(cur, employee_id: int) -> List[Dict[str, Any]]:
+    cur.execute(
+        """
+        SELECT skill_name, years_experience
+        FROM "EmployeeSkills"
+        WHERE employee_id = %s
+        ORDER BY skill_name ASC;
+        """,
+        (employee_id,),
+    )
+    return [{"skill_name": s, "years_experience": y} for s, y in cur.fetchall()]
 
 
 # ----------------------------------------------------------
@@ -51,7 +38,7 @@ def fetch_employees_by_upload(upload_id: int) -> List[Dict[str, Any]]:
 
     try:
         cur.execute("""
-            SELECT employee_id, name, role, experience_years, skills
+            SELECT employee_id, name, role
             FROM "Employees"
             WHERE upload_id = %s
         """, (upload_id,))
@@ -62,13 +49,21 @@ def fetch_employees_by_upload(upload_id: int) -> List[Dict[str, Any]]:
 
     employees: List[Dict[str, Any]] = []
 
-    for employee_id, name, role, experience_years, skills in rows:
+    for employee_id, name, role in rows:
+        conn_skills = get_connection()
+        cur_skills = conn_skills.cursor()
+        try:
+            skills = _fetch_employee_skills(cur_skills, employee_id)
+        finally:
+            cur_skills.close()
+            conn_skills.close()
+        years = [s["years_experience"] for s in skills if s.get("years_experience") is not None]
         employees.append({
             "employee_id": employee_id,
             "name": name,
             "role": role,
-            "experience": experience_years or 0,
-            "skills": _parse_skills(skills),
+            "experience": max(years) if years else 0,
+            "skills": [s["skill_name"] for s in skills],
         })
 
     return employees
@@ -89,7 +84,7 @@ def fetch_employees_by_user(user_id: int) -> List[Dict[str, Any]]:
 
     try:
         cur.execute("""
-            SELECT employee_id, name, role, experience_years, skills
+            SELECT employee_id, name, role
             FROM "Employees"
             WHERE user_id = %s
         """, (user_id,))
@@ -100,13 +95,21 @@ def fetch_employees_by_user(user_id: int) -> List[Dict[str, Any]]:
 
     employees: List[Dict[str, Any]] = []
 
-    for employee_id, name, role, experience_years, skills in rows:
+    for employee_id, name, role in rows:
+        conn_skills = get_connection()
+        cur_skills = conn_skills.cursor()
+        try:
+            skills = _fetch_employee_skills(cur_skills, employee_id)
+        finally:
+            cur_skills.close()
+            conn_skills.close()
+        years = [s["years_experience"] for s in skills if s.get("years_experience") is not None]
         employees.append({
             "employee_id": employee_id,
             "name": name,
             "role": role,
-            "experience": experience_years or 0,
-            "skills": _parse_skills(skills),
+            "experience": max(years) if years else 0,
+            "skills": [s["skill_name"] for s in skills],
         })
 
     return employees
@@ -122,6 +125,15 @@ def fetch_employees_by_user(user_id: int) -> List[Dict[str, Any]]:
 #   - if total_hours = 0, treat as fully available
 #   - return ratio: remaining_hours / total_hours
 def calculate_assignment_availability(employee_id: int, start, end) -> float:
+    if isinstance(start, str):
+        start = datetime.fromisoformat(start).date()
+    if isinstance(end, str):
+        end = datetime.fromisoformat(end).date()
+    if isinstance(start, datetime):
+        start = start.date()
+    if isinstance(end, datetime):
+        end = end.date()
+
     conn = get_connection()
     cur = conn.cursor()
 

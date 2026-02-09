@@ -130,7 +130,7 @@ def get_employees_data(user_id: int, search=None, skills=None, availability=None
 
         # fetch full employee records
         cur.execute("""
-            SELECT employee_id, name, role, department, experience_years, skills
+            SELECT employee_id, name, role, department
             FROM "Employees"
             WHERE user_id = %s
             ORDER BY name ASC;
@@ -140,19 +140,18 @@ def get_employees_data(user_id: int, search=None, skills=None, availability=None
         employees = []
 
         for emp in rows:
-            employee_id, name, role, dept, exp, skills_json = emp
+            employee_id, name, role, dept = emp
 
-       
-            # parse skills (stored as json array or string)
-            parsed_skills = []
-            if isinstance(skills_json, list):
-                parsed_skills = skills_json
-            elif isinstance(skills_json, str):
-                try:
-                    import json
-                    parsed_skills = json.loads(skills_json)
-                except:
-                    parsed_skills = []
+            cur.execute("""
+                SELECT skill_name, years_experience
+                FROM "EmployeeSkills"
+                WHERE employee_id = %s
+                ORDER BY skill_name ASC;
+            """, (employee_id,))
+            parsed_skills = [
+                {"skill_name": s, "years_experience": y}
+                for s, y in cur.fetchall()
+            ]
 
             # search filter (matches name or role)
             if search:
@@ -164,7 +163,7 @@ def get_employees_data(user_id: int, search=None, skills=None, availability=None
             # skills filter
             # requires that the employee has all skills in the filter list
             if skills:
-                lower_emp = [s.lower() for s in parsed_skills]
+                lower_emp = [s["skill_name"].lower() for s in parsed_skills]
                 lower_filt = [s.lower() for s in skills]
                 if not all(s in lower_emp for s in lower_filt):
                     continue
@@ -179,15 +178,14 @@ def get_employees_data(user_id: int, search=None, skills=None, availability=None
                 if availability_obj["status"].lower() != availability.lower():
                     continue
 
-            # fetch assignments active today
-            today = date.today()
+            # fetch assignments active in the dashboard window
             cur.execute("""
                 SELECT title, start_date, end_date, priority
                 FROM "Assignments"
                 WHERE employee_id = %s
                   AND start_date <= %s
                   AND end_date >= %s;
-            """, (employee_id, today, today))
+            """, (employee_id, window_end, window_start))
 
             assignments = []
             for title, start_d, end_d, priority in cur.fetchall():
@@ -211,7 +209,6 @@ def get_employees_data(user_id: int, search=None, skills=None, availability=None
                 "initials": initials,
                 "role": role,
                 "department": dept,
-                "experience_years": exp,
                 "skills": parsed_skills,
                 "availability_status": availability_obj["status"],
                 "availability_percent": availability_obj["percent"],

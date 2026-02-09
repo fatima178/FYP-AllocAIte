@@ -14,7 +14,7 @@ const SETUP_COLUMNS = [
   'Role',
   'Department',
   'Skill Set',
-  'Experience (Years)',
+  'Skill Experience (Years)',
 ];
 
 const ASSIGNMENT_COLUMNS = [

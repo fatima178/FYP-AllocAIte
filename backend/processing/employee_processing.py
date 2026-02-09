@@ -1,4 +1,3 @@
-import json
 from typing import Any, Dict, List, Optional
 
 from db import get_connection
@@ -11,12 +10,54 @@ class EmployeeProcessingError(Exception):
         self.message = message
 
 
-def _parse_skills(raw) -> List[str]:
-    if isinstance(raw, list):
-        return [str(s).strip() for s in raw if str(s).strip()]
-    if isinstance(raw, str):
-        return [s.strip() for s in raw.split(",") if s.strip()]
-    return []
+def normalize_skill_entry(name: str, years) -> Dict[str, Any]:
+    clean_name = str(name or "").strip()
+    if not clean_name:
+        raise EmployeeProcessingError(400, "skill_name is required")
+    if years is None or str(years).strip() == "":
+        raise EmployeeProcessingError(400, "years_experience is required")
+    try:
+        clean_years = float(years)
+    except Exception:
+        raise EmployeeProcessingError(400, "years_experience must be a number")
+    return {"skill_name": clean_name, "years_experience": clean_years}
+
+
+def normalize_skill_lines(raw_text: str) -> List[Dict[str, Any]]:
+    text = str(raw_text or "").strip()
+    if not text:
+        raise EmployeeProcessingError(400, "skills input is required")
+    skills = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if "," in line:
+            name, years = line.split(",", 1)
+        elif ":" in line:
+            name, years = line.split(":", 1)
+        else:
+            raise EmployeeProcessingError(400, "each skill line must include a separator")
+        skills.append(normalize_skill_entry(name, years))
+    if not skills:
+        raise EmployeeProcessingError(400, "skills input is required")
+    return skills
+
+
+def _parse_skills(raw) -> List[Dict[str, Any]]:
+    if not isinstance(raw, list):
+        return []
+    skills = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        skills.append(
+            normalize_skill_entry(
+                item.get("skill_name"),
+                item.get("years_experience"),
+            )
+        )
+    return skills
 
 
 def list_employees(user_id: int) -> List[Dict[str, Any]]:
@@ -26,7 +67,7 @@ def list_employees(user_id: int) -> List[Dict[str, Any]]:
     try:
         cur.execute(
             """
-            SELECT employee_id, name, role, department, experience_years, skills
+            SELECT employee_id, name, role, department
             FROM "Employees"
             WHERE user_id = %s
             ORDER BY name ASC;
@@ -40,20 +81,30 @@ def list_employees(user_id: int) -> List[Dict[str, Any]]:
 
     results = []
     for row in rows:
-        skills = []
-        if isinstance(row[6], str):
-            try:
-                skills = json.loads(row[6])
-            except Exception:
-                skills = []
-        elif isinstance(row[6], list):
-            skills = row[6]
+        employee_id = row[0]
+        conn = get_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                SELECT skill_name, years_experience
+                FROM "EmployeeSkills"
+                WHERE employee_id = %s
+                ORDER BY skill_name ASC;
+                """,
+                (employee_id,),
+            )
+            skill_rows = cur.fetchall()
+        finally:
+            cur.close()
+            conn.close()
+
+        skills = [{"skill_name": s, "years_experience": y} for s, y in skill_rows]
         results.append({
-            "employee_id": row[0],
+            "employee_id": employee_id,
             "name": row[1],
             "role": row[2],
             "department": row[3],
-            "experience_years": row[4],
             "skills": skills,
         })
     return results
@@ -70,7 +121,6 @@ def create_employee_entry(user_id: int, payload: Dict[str, Any]):
     if not department:
         raise EmployeeProcessingError(400, "department is required")
     skills = _parse_skills(payload.get("skills"))
-    experience_years = float(payload.get("experience_years") or 0)
     conn = get_connection()
     cur = conn.cursor()
 
@@ -81,11 +131,9 @@ def create_employee_entry(user_id: int, payload: Dict[str, Any]):
                 user_id,
                 name,
                 role,
-                department,
-                experience_years,
-                skills
+                department
             )
-            VALUES (%s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s)
             RETURNING employee_id;
             """,
             (
@@ -93,11 +141,17 @@ def create_employee_entry(user_id: int, payload: Dict[str, Any]):
                 name,
                 role,
                 department,
-                experience_years,
-                json.dumps(skills),
             ),
         )
         employee_id = cur.fetchone()[0]
+        for item in skills:
+            cur.execute(
+                """
+                INSERT INTO "EmployeeSkills" (employee_id, skill_name, years_experience)
+                VALUES (%s, %s, %s);
+                """,
+                (employee_id, item["skill_name"], item["years_experience"]),
+            )
         conn.commit()
         return {"employee_id": employee_id}
 

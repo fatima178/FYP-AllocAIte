@@ -1,6 +1,5 @@
 from io import BytesIO
 from pathlib import Path
-import json
 
 import pandas as pd
 
@@ -13,7 +12,7 @@ REQUIRED_COLUMNS = [
     "Role",
     "Department",
     "Skill Set",
-    "Experience (Years)",
+    "Skill Experience (Years)",
     "Skill Level (1–5)",
     "Current Project",
     "Start Date",
@@ -91,14 +90,18 @@ def _insert_upload(cur, user_id: int, filename: str) -> int:
 # converts "skill set" column (comma-separated) into json list
 # and stores basic metadata for that employee.
 def _insert_employee(cur, upload_id: int, group_name: str, row: pd.Series) -> int:
-    raw = str(row.get("Skill Set", "")).strip()
-    skills = [s.strip() for s in raw.split(",") if s.strip()]
-    skills_json = json.dumps(skills)
+    raw_skills = str(row.get("Skill Set", "")).strip()
+    raw_years = str(row.get("Skill Experience (Years)", "")).strip()
+    skills = [s.strip() for s in raw_skills.split(",") if s.strip()]
+    years = [s.strip() for s in raw_years.split(",") if s.strip()]
+
+    if len(skills) != len(years):
+        raise UploadProcessingError(400, "skills and experience counts must match.")
 
     cur.execute(
         """
-        INSERT INTO "Employees" (upload_id, name, role, department, experience_years, skills)
-        VALUES (%s, %s, %s, %s, %s, %s)
+        INSERT INTO "Employees" (upload_id, name, role, department)
+        VALUES (%s, %s, %s, %s)
         RETURNING employee_id;
         """,
         (
@@ -106,12 +109,20 @@ def _insert_employee(cur, upload_id: int, group_name: str, row: pd.Series) -> in
             group_name,                   # employee name
             row["Role"],
             row["Department"],
-            float(row["Experience (Years)"] or 0),
-            skills_json,
         ),
     )
 
-    return cur.fetchone()[0]
+    employee_id = cur.fetchone()[0]
+    for skill, exp in zip(skills, years):
+        cur.execute(
+            """
+            INSERT INTO "EmployeeSkills" (employee_id, skill_name, years_experience)
+            VALUES (%s, %s, %s);
+            """,
+            (employee_id, skill, float(exp)),
+        )
+
+    return employee_id
 
 
 # ----------------------------------------------------------

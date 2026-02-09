@@ -3,8 +3,6 @@ import psycopg2
 
 
 def get_connection():
-    # returns a fresh database connection; used throughout the app
-    # connection details should normally come from environment variables
     conn = psycopg2.connect(
         dbname="allocaite",
         user="fatima",
@@ -52,9 +50,17 @@ def init_db():
             upload_id INT REFERENCES "Uploads"(upload_id) ON DELETE CASCADE,
             name VARCHAR(100),
             role VARCHAR(100),
-            department VARCHAR(100),
-            experience_years FLOAT,
-            skills JSON
+            department VARCHAR(100)
+        );
+    """)
+
+    # employee skills table stores per-skill experience for each employee
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS "EmployeeSkills" (
+            id SERIAL PRIMARY KEY,
+            employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+            skill_name VARCHAR(100),
+            years_experience FLOAT
         );
     """)
 
@@ -110,6 +116,8 @@ def init_db():
     cur.execute('ALTER TABLE "Employees" ADD COLUMN IF NOT EXISTS user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE;')
     cur.execute('ALTER TABLE "Uploads" ADD COLUMN IF NOT EXISTS upload_type VARCHAR(50) DEFAULT \'assignments\';')
     cur.execute('ALTER TABLE "Assignments" ADD COLUMN IF NOT EXISTS user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE;')
+    cur.execute('ALTER TABLE "Employees" DROP COLUMN IF EXISTS experience_years;')
+    cur.execute('ALTER TABLE "Employees" DROP COLUMN IF EXISTS skills;')
     # indexes to speed up availability calculations and dashboard queries
     cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_employee ON "Assignments"(employee_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_dates ON "Assignments"(start_date, end_date);')
@@ -117,6 +125,8 @@ def init_db():
     cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_upload ON "Employees"(upload_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_upload_active ON "Uploads"(user_id, is_active);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_user ON "Employees"(user_id);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_skill_employee ON "EmployeeSkills"(employee_id);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_skill_name ON "EmployeeSkills"(skill_name);')
 
     conn.commit()
     cur.close()

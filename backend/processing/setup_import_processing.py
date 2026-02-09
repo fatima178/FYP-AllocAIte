@@ -1,4 +1,3 @@
-import json
 from io import BytesIO
 from pathlib import Path
 
@@ -12,7 +11,7 @@ REQUIRED_FIELDS = [
     "role",
     "department",
     "skills",
-    "experience_years",
+    "skill_experience",
 ]
 
 DEFAULT_COLUMN_MAP = {
@@ -20,7 +19,7 @@ DEFAULT_COLUMN_MAP = {
     "role": "Role",
     "department": "Department",
     "skills": "Skill Set",
-    "experience_years": "Experience (Years)",
+    "skill_experience": "Skill Experience (Years)",
 }
 
 ALLOWED_EXTENSIONS = {".xlsx", ".xls"}
@@ -78,6 +77,10 @@ def _parse_skills(raw):
     raw = str(raw or "").strip()
     return [s.strip() for s in raw.split(",") if s.strip()]
 
+def _parse_skill_experience(raw):
+    raw = str(raw or "").strip()
+    return [s.strip() for s in raw.split(",") if s.strip()]
+
 
 def _normalize_row(row, column_map: dict):
     record = {}
@@ -85,7 +88,9 @@ def _normalize_row(row, column_map: dict):
     record["role"] = str(row.get(column_map["role"], "")).strip()
     record["department"] = str(row.get(column_map["department"], "")).strip()
     record["skills"] = _parse_skills(row.get(column_map["skills"], ""))
-    record["experience_years"] = float(row.get(column_map["experience_years"], 0) or 0)
+    record["skill_experience"] = _parse_skill_experience(
+        row.get(column_map["skill_experience"], "")
+    )
     return record
 
 
@@ -99,6 +104,19 @@ def _validate_records(records):
             errors.append(f"row {row_number}: role is required.")
         if not record["department"]:
             errors.append(f"row {row_number}: department is required.")
+        if not record["skills"]:
+            errors.append(f"row {row_number}: skills are required.")
+        if not record["skill_experience"]:
+            errors.append(f"row {row_number}: skill experience is required.")
+        if record["skills"] and record["skill_experience"]:
+            if len(record["skills"]) != len(record["skill_experience"]):
+                errors.append(f"row {row_number}: skills and experience counts must match.")
+            else:
+                for value in record["skill_experience"]:
+                    try:
+                        float(value)
+                    except Exception:
+                        errors.append(f"row {row_number}: invalid skill experience value.")
     return errors
 
 
@@ -130,9 +148,20 @@ def process_employee_setup_import(
             raise SetupImportError(403, "employees already exist for this user.")
 
         if preview:
+            preview_rows = []
+            for record in records[:10]:
+                preview_rows.append({
+                    "name": record["name"],
+                    "role": record["role"],
+                    "department": record["department"],
+                    "skills": [
+                        {"skill_name": s, "years_experience": float(y)}
+                        for s, y in zip(record["skills"], record["skill_experience"])
+                    ],
+                })
             return {
                 "row_count": len(records),
-                "preview": records[:10],
+                "preview": preview_rows,
                 "errors": errors,
                 "can_import": len(errors) == 0,
             }
@@ -158,11 +187,10 @@ def process_employee_setup_import(
                     upload_id,
                     name,
                     role,
-                    department,
-                    experience_years,
-                    skills
+                    department
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s);
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING employee_id;
                 """,
                 (
                     user_id,
@@ -170,10 +198,17 @@ def process_employee_setup_import(
                     record["name"],
                     record["role"],
                     record["department"],
-                    record["experience_years"],
-                    json.dumps(record["skills"]),
                 ),
             )
+            employee_id = cur.fetchone()[0]
+            for skill, years in zip(record["skills"], record["skill_experience"]):
+                cur.execute(
+                    """
+                    INSERT INTO "EmployeeSkills" (employee_id, skill_name, years_experience)
+                    VALUES (%s, %s, %s);
+                    """,
+                    (employee_id, skill, float(years)),
+                )
 
         conn.commit()
 

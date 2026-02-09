@@ -115,6 +115,16 @@
   color: var(--text);
 }
 
+.settings-form textarea {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text);
+  resize: vertical;
+  min-height: 90px;
+}
+
 .status-message {
   margin-top: 12px;
   padding: 10px 12px;
