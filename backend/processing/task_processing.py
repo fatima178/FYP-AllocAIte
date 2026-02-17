@@ -292,6 +292,42 @@ def _validate_assignment_owner(cur, assignment_id: int, user_id: int) -> bool:
 
 
 # ----------------------------------------------------------
+# archive assignment into history before removal
+# ----------------------------------------------------------
+def _archive_assignment(cur, assignment_id: int):
+    cur.execute(
+        """
+        INSERT INTO "AssignmentHistory" (
+            user_id,
+            employee_id,
+            upload_id,
+            source_assignment_id,
+            title,
+            start_date,
+            end_date,
+            total_hours,
+            remaining_hours,
+            priority
+        )
+        SELECT
+            user_id,
+            employee_id,
+            upload_id,
+            assignment_id,
+            title,
+            start_date,
+            end_date,
+            total_hours,
+            remaining_hours,
+            priority
+        FROM "Assignments"
+        WHERE assignment_id = %s;
+        """,
+        (assignment_id,),
+    )
+
+
+# ----------------------------------------------------------
 # update assignment entry
 # ----------------------------------------------------------
 # validates:
@@ -405,6 +441,8 @@ def delete_task_entry(user_id: int, assignment_id: int) -> dict:
     try:
         if not _validate_assignment_owner(cur, assignment_id, user_id):
             raise TaskProcessingError(404, "task not found for this user")
+
+        _archive_assignment(cur, assignment_id)
 
         cur.execute(
             """

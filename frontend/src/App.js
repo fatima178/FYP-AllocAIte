@@ -11,6 +11,8 @@ import ChatbotPage from './Pages/Chatbot';
 import RecommendationsPage from './Pages/Recommendations';
 import SettingsPage from "./Pages/Settings";
 import ChatbotPopup from "./Pages/ChatbotPopup";
+import EmployeePortalPage from './Pages/EmployeePortal';
+import InvitePage from './Pages/Invite';
 
 function App() {
   // apply user theme + font preferences on initial load
@@ -40,12 +42,26 @@ function App() {
   // determine current URL path
   const path = window.location.pathname || '/';
 
+  if (path === '/invite') {
+    return <InvitePage />;
+  }
+
   // detect whether user is logged in
   const hasUser = Boolean(localStorage.getItem('user_id'));
+  const accountType = localStorage.getItem('account_type') || 'manager';
 
   // if user is not authenticated, always send them to login
   if (!hasUser) {
     return <LoginPage />;
+  }
+
+  // employee accounts only see their own portal
+  if (accountType === 'employee') {
+    if (path !== '/employee') {
+      window.location.replace('/employee');
+      return null;
+    }
+    return <EmployeePortalPage />;
   }
 
   // root path redirects into the real app flow

@@ -3,16 +3,21 @@ import '../styles/Menu.css';
 function Menu() {
   // track the current URL so we can highlight the active page
   const currentPath = window.location.pathname;
+  const accountType = localStorage.getItem('account_type') || 'manager';
 
   // list of navigation links shown in the menu bar
-  const links = [
-    { label: 'Dashboard', path: '/dashboard' },
-    { label: 'Tasks', path: '/tasks' },
-    { label: 'Upload', path: '/upload' },
-    { label: 'Assignments', path: '/assignments' },
-    { label: 'Chatbot', path: '/chatbot' },
-    { label: 'Settings', path: '/settings' }
-  ];
+  const links = accountType === 'employee'
+    ? [
+        { label: 'My Profile', path: '/employee' },
+      ]
+    : [
+        { label: 'Dashboard', path: '/dashboard' },
+        { label: 'Tasks', path: '/tasks' },
+        { label: 'Upload', path: '/upload' },
+        { label: 'Assignments', path: '/assignments' },
+        { label: 'Chatbot', path: '/chatbot' },
+        { label: 'Settings', path: '/settings' }
+      ];
 
   // helper for navigation without refreshing the component
   // but still using a full redirect
@@ -26,6 +31,8 @@ function Menu() {
   const handleLogout = () => {
     localStorage.removeItem('user_id');
     localStorage.removeItem('email');
+    localStorage.removeItem('account_type');
+    localStorage.removeItem('employee_id');
     window.location.href = '/';
   };
 
@@ -35,7 +42,7 @@ function Menu() {
       <button
         type="button"
         className="brand"
-        onClick={() => goTo('/dashboard')}
+        onClick={() => goTo(accountType === 'employee' ? '/employee' : '/dashboard')}
       >
         AllocAIte
       </button>

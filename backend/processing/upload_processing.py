@@ -89,7 +89,7 @@ def _insert_upload(cur, user_id: int, filename: str) -> int:
 # ----------------------------------------------------------
 # converts "skill set" column (comma-separated) into json list
 # and stores basic metadata for that employee.
-def _insert_employee(cur, upload_id: int, group_name: str, row: pd.Series) -> int:
+def _insert_employee(cur, user_id: int, upload_id: int, group_name: str, row: pd.Series) -> int:
     raw_skills = str(row.get("Skill Set", "")).strip()
     raw_years = str(row.get("Skill Experience (Years)", "")).strip()
     skills = [s.strip() for s in raw_skills.split(",") if s.strip()]
@@ -100,11 +100,12 @@ def _insert_employee(cur, upload_id: int, group_name: str, row: pd.Series) -> in
 
     cur.execute(
         """
-        INSERT INTO "Employees" (upload_id, name, role, department)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO "Employees" (user_id, upload_id, name, role, department)
+        VALUES (%s, %s, %s, %s, %s)
         RETURNING employee_id;
         """,
         (
+            user_id,
             upload_id,
             group_name,                   # employee name
             row["Role"],
@@ -198,7 +199,7 @@ def process_upload(user_id: int, filename: str, file_bytes: bytes) -> dict:
 
         for name, group in grouped:
             first = group.iloc[0]
-            employee_id = _insert_employee(cur, upload_id, name, first)
+            employee_id = _insert_employee(cur, user_id, upload_id, name, first)
             _insert_assignments(cur, upload_id, employee_id, group)
 
         conn.commit()

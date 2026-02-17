@@ -95,17 +95,41 @@ def list_employees(user_id: int) -> List[Dict[str, Any]]:
                 (employee_id,),
             )
             skill_rows = cur.fetchall()
+            cur.execute(
+                """
+                SELECT skill_name, years_experience
+                FROM "EmployeeSelfSkills"
+                WHERE employee_id = %s
+                ORDER BY skill_name ASC;
+                """,
+                (employee_id,),
+            )
+            self_rows = cur.fetchall()
+            cur.execute(
+                """
+                SELECT skill_name, priority
+                FROM "EmployeeLearningGoals"
+                WHERE employee_id = %s
+                ORDER BY priority DESC, skill_name ASC;
+                """,
+                (employee_id,),
+            )
+            goal_rows = cur.fetchall()
         finally:
             cur.close()
             conn.close()
 
         skills = [{"skill_name": s, "years_experience": y} for s, y in skill_rows]
+        self_skills = [{"skill_name": s, "years_experience": y} for s, y in self_rows]
+        learning_goals = [{"skill_name": s, "priority": p} for s, p in goal_rows]
         results.append({
             "employee_id": employee_id,
             "name": row[1],
             "role": row[2],
             "department": row[3],
             "skills": skills,
+            "self_skills": self_skills,
+            "learning_goals": learning_goals,
         })
     return results
 

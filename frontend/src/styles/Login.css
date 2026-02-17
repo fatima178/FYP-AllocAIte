@@ -157,6 +157,30 @@ body {
   gap: 1.25rem;
 }
 
+.role-switch {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.role-switch button {
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text);
+  padding: 0.8rem 1rem;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.role-switch button.active {
+  background: var(--button-bg);
+  color: var(--button-text);
+  border-color: var(--button-bg);
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.18);
+}
+
 .auth-card h2 {
   margin: 0;
 }

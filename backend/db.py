@@ -25,6 +25,8 @@ def init_db():
             name VARCHAR(100),
             email VARCHAR(100) UNIQUE,
             password_hash VARCHAR(255),
+            account_type VARCHAR(20) DEFAULT 'manager',
+            employee_id INT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
@@ -64,6 +66,41 @@ def init_db():
         );
     """)
 
+    # employee self-skills entered via their own portal
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS "EmployeeSelfSkills" (
+            id SERIAL PRIMARY KEY,
+            employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+            skill_name VARCHAR(100),
+            years_experience FLOAT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
+    # employee learning goals (skills they want to develop)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS "EmployeeLearningGoals" (
+            id SERIAL PRIMARY KEY,
+            employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+            skill_name VARCHAR(100),
+            priority INT DEFAULT 3,
+            notes TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
+    # employee preferences for future matching
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS "EmployeePreferences" (
+            employee_id INT PRIMARY KEY REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+            preferred_roles TEXT,
+            preferred_departments TEXT,
+            preferred_projects TEXT,
+            work_style TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
     # assignments table stores project assignments for employees
     # total_hours and remaining_hours allow availability calculations
     cur.execute("""
@@ -78,6 +115,24 @@ def init_db():
             total_hours FLOAT,
             remaining_hours FLOAT,
             priority VARCHAR(50)
+        );
+    """)
+
+    # assignment history table stores past records for fairness tracking
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS "AssignmentHistory" (
+            history_id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE,
+            employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+            upload_id INT REFERENCES "Uploads"(upload_id) ON DELETE SET NULL,
+            source_assignment_id INT,
+            title VARCHAR(150),
+            start_date DATE,
+            end_date DATE,
+            total_hours FLOAT,
+            remaining_hours FLOAT,
+            priority VARCHAR(50),
+            archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
 
@@ -113,11 +168,28 @@ def init_db():
         );
     """)
 
+    # employee invite tokens for account creation
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS "EmployeeInvites" (
+            invite_id SERIAL PRIMARY KEY,
+            manager_user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE,
+            employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+            email VARCHAR(100),
+            token_hash VARCHAR(128),
+            expires_at TIMESTAMP,
+            used_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
+    cur.execute('ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS account_type VARCHAR(20) DEFAULT \'manager\';')
+    cur.execute('ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS employee_id INT;')
     cur.execute('ALTER TABLE "Employees" ADD COLUMN IF NOT EXISTS user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE;')
     cur.execute('ALTER TABLE "Uploads" ADD COLUMN IF NOT EXISTS upload_type VARCHAR(50) DEFAULT \'assignments\';')
     cur.execute('ALTER TABLE "Assignments" ADD COLUMN IF NOT EXISTS user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE;')
     cur.execute('ALTER TABLE "Employees" DROP COLUMN IF EXISTS experience_years;')
     cur.execute('ALTER TABLE "Employees" DROP COLUMN IF EXISTS skills;')
+    cur.execute('UPDATE "Users" SET account_type = COALESCE(account_type, \'manager\');')
     # indexes to speed up availability calculations and dashboard queries
     cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_employee ON "Assignments"(employee_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_dates ON "Assignments"(start_date, end_date);')
@@ -127,6 +199,16 @@ def init_db():
     cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_user ON "Employees"(user_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_skill_employee ON "EmployeeSkills"(employee_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_skill_name ON "EmployeeSkills"(skill_name);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_self_skill_employee ON "EmployeeSelfSkills"(employee_id);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_self_skill_name ON "EmployeeSelfSkills"(skill_name);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_goal_employee ON "EmployeeLearningGoals"(employee_id);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_goal_skill ON "EmployeeLearningGoals"(skill_name);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_pref_employee ON "EmployeePreferences"(employee_id);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_hist_employee ON "AssignmentHistory"(employee_id);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_hist_user ON "AssignmentHistory"(user_id);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_users_employee_id ON "Users"(employee_id);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_invite_token ON "EmployeeInvites"(token_hash);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_invite_employee ON "EmployeeInvites"(employee_id);')
 
     conn.commit()
     cur.close()

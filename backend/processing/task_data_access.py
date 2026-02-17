@@ -24,6 +24,84 @@ def _fetch_employee_skills(cur, employee_id: int) -> List[Dict[str, Any]]:
 
 
 # ----------------------------------------------------------
+# fetch self-entered skills for a given employee
+# ----------------------------------------------------------
+# returns list of dicts with per-skill experience
+def _fetch_employee_self_skills(cur, employee_id: int) -> List[Dict[str, Any]]:
+    cur.execute(
+        """
+        SELECT skill_name, years_experience
+        FROM "EmployeeSelfSkills"
+        WHERE employee_id = %s
+        ORDER BY skill_name ASC;
+        """,
+        (employee_id,),
+    )
+    return [{"skill_name": s, "years_experience": y} for s, y in cur.fetchall()]
+
+
+# ----------------------------------------------------------
+# fetch learning goals for a given employee
+# ----------------------------------------------------------
+# returns list of dicts with per-skill priority
+def _fetch_employee_learning_goals(cur, employee_id: int) -> List[Dict[str, Any]]:
+    cur.execute(
+        """
+        SELECT skill_name, priority
+        FROM "EmployeeLearningGoals"
+        WHERE employee_id = %s
+        ORDER BY priority DESC, skill_name ASC;
+        """,
+        (employee_id,),
+    )
+    return [{"skill_name": s, "priority": p} for s, p in cur.fetchall()]
+
+
+def _merge_skills(primary: List[Dict[str, Any]], secondary: List[Dict[str, Any]]):
+    merged = {}
+    for item in primary + secondary:
+        name = str(item.get("skill_name") or "").strip()
+        if not name:
+            continue
+        key = name.lower()
+        years = item.get("years_experience")
+        if key not in merged:
+            merged[key] = {"skill_name": name, "years_experience": years}
+        else:
+            existing = merged[key].get("years_experience")
+            try:
+                merged[key]["years_experience"] = max(existing or 0, years or 0)
+            except Exception:
+                merged[key]["years_experience"] = existing or years
+    return list(merged.values())
+
+
+def _fetch_recent_workload_hours(cur, employee_id: int, window_days: int = 90) -> float:
+    cur.execute(
+        """
+        SELECT COALESCE(SUM(COALESCE(total_hours, 0)), 0)
+        FROM "Assignments"
+        WHERE employee_id = %s
+          AND end_date >= CURRENT_DATE - %s;
+        """,
+        (employee_id, window_days),
+    )
+    active_total = cur.fetchone()[0] or 0
+
+    cur.execute(
+        """
+        SELECT COALESCE(SUM(COALESCE(total_hours, 0)), 0)
+        FROM "AssignmentHistory"
+        WHERE employee_id = %s
+          AND end_date >= CURRENT_DATE - %s;
+        """,
+        (employee_id, window_days),
+    )
+    history_total = cur.fetchone()[0] or 0
+    return float(active_total) + float(history_total)
+
+
+# ----------------------------------------------------------
 # fetch employees for a given upload
 # ----------------------------------------------------------
 # returns a list of dicts containing:
@@ -53,7 +131,11 @@ def fetch_employees_by_upload(upload_id: int) -> List[Dict[str, Any]]:
         conn_skills = get_connection()
         cur_skills = conn_skills.cursor()
         try:
-            skills = _fetch_employee_skills(cur_skills, employee_id)
+            org_skills = _fetch_employee_skills(cur_skills, employee_id)
+            self_skills = _fetch_employee_self_skills(cur_skills, employee_id)
+            goals = _fetch_employee_learning_goals(cur_skills, employee_id)
+            skills = _merge_skills(org_skills, self_skills)
+            recent_workload = _fetch_recent_workload_hours(cur_skills, employee_id)
         finally:
             cur_skills.close()
             conn_skills.close()
@@ -64,6 +146,8 @@ def fetch_employees_by_upload(upload_id: int) -> List[Dict[str, Any]]:
             "role": role,
             "experience": max(years) if years else 0,
             "skills": [s["skill_name"] for s in skills],
+            "learning_goals": [g["skill_name"] for g in goals],
+            "recent_workload_hours": recent_workload,
         })
 
     return employees
@@ -99,7 +183,11 @@ def fetch_employees_by_user(user_id: int) -> List[Dict[str, Any]]:
         conn_skills = get_connection()
         cur_skills = conn_skills.cursor()
         try:
-            skills = _fetch_employee_skills(cur_skills, employee_id)
+            org_skills = _fetch_employee_skills(cur_skills, employee_id)
+            self_skills = _fetch_employee_self_skills(cur_skills, employee_id)
+            goals = _fetch_employee_learning_goals(cur_skills, employee_id)
+            skills = _merge_skills(org_skills, self_skills)
+            recent_workload = _fetch_recent_workload_hours(cur_skills, employee_id)
         finally:
             cur_skills.close()
             conn_skills.close()
@@ -110,6 +198,8 @@ def fetch_employees_by_user(user_id: int) -> List[Dict[str, Any]]:
             "role": role,
             "experience": max(years) if years else 0,
             "skills": [s["skill_name"] for s in skills],
+            "learning_goals": [g["skill_name"] for g in goals],
+            "recent_workload_hours": recent_workload,
         })
 
     return employees

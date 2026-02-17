@@ -125,6 +125,7 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
     # precompute maximum experience to normalise scores to 0-1 scale
     # avoid division by zero by using default 1
     max_exp = max((e["experience"] for e in employees), default=1)
+    max_workload = max((e.get("recent_workload_hours", 0) for e in employees), default=0)
 
     # embed task and employees once
     task_emb = encode_task(model, task_description)
@@ -162,14 +163,29 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
             len(matched_labels) / len(emp["skills"]) if emp["skills"] else 0
         )
 
+        # learning goals are a secondary signal
+        goal_matches = semantic_skill_match(model, task_description, emp.get("learning_goals") or [], threshold=0.4)
+        goal_score = (
+            sum(m["score"] for m in goal_matches) / len(goal_matches)
+            if goal_matches else 0
+        )
+        goal_bonus = min(0.15, goal_score * 0.15)
+
         # final skill score picks whichever is stronger:
         # semantic similarity vs. skill coverage
-        skill_score = max(avg_skill_sim, coverage)
+        skill_score = min(1.0, max(avg_skill_sim, coverage) + goal_bonus)
 
         # availability score ranges from 0 (fully unavailable) to 1 (fully available)
         availability = calculate_assignment_availability(
             emp["employee_id"], start_date, end_date
         )
+
+        # fairness score: lighter recent workloads get a small boost
+        recent_workload = float(emp.get("recent_workload_hours", 0) or 0)
+        if max_workload > 0:
+            workload_score = max(0.0, 1 - (recent_workload / max_workload))
+        else:
+            workload_score = 1.0
 
         # combine all computed scores into a single result entry
         ranked.append(
@@ -181,6 +197,8 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
                 role_score,
                 availability,
                 matched_labels,
+                [m["label"] for m in goal_matches],
+                workload_score,
             )
         )
 

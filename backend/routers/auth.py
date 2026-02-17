@@ -69,6 +69,8 @@ def register_user(payload: RegisterRequest):
             "name": payload.name,
             "email": payload.email,
             "created_at": created_at.isoformat(),
+            "account_type": "manager",
+            "employee_id": None,
             "message": "user registered successfully."
         }
 
@@ -98,7 +100,7 @@ def login_user(payload: LoginRequest):
     try:
         # find account by email
         cur.execute("""
-            SELECT user_id, name, password_hash, created_at
+            SELECT user_id, name, password_hash, created_at, account_type, employee_id
             FROM "Users"
             WHERE email = %s;
         """, (payload.email,))
@@ -107,7 +109,7 @@ def login_user(payload: LoginRequest):
         if not record:
             raise HTTPException(401, "invalid email or password.")
 
-        user_id, name, stored_hash, created_at = record
+        user_id, name, stored_hash, created_at, account_type, employee_id = record
 
         # hash incoming password
         given_hash = hashlib.sha256(payload.password.encode("utf-8")).hexdigest()
@@ -128,6 +130,8 @@ def login_user(payload: LoginRequest):
             "email": payload.email,
             "created_at": created_at.isoformat(),
             "has_upload": has_upload,
+            "account_type": account_type or "manager",
+            "employee_id": employee_id,
             "message": "login successful."
         }
 

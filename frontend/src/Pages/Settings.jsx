@@ -89,6 +89,16 @@ function SettingsPage() {
   const [employeeStatus, setEmployeeStatus] = useState(null);
   const [employeeSaving, setEmployeeSaving] = useState(false);
 
+  // employee invite form
+  const [employeeOptions, setEmployeeOptions] = useState([]);
+  const [inviteForm, setInviteForm] = useState({
+    employee_id: "",
+    name: "",
+  });
+  const [inviteStatus, setInviteStatus] = useState(null);
+  const [inviteLink, setInviteLink] = useState("");
+  const [inviteSaving, setInviteSaving] = useState(false);
+
   // display formatting for "member since"
   const formatMemberSince = (value) => {
     if (!value || value === "-") return "-";
@@ -144,6 +154,23 @@ function SettingsPage() {
     };
 
     fetchSettings();
+  }, []);
+
+  // fetch employee list for login creation
+  useEffect(() => {
+    const userId = localStorage.getItem("user_id");
+    if (!userId) return;
+
+    const fetchEmployees = async () => {
+      try {
+        const data = await apiFetch(`/employees?user_id=${userId}`);
+        setEmployeeOptions(data.employees || []);
+      } catch (err) {
+        setEmployeeOptions([]);
+      }
+    };
+
+    fetchEmployees();
   }, []);
 
   // apply theme + font size whenever they change
@@ -327,6 +354,58 @@ function SettingsPage() {
       setEmployeeStatus({ type: "error", message: err.message || "Unable to add employee." });
     } finally {
       setEmployeeSaving(false);
+    }
+  };
+
+  const handleInviteFormChange = (event) => {
+    const { name, value } = event.target;
+    setInviteForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleEmployeeSelect = (event) => {
+    const value = event.target.value;
+    const selected = employeeOptions.find((emp) => String(emp.employee_id) === value);
+    setInviteForm((prev) => ({
+      ...prev,
+      employee_id: value,
+      name: selected?.name || prev.name,
+    }));
+  };
+
+  const submitEmployeeInvite = async (event) => {
+    event.preventDefault();
+    setInviteStatus(null);
+    setInviteLink("");
+
+    const userId = localStorage.getItem("user_id");
+    if (!userId) {
+      setInviteStatus({ type: "error", message: "Please log in again." });
+      return;
+    }
+
+    if (!inviteForm.employee_id) {
+      setInviteStatus({ type: "error", message: "Employee is required." });
+      return;
+    }
+
+    setInviteSaving(true);
+    try {
+      const data = await apiFetch("/invites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: Number(userId),
+          employee_id: Number(inviteForm.employee_id),
+        }),
+      });
+
+      setInviteLink(data.invite_link || "");
+      setInviteStatus({ type: "success", message: "Invite link created." });
+      setInviteForm({ employee_id: "", name: "" });
+    } catch (err) {
+      setInviteStatus({ type: "error", message: err.message || "Unable to create invite." });
+    } finally {
+      setInviteSaving(false);
     }
   };
 
@@ -520,7 +599,7 @@ function SettingsPage() {
                   name="name"
                   value={employeeForm.name}
                   onChange={handleEmployeeChange}
-                  placeholder="Alex Johnson"
+                  placeholder="Name"
                 />
               </label>
 
@@ -531,7 +610,7 @@ function SettingsPage() {
                   name="role"
                   value={employeeForm.role}
                   onChange={handleEmployeeChange}
-                  placeholder="Backend Developer"
+                  placeholder="Role"
                 />
               </label>
 
@@ -542,7 +621,7 @@ function SettingsPage() {
                   name="department"
                   value={employeeForm.department}
                   onChange={handleEmployeeChange}
-                  placeholder="Engineering"
+                  placeholder="Department"
                 />
               </label>
 
@@ -561,7 +640,7 @@ function SettingsPage() {
                         };
                         setEmployeeSkills(updated);
                       }}
-                      placeholder="Python"
+                      placeholder="Skill"
                     />
                   </label>
 
@@ -578,7 +657,7 @@ function SettingsPage() {
                         };
                         setEmployeeSkills(updated);
                       }}
-                      placeholder="3"
+                      placeholder="Years"
                       min="0"
                       step="0.1"
                     />
@@ -620,12 +699,6 @@ function SettingsPage() {
 
             {skillError && <p className="form-error">{skillError}</p>}
 
-            {employeeSkills.length > 0 && (
-              <p className="muted">
-                Skills: {employeeSkills.map((s) => `${s.skill_name} (${s.years_experience}y)`).join(", ")}
-              </p>
-            )}
-
             <div className="button-row">
               <button className="primary" type="submit" disabled={employeeSaving}>
                 {employeeSaving ? "Saving..." : "Add Employee"}
@@ -636,6 +709,71 @@ function SettingsPage() {
               <p className={`status-message ${employeeStatus.type || ""}`}>
                 {employeeStatus.message}
               </p>
+            )}
+          </form>
+        </div>
+
+        {/* EMPLOYEE INVITE SECTION */}
+        <div className="settings-card">
+          <h2>Create Employee Invite</h2>
+          <p className="muted">Generate a link for an employee to create their account.</p>
+
+          <form className="settings-form" onSubmit={submitEmployeeInvite}>
+            <div className="form-grid">
+              <label>
+                Employee
+                <select
+                  name="employee_id"
+                  value={inviteForm.employee_id}
+                  onChange={handleEmployeeSelect}
+                >
+                  <option value="">Select employee</option>
+                  {employeeOptions.map((emp) => (
+                    <option key={emp.employee_id} value={emp.employee_id}>
+                      {emp.name} (ID {emp.employee_id})
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Name
+                <input
+                  type="text"
+                  name="name"
+                  value={inviteForm.name}
+                  onChange={handleInviteFormChange}
+                  placeholder="Employee name"
+                />
+              </label>
+
+            </div>
+
+            <div className="button-row">
+              <button className="primary" type="submit" disabled={inviteSaving}>
+                {inviteSaving ? "Generating..." : "Generate Invite Link"}
+              </button>
+            </div>
+
+            {inviteStatus && (
+              <p className={`status-message ${inviteStatus.type || ""}`}>
+                {inviteStatus.message}
+              </p>
+            )}
+
+            {inviteLink && (
+              <div className="invite-link">
+                <p className="muted">Copy and share this link:</p>
+                <div className="copy-row">
+                  <input type="text" readOnly value={inviteLink} />
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard.writeText(inviteLink)}
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
             )}
           </form>
         </div>

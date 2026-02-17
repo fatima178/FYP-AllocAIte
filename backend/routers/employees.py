@@ -7,6 +7,10 @@ from processing.employee_processing import (
     normalize_skill_entry,
     normalize_skill_lines,
 )
+from processing.employee_profile_processing import (
+    EmployeeProfileError,
+    create_employee_account,
+)
 
 router = APIRouter()
 
@@ -46,4 +50,29 @@ def normalize_skills(payload: dict):
     try:
         return {"skills": normalize_skill_lines(raw_text)}
     except EmployeeProcessingError as exc:
+        raise HTTPException(exc.status_code, exc.message)
+
+
+@router.post("/employees/create-login")
+def create_employee_login(payload: dict):
+    user_id = payload.get("user_id")
+    employee_id = payload.get("employee_id")
+    name = payload.get("name")
+    email = payload.get("email")
+    password = payload.get("password")
+    if not user_id:
+        raise HTTPException(400, "user_id is required")
+    if not employee_id:
+        raise HTTPException(400, "employee_id is required")
+    if not name or not email or not password:
+        raise HTTPException(400, "name, email, and password are required")
+    try:
+        return create_employee_account(
+            int(user_id),
+            int(employee_id),
+            name,
+            email,
+            password,
+        )
+    except EmployeeProfileError as exc:
         raise HTTPException(exc.status_code, exc.message)

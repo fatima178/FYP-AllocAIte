@@ -1,0 +1,69 @@
+.invite-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(120deg, rgba(74,122,255,0.12), rgba(255,255,255,0.9));
+}
+
+.invite-card {
+  width: min(420px, 100%);
+  background: var(--card);
+  border-radius: 16px;
+  padding: 28px;
+  border: 1px solid var(--card-border);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.invite-card h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+}
+
+.invite-card p {
+  margin: 0 0 20px;
+  opacity: 0.7;
+}
+
+.invite-card form {
+  display: grid;
+  gap: 14px;
+}
+
+.invite-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.invite-card input {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.invite-card .primary {
+  border-radius: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--button-bg);
+  background: var(--button-bg);
+  color: var(--button-text);
+  cursor: pointer;
+}
+
+.invite-card .status {
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+.invite-card .status.success {
+  color: #047857;
+}
+
+.invite-card .status.error {
+  color: #b91c1c;
+}

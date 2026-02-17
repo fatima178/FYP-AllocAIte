@@ -115,6 +115,47 @@
   color: var(--text);
 }
 
+.settings-form select {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.invite-link {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px dashed var(--card-border);
+  background: var(--surface-muted);
+}
+
+.invite-link .copy-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.invite-link input {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.invite-link button {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+}
+
 .settings-form textarea {
   padding: 10px;
   border-radius: 6px;
