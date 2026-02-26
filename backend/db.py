@@ -177,7 +177,15 @@ def init_db():
         CREATE TABLE IF NOT EXISTS "UserSettings" (
             user_id INT PRIMARY KEY REFERENCES "Users"(user_id) ON DELETE CASCADE,
             theme VARCHAR(20) DEFAULT 'light',
-            font_size VARCHAR(20) DEFAULT 'medium'
+            font_size VARCHAR(20) DEFAULT 'medium',
+            use_custom_weights BOOLEAN DEFAULT FALSE,
+            weight_semantic FLOAT,
+            weight_skill FLOAT,
+            weight_experience FLOAT,
+            weight_role FLOAT,
+            weight_availability FLOAT,
+            weight_fairness FLOAT,
+            weight_preferences FLOAT
         );
     """)
 
@@ -208,6 +216,14 @@ def init_db():
     cur.execute('ALTER TABLE "EmployeeCalendarEntries" ADD COLUMN IF NOT EXISTS start_date DATE;')
     cur.execute('ALTER TABLE "EmployeeCalendarEntries" ADD COLUMN IF NOT EXISTS end_date DATE;')
     cur.execute('ALTER TABLE "EmployeeCalendarEntries" DROP COLUMN IF EXISTS event_date;')
+    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS use_custom_weights BOOLEAN DEFAULT FALSE;')
+    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_semantic FLOAT;')
+    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_skill FLOAT;')
+    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_experience FLOAT;')
+    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_role FLOAT;')
+    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_availability FLOAT;')
+    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_fairness FLOAT;')
+    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_preferences FLOAT;')
     cur.execute('UPDATE "Users" SET account_type = COALESCE(account_type, \'manager\');')
     # indexes to speed up availability calculations and dashboard queries
     cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_employee ON "Assignments"(employee_id);')

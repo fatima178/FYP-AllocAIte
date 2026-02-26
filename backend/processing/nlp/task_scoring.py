@@ -46,12 +46,26 @@ def compute_role_match(task_description, role):
 # this changes depending on whether the employee actually had any skill matches.
 # if skills matched: skill + experience become more important
 # if no skills matched: semantic + experience dominate
-def _determine_weights(skill_score):
+def _default_weights(skill_score):
     if skill_score > 0:
         # skills matched: emphasize skills + experience
-        return 0.28, 0.30, 0.20, 0.10, 0.07, 0.05
+        return 0.26, 0.28, 0.18, 0.10, 0.08, 0.05, 0.05
     # no skill match: emphasize semantic understanding
-    return 0.33, 0.10, 0.20, 0.15, 0.17, 0.05
+    return 0.30, 0.12, 0.18, 0.15, 0.15, 0.05, 0.05
+
+
+def _determine_weights(skill_score, custom_weights=None, use_custom_weights=False):
+    if use_custom_weights and custom_weights:
+        return (
+            custom_weights.get("semantic", 0),
+            custom_weights.get("skill", 0),
+            custom_weights.get("experience", 0),
+            custom_weights.get("role", 0),
+            custom_weights.get("availability", 0),
+            custom_weights.get("fairness", 0),
+            custom_weights.get("preferences", 0),
+        )
+    return _default_weights(skill_score)
 
 
 # ----------------------------------------------------------
@@ -74,7 +88,7 @@ def _availability_label(percent):
 #   - role relevance
 #   - experience level
 #   - availability
-def _build_reason(skills, goals, role_score, role, experience, availability_percent, workload_score):
+def _build_reason(skills, goals, role_score, role, experience, availability_percent, workload_score, preferences_score):
     explanation = []
 
     # skills summary
@@ -86,6 +100,8 @@ def _build_reason(skills, goals, role_score, role, experience, availability_perc
     # learning goals summary
     if goals:
         explanation.append(f"Learning goals aligned: {', '.join(goals)}")
+    elif preferences_score >= 0.55:
+        explanation.append("Preferences and learning goals text aligns with this task")
 
     # role relevance summary
     if role_score >= 0.8:
@@ -140,6 +156,9 @@ def build_recommendation_entry(
     matched_skills,
     matched_goals,
     workload_score,
+    preferences_score,
+    custom_weights=None,
+    use_custom_weights=False,
 ):
     # choose weighting strategy based on skill match outcome
     (
@@ -149,7 +168,8 @@ def build_recommendation_entry(
         weight_role,
         weight_availability,
         weight_fairness,
-    ) = _determine_weights(skill_score)
+        weight_preferences,
+    ) = _determine_weights(skill_score, custom_weights, use_custom_weights)
 
     # weighted sum combining all signals into a single relevance score
     final_score = (
@@ -158,7 +178,8 @@ def build_recommendation_entry(
         weight_experience * experience_score +
         weight_role * role_score +
         weight_availability * availability_score +
-        weight_fairness * workload_score
+        weight_fairness * workload_score +
+        weight_preferences * preferences_score
     )
 
     # convert continuous scores into readable percentages
@@ -175,6 +196,7 @@ def build_recommendation_entry(
         employee["experience"],
         availability_percent,
         workload_score,
+        preferences_score,
     )
 
     # final structure to return to frontend / api
@@ -188,6 +210,7 @@ def build_recommendation_entry(
         "skills": matched_skills,
         "learning_goals": matched_goals,
         "workload_score": workload_score,
+        "preferences_score": preferences_score,
         "reason": reason,
         "final_score": final_score,
     }

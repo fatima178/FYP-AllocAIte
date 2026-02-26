@@ -48,12 +48,20 @@ def update_settings(data: dict):
     user_id = data.get("user_id")
     theme = data.get("theme")
     font_size = data.get("font_size")
+    use_custom_weights = data.get("use_custom_weights")
+    weights = data.get("weights")
 
     if not user_id:
         raise HTTPException(400, "user_id is required")
 
     # persist_user_settings updates only the fields passed
-    return persist_user_settings(int(user_id), theme, font_size)
+    return persist_user_settings(
+        int(user_id),
+        theme,
+        font_size,
+        use_custom_weights,
+        weights,
+    )
 
 
 @router.put("/settings/details")

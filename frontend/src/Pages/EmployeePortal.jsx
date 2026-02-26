@@ -11,6 +11,8 @@ function EmployeePortalPage() {
 
   const [selfSkills, setSelfSkills] = useState([{ skill_name: '', years_experience: '' }]);
   const [growthText, setGrowthText] = useState('');
+  const [savedGrowthText, setSavedGrowthText] = useState('');
+  const [showSavedModal, setShowSavedModal] = useState(false);
 
   const [skillStatus, setSkillStatus] = useState(null);
   const [growthStatus, setGrowthStatus] = useState(null);
@@ -44,6 +46,12 @@ function EmployeePortalPage() {
           ? data.self_skills
           : [{ skill_name: '', years_experience: '' }]);
         setGrowthText(
+          data.preferences?.growth_text
+            || data.preferences?.preferences_text
+            || data.preferences_text
+            || ''
+        );
+        setSavedGrowthText(
           data.preferences?.growth_text
             || data.preferences?.preferences_text
             || data.preferences_text
@@ -107,6 +115,7 @@ function EmployeePortalPage() {
         body: JSON.stringify({ user_id: Number(userId), skills: payload }),
       });
       setSkillStatus({ type: 'success', message: 'Skills updated.' });
+      setSelfSkills([{ skill_name: '', years_experience: '' }]);
     } catch (err) {
       setSkillStatus({ type: 'error', message: err.message || 'Unable to update skills.' });
     }
@@ -124,9 +133,28 @@ function EmployeePortalPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: Number(userId), preferences_text: growthText }),
       });
+      setSavedGrowthText(growthText);
       setGrowthStatus({ type: 'success', message: 'Preferences and learning goals saved.' });
     } catch (err) {
       setGrowthStatus({ type: 'error', message: err.message || 'Unable to save details.' });
+    }
+  };
+
+  const handleDeleteGrowth = async () => {
+    setGrowthStatus(null);
+    if (!userId) return;
+
+    try {
+      await apiFetch('/employee/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: Number(userId), preferences_text: '' }),
+      });
+      setGrowthText('');
+      setSavedGrowthText('');
+      setGrowthStatus({ type: 'success', message: 'Preferences and learning goals cleared.' });
+    } catch (err) {
+      setGrowthStatus({ type: 'error', message: err.message || 'Unable to clear details.' });
     }
   };
 
@@ -258,6 +286,15 @@ function EmployeePortalPage() {
                 Describe the work you want, the skills you want to build, and any growth goals.
                 This text is used for semantic matching.
               </p>
+              <div className="actions">
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => setShowSavedModal(true)}
+                >
+                  View saved
+                </button>
+              </div>
               <form onSubmit={submitGrowth} className="form-grid">
                 <label className="full">
                   Growth Notes
@@ -335,6 +372,55 @@ function EmployeePortalPage() {
           </div>
         )}
       </div>
+
+      {showSavedModal && (
+        <div className="employee-modal" onClick={() => setShowSavedModal(false)}>
+          <div className="employee-modal__content" onClick={(event) => event.stopPropagation()}>
+            <div className="employee-modal__header">
+              <h3>Current Saved Notes</h3>
+              <button type="button" onClick={() => setShowSavedModal(false)} aria-label="Close">
+                ×
+              </button>
+            </div>
+            {savedGrowthText ? (
+              <p className="muted">{savedGrowthText}</p>
+            ) : (
+              <p className="empty">No preferences or learning goals saved yet.</p>
+            )}
+            <div className="employee-modal__actions">
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  setGrowthText(savedGrowthText || '');
+                  setShowSavedModal(false);
+                }}
+                disabled={!savedGrowthText}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  handleDeleteGrowth();
+                  setShowSavedModal(false);
+                }}
+                disabled={!savedGrowthText}
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => setShowSavedModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

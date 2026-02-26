@@ -8,6 +8,7 @@ from .task_scoring import (
     compute_role_match,
     build_recommendation_entry,
 )
+from processing.settings_processing import fetch_user_settings
 
 # cached global reference to avoid repeatedly loading the model
 _DEFAULT_MODEL = None
@@ -31,6 +32,23 @@ def get_sentence_model():
 #   2) keyword overlap (medium strength)
 #   3) sbert similarity (fallback if others don't trigger)
 # the result is a list of matched skills with similarity scores.
+def _skill_label_and_weight(raw_skill):
+    if isinstance(raw_skill, dict):
+        label = str(raw_skill.get("skill_name") or "").strip()
+        years = raw_skill.get("years_experience")
+    else:
+        label = str(raw_skill).strip()
+        years = None
+    if not label:
+        return None, 0.0, 0.0
+    try:
+        years_val = float(years) if years is not None else 0.0
+    except Exception:
+        years_val = 0.0
+    weight = 1.0 + max(0.0, min(10.0, years_val))
+    return label, years_val, weight
+
+
 def semantic_skill_match(model, task_description, skills, threshold=0.45):
     if not skills or not task_description:
         return []
@@ -46,7 +64,7 @@ def semantic_skill_match(model, task_description, skills, threshold=0.45):
     matches = []
 
     for raw_skill in skills:
-        label = str(raw_skill).strip()
+        label, years_val, weight = _skill_label_and_weight(raw_skill)
         if not label:
             continue
 
@@ -71,7 +89,7 @@ def semantic_skill_match(model, task_description, skills, threshold=0.45):
 
         # keep only useful matches based on threshold
         if sim >= threshold:
-            matches.append({"label": label, "score": sim})
+            matches.append({"label": label, "score": sim, "weight": weight, "years_experience": years_val})
 
     return matches
 
@@ -129,6 +147,10 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
     # ensure we have a model instance
     model = model or get_sentence_model()
 
+    settings = fetch_user_settings(user_id)
+    custom_weights = settings.get("weights") or {}
+    use_custom_weights = bool(settings.get("use_custom_weights"))
+
     # precompute maximum experience to normalise scores to 0-1 scale
     # avoid division by zero by using default 1
     max_exp = max((e["experience"] for e in employees), default=1)
@@ -156,13 +178,14 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
         role_score = compute_role_match(task_description, emp["role"])
 
         # full semantic skill-level matching
-        skill_matches = semantic_skill_match(model, task_description, emp["skills"])
+        skill_matches = semantic_skill_match(model, task_description, emp.get("skills_detail") or emp["skills"])
         matched_labels = [m["label"] for m in skill_matches]
 
-        # average match score across matched skills
+        # weighted average match score across matched skills (by years experience)
+        total_weight = sum(m.get("weight", 1.0) for m in skill_matches)
         avg_skill_sim = (
-            sum(m["score"] for m in skill_matches) / len(skill_matches)
-            if skill_matches else 0
+            sum(m["score"] * m.get("weight", 1.0) for m in skill_matches) / total_weight
+            if skill_matches and total_weight > 0 else 0
         )
 
         # coverage: what percentage of the employee's skills are relevant
@@ -181,6 +204,13 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
         # final skill score picks whichever is stronger:
         # semantic similarity vs. skill coverage
         skill_score = min(1.0, max(avg_skill_sim, coverage) + goal_bonus)
+
+        # preferences + learning goals free-text score
+        preferences_score = 0.0
+        growth_text = str(emp.get("growth_text") or "").strip()
+        if growth_text:
+            pref_emb = model.encode(growth_text, convert_to_tensor=True)
+            preferences_score = float(util.cos_sim(task_emb, pref_emb).item())
 
         # availability score ranges from 0 (fully unavailable) to 1 (fully available)
         availability = calculate_assignment_availability(
@@ -206,6 +236,9 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
                 matched_labels,
                 [m["label"] for m in goal_matches],
                 workload_score,
+                preferences_score,
+                custom_weights,
+                use_custom_weights,
             )
         )
 

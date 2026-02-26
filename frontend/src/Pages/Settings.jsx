@@ -116,6 +116,16 @@ function SettingsPage() {
   const [fontSize, setFontSize] = useState(() =>
     readPreference("fontSize", DEFAULT_FONT_SIZE)
   );
+  const [useCustomWeights, setUseCustomWeights] = useState(false);
+  const [weights, setWeights] = useState({
+    semantic: 0.26,
+    skill: 0.28,
+    experience: 0.18,
+    role: 0.10,
+    availability: 0.08,
+    fairness: 0.05,
+    preferences: 0.05,
+  });
 
   // fetch account + appearance settings when page loads
   useEffect(() => {
@@ -145,6 +155,20 @@ function SettingsPage() {
         if (data.font_size) {
           setFontSize(data.font_size);
           writePreference("fontSize", data.font_size);
+        }
+        if (typeof data.use_custom_weights === "boolean") {
+          setUseCustomWeights(data.use_custom_weights);
+        }
+        if (data.weights) {
+          setWeights((prev) => ({
+            semantic: data.weights.semantic ?? prev.semantic,
+            skill: data.weights.skill ?? prev.skill,
+            experience: data.weights.experience ?? prev.experience,
+            role: data.weights.role ?? prev.role,
+            availability: data.weights.availability ?? prev.availability,
+            fairness: data.weights.fairness ?? prev.fairness,
+            preferences: data.weights.preferences ?? prev.preferences,
+          }));
         }
       } catch (err) {
         setError(err.message || "Unable to load settings.");
@@ -212,6 +236,60 @@ function SettingsPage() {
     applyFontSize(value);
     writePreference("fontSize", value);
     updateSettings({ font_size: value });
+  };
+
+  const toggleCustomWeights = (value) => {
+    setUseCustomWeights(value);
+    updateSettings({ use_custom_weights: value });
+  };
+
+  const updateWeight = (key, value) => {
+    setWeights((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const validateWeights = (nextWeights) => {
+    const entries = Object.entries(nextWeights);
+    for (const [, value] of entries) {
+      const num = Number(value);
+      if (Number.isNaN(num)) {
+        return "All weights must be valid numbers.";
+      }
+      if (num < 0) {
+        return "Weights cannot be negative.";
+      }
+    }
+    const total = entries.reduce((sum, [, value]) => sum + Number(value), 0);
+    if (total <= 0) {
+      return "Total weight must be greater than 0.";
+    }
+    if (Math.abs(total - 1) > 0.05) {
+      return `Total weight should be close to 1.00 (current: ${total.toFixed(2)}).`;
+    }
+    return "";
+  };
+
+  const saveWeights = () => {
+    const errorMessage = validateWeights(weights);
+    if (errorMessage) {
+      setStatus(errorMessage);
+      setTimeout(() => setStatus(""), 2500);
+      return;
+    }
+    updateSettings({ use_custom_weights: true, weights });
+  };
+
+  const resetWeights = () => {
+    const defaults = {
+      semantic: 0.26,
+      skill: 0.28,
+      experience: 0.18,
+      role: 0.10,
+      availability: 0.08,
+      fairness: 0.05,
+      preferences: 0.05,
+    };
+    setWeights(defaults);
+    updateSettings({ use_custom_weights: false, weights: defaults });
   };
 
   // update edit details fields
@@ -581,6 +659,109 @@ function SettingsPage() {
               onClick={() => changeFontSize("large")}
             >
               Large
+            </button>
+          </div>
+        </div>
+
+        <div className="settings-card">
+          <h2>Ranking Weightings</h2>
+          <p className="muted">Customise how recommendations are ranked.</p>
+
+          <p><strong>Use Custom Weightings</strong></p>
+          <div className="button-row">
+            <button
+              className={useCustomWeights ? "primary" : ""}
+              onClick={() => toggleCustomWeights(true)}
+            >
+              Custom
+            </button>
+            <button
+              className={!useCustomWeights ? "primary" : ""}
+              onClick={() => toggleCustomWeights(false)}
+            >
+              Default
+            </button>
+          </div>
+
+          <div className="form-grid">
+            <label>
+              Semantic
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={weights.semantic}
+                onChange={(e) => updateWeight("semantic", e.target.value)}
+              />
+            </label>
+            <label>
+              Skill Match
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={weights.skill}
+                onChange={(e) => updateWeight("skill", e.target.value)}
+              />
+            </label>
+            <label>
+              Experience
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={weights.experience}
+                onChange={(e) => updateWeight("experience", e.target.value)}
+              />
+            </label>
+            <label>
+              Role Fit
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={weights.role}
+                onChange={(e) => updateWeight("role", e.target.value)}
+              />
+            </label>
+            <label>
+              Availability
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={weights.availability}
+                onChange={(e) => updateWeight("availability", e.target.value)}
+              />
+            </label>
+            <label>
+              Fairness
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={weights.fairness}
+                onChange={(e) => updateWeight("fairness", e.target.value)}
+              />
+            </label>
+            <label>
+              Preferences
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={weights.preferences}
+                onChange={(e) => updateWeight("preferences", e.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="button-row">
+            <button className="primary" onClick={saveWeights}>
+              Save Weightings
+            </button>
+            <button onClick={resetWeights}>
+              Reset to Default
             </button>
           </div>
         </div>
