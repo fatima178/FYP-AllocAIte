@@ -13,9 +13,6 @@ const initialState = {
 function LoginPage() {
   // determines which form the user sees: login or register
   const [mode, setMode] = useState('login');
-  const [loginRole, setLoginRole] = useState(
-    localStorage.getItem('login_role') || 'manager'
-  );
 
   // stores typed input values for both modes
   const [formData, setFormData] = useState(initialState);
@@ -115,12 +112,9 @@ function LoginPage() {
         const resolvedName =
           body.name || (mode === 'register' ? payload.name : null) || '';
 
-        const resolvedAccountType =
-          body.account_type || (loginRole === 'employee' ? 'employee' : 'manager');
-
         // store user session in local storage
         localStorage.setItem('user_id', body.user_id);
-        localStorage.setItem('account_type', resolvedAccountType);
+        localStorage.setItem('account_type', body.account_type || 'manager');
         if (body.employee_id) {
           localStorage.setItem('employee_id', body.employee_id);
         } else {
@@ -136,7 +130,7 @@ function LoginPage() {
 
         // redirect user depending on whether they already uploaded a file
         const redirectPath =
-          resolvedAccountType === 'employee' ? '/employee' :
+          (body.account_type || 'manager') === 'employee' ? '/employee' :
           body.has_upload ? '/dashboard' : '/upload';
         window.location.href = redirectPath;
         return;
@@ -257,31 +251,6 @@ function LoginPage() {
                 : 'Enter your information to get started.'}
             </p>
           </div>
-
-          {mode === 'login' && (
-            <div className="role-switch">
-              <button
-                type="button"
-                className={loginRole === 'manager' ? 'active' : ''}
-                onClick={() => {
-                  setLoginRole('manager');
-                  localStorage.setItem('login_role', 'manager');
-                }}
-              >
-                Manager Login
-              </button>
-              <button
-                type="button"
-                className={loginRole === 'employee' ? 'active' : ''}
-                onClick={() => {
-                  setLoginRole('employee');
-                  localStorage.setItem('login_role', 'employee');
-                }}
-              >
-                Employee Login
-              </button>
-            </div>
-          )}
 
           {/* full name required only in register mode */}
           {mode === 'register' && (

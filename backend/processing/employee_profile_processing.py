@@ -5,6 +5,10 @@ from typing import Any, Dict, List
 
 from db import get_connection
 from processing.employee_processing import EmployeeProcessingError, normalize_skill_entry
+from processing.assignment_history_processing import archive_completed_assignments
+from processing.nlp.task_matching import match_employees
+from processing.settings_processing import fetch_user_settings
+from datetime import datetime
 
 
 class EmployeeProfileError(Exception):
@@ -102,7 +106,7 @@ def _fetch_learning_goals(cur, employee_id: int) -> List[Dict[str, Any]]:
 def _fetch_preferences(cur, employee_id: int) -> Dict[str, Any]:
     cur.execute(
         """
-        SELECT preferred_roles, preferred_departments, preferred_projects, work_style
+        SELECT preferred_roles, preferred_departments, preferred_projects, growth_text, work_style
         FROM "EmployeePreferences"
         WHERE employee_id = %s;
         """,
@@ -114,13 +118,15 @@ def _fetch_preferences(cur, employee_id: int) -> Dict[str, Any]:
             "preferred_roles": None,
             "preferred_departments": None,
             "preferred_projects": None,
+            "growth_text": None,
             "work_style": None,
         }
     return {
         "preferred_roles": row[0],
         "preferred_departments": row[1],
         "preferred_projects": row[2],
-        "work_style": row[3],
+        "growth_text": row[3],
+        "work_style": row[4],
     }
 
 
@@ -185,6 +191,7 @@ def _fetch_assignments(cur, employee_id: int) -> Dict[str, Any]:
 
 def get_employee_profile(user_id: int) -> Dict[str, Any]:
     employee_id = _resolve_employee_id(user_id)
+    archive_completed_assignments(user_id)
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -202,6 +209,83 @@ def get_employee_profile(user_id: int) -> Dict[str, Any]:
             "learning_goals": learning_goals,
             "preferences": preferences,
             **assignments,
+        }
+    finally:
+        cur.close()
+        conn.close()
+
+
+def get_employee_recommendation_reason(
+    user_id: int,
+    task_description: str,
+    start_date: str,
+    end_date: str,
+) -> Dict[str, Any]:
+    employee_id = _resolve_employee_id(user_id)
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        record = _fetch_employee_record(cur, employee_id)
+        manager_user_id = record["manager_user_id"]
+        if not manager_user_id:
+            raise EmployeeProfileError(404, "manager account not found")
+
+        try:
+            start_dt = datetime.fromisoformat(start_date).date()
+            end_dt = datetime.fromisoformat(end_date).date()
+        except ValueError:
+            raise EmployeeProfileError(400, "start_date and end_date must be valid ISO dates")
+
+        if start_dt > end_dt:
+            raise EmployeeProfileError(400, "start_date must be on or before end_date")
+
+        results = match_employees(task_description, manager_user_id, start_dt.isoformat(), end_dt.isoformat())
+        if not results:
+            return {"message": "no recommendations found for this task"}
+
+        entry = next((item for item in results if item.get("employee_id") == employee_id), None)
+        if not entry:
+            return {"message": "employee not found in recommendations"}
+
+        return {
+            "employee_id": employee_id,
+            "reason": entry.get("reason"),
+            "score_percent": entry.get("score_percent"),
+            "availability_percent": entry.get("availability_percent"),
+            "skills": entry.get("skills", []),
+            "learning_goals": entry.get("learning_goals", []),
+        }
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+def get_employee_settings(user_id: int) -> Dict[str, Any]:
+    employee_id = _resolve_employee_id(user_id)
+    base = fetch_user_settings(user_id)
+
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            SELECT u.name, u.email
+            FROM "Employees" e
+            LEFT JOIN "Users" u ON e.user_id = u.user_id
+            WHERE e.employee_id = %s;
+            """,
+            (employee_id,),
+        )
+        row = cur.fetchone()
+        manager_name = row[0] if row else None
+        manager_email = row[1] if row else None
+
+        return {
+            **base,
+            "manager_name": manager_name,
+            "manager_email": manager_email,
         }
     finally:
         cur.close()
@@ -307,12 +391,25 @@ def update_learning_goals(user_id: int, goals_raw) -> Dict[str, Any]:
         conn.close()
 
 
-def update_preferences(user_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
+def update_preferences(user_id: int, payload) -> Dict[str, Any]:
     employee_id = _resolve_employee_id(user_id)
-    preferred_roles = str(payload.get("preferred_roles") or "").strip() or None
-    preferred_departments = str(payload.get("preferred_departments") or "").strip() or None
-    preferred_projects = str(payload.get("preferred_projects") or "").strip() or None
-    work_style = str(payload.get("work_style") or "").strip() or None
+    preferred_roles = None
+    preferred_departments = None
+    preferred_projects = None
+    work_style = None
+    growth_text = None
+
+    if isinstance(payload, str):
+        growth_text = payload.strip() or None
+    elif isinstance(payload, dict):
+        preferred_roles = str(payload.get("preferred_roles") or "").strip() or None
+        preferred_departments = str(payload.get("preferred_departments") or "").strip() or None
+        preferred_projects = str(payload.get("preferred_projects") or "").strip() or None
+        work_style = str(payload.get("work_style") or "").strip() or None
+        growth_value = payload.get("growth_text") if "growth_text" in payload else payload.get("preferences_text")
+        growth_text = str(growth_value or "").strip() or None
+    else:
+        raise EmployeeProfileError(400, "preferences must be an object or string")
 
     conn = get_connection()
     cur = conn.cursor()
@@ -324,14 +421,16 @@ def update_preferences(user_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
                 preferred_roles,
                 preferred_departments,
                 preferred_projects,
+                growth_text,
                 work_style
             )
-            VALUES (%s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s)
             ON CONFLICT (employee_id)
             DO UPDATE SET
                 preferred_roles = EXCLUDED.preferred_roles,
                 preferred_departments = EXCLUDED.preferred_departments,
                 preferred_projects = EXCLUDED.preferred_projects,
+                growth_text = EXCLUDED.growth_text,
                 work_style = EXCLUDED.work_style,
                 updated_at = CURRENT_TIMESTAMP;
             """,
@@ -340,6 +439,7 @@ def update_preferences(user_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
                 preferred_roles,
                 preferred_departments,
                 preferred_projects,
+                growth_text,
                 work_style,
             ),
         )

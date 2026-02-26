@@ -2,6 +2,7 @@ from datetime import date, timedelta
 from typing import Optional
 
 from db import get_connection
+from processing.assignment_history_processing import archive_completed_assignments
 
 
 # ----------------------------------------------------------
@@ -98,6 +99,8 @@ def _build_task_payload(row, week_start: date, week_end: date):
 #   - employee options for dropdown selection
 #   - week boundaries (monday to sunday)
 def fetch_weekly_tasks(user_id: int, week_start: Optional[date]) -> dict:
+    archive_completed_assignments(user_id)
+
     week_start_day = _normalize_week_start(week_start)
     week_end_day = week_start_day + timedelta(days=6)
 

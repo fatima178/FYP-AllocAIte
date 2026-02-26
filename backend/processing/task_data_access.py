@@ -57,6 +57,21 @@ def _fetch_employee_learning_goals(cur, employee_id: int) -> List[Dict[str, Any]
     return [{"skill_name": s, "priority": p} for s, p in cur.fetchall()]
 
 
+def _fetch_employee_growth_text(cur, employee_id: int) -> str:
+    cur.execute(
+        """
+        SELECT growth_text
+        FROM "EmployeePreferences"
+        WHERE employee_id = %s;
+        """,
+        (employee_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        return None
+    return row[0]
+
+
 def _merge_skills(primary: List[Dict[str, Any]], secondary: List[Dict[str, Any]]):
     merged = {}
     for item in primary + secondary:
@@ -134,6 +149,7 @@ def fetch_employees_by_upload(upload_id: int) -> List[Dict[str, Any]]:
             org_skills = _fetch_employee_skills(cur_skills, employee_id)
             self_skills = _fetch_employee_self_skills(cur_skills, employee_id)
             goals = _fetch_employee_learning_goals(cur_skills, employee_id)
+            growth_text = _fetch_employee_growth_text(cur_skills, employee_id)
             skills = _merge_skills(org_skills, self_skills)
             recent_workload = _fetch_recent_workload_hours(cur_skills, employee_id)
         finally:
@@ -147,6 +163,7 @@ def fetch_employees_by_upload(upload_id: int) -> List[Dict[str, Any]]:
             "experience": max(years) if years else 0,
             "skills": [s["skill_name"] for s in skills],
             "learning_goals": [g["skill_name"] for g in goals],
+            "growth_text": growth_text,
             "recent_workload_hours": recent_workload,
         })
 
@@ -186,6 +203,7 @@ def fetch_employees_by_user(user_id: int) -> List[Dict[str, Any]]:
             org_skills = _fetch_employee_skills(cur_skills, employee_id)
             self_skills = _fetch_employee_self_skills(cur_skills, employee_id)
             goals = _fetch_employee_learning_goals(cur_skills, employee_id)
+            growth_text = _fetch_employee_growth_text(cur_skills, employee_id)
             skills = _merge_skills(org_skills, self_skills)
             recent_workload = _fetch_recent_workload_hours(cur_skills, employee_id)
         finally:
@@ -199,6 +217,7 @@ def fetch_employees_by_user(user_id: int) -> List[Dict[str, Any]]:
             "experience": max(years) if years else 0,
             "skills": [s["skill_name"] for s in skills],
             "learning_goals": [g["skill_name"] for g in goals],
+            "growth_text": growth_text,
             "recent_workload_hours": recent_workload,
         })
 

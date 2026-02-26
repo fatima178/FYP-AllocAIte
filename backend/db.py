@@ -96,8 +96,21 @@ def init_db():
             preferred_roles TEXT,
             preferred_departments TEXT,
             preferred_projects TEXT,
+            growth_text TEXT,
             work_style TEXT,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
+    # employee personal calendar entries (visible only to employee)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS "EmployeeCalendarEntries" (
+            entry_id SERIAL PRIMARY KEY,
+            employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+            label TEXT,
+            start_date DATE,
+            end_date DATE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
 
@@ -189,6 +202,12 @@ def init_db():
     cur.execute('ALTER TABLE "Assignments" ADD COLUMN IF NOT EXISTS user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE;')
     cur.execute('ALTER TABLE "Employees" DROP COLUMN IF EXISTS experience_years;')
     cur.execute('ALTER TABLE "Employees" DROP COLUMN IF EXISTS skills;')
+    cur.execute('ALTER TABLE "EmployeeLearningGoals" ADD COLUMN IF NOT EXISTS notes TEXT;')
+    cur.execute('ALTER TABLE "EmployeePreferences" ADD COLUMN IF NOT EXISTS growth_text TEXT;')
+    cur.execute('ALTER TABLE "EmployeeCalendarEntries" ADD COLUMN IF NOT EXISTS label TEXT;')
+    cur.execute('ALTER TABLE "EmployeeCalendarEntries" ADD COLUMN IF NOT EXISTS start_date DATE;')
+    cur.execute('ALTER TABLE "EmployeeCalendarEntries" ADD COLUMN IF NOT EXISTS end_date DATE;')
+    cur.execute('ALTER TABLE "EmployeeCalendarEntries" DROP COLUMN IF EXISTS event_date;')
     cur.execute('UPDATE "Users" SET account_type = COALESCE(account_type, \'manager\');')
     # indexes to speed up availability calculations and dashboard queries
     cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_employee ON "Assignments"(employee_id);')
@@ -206,9 +225,13 @@ def init_db():
     cur.execute('CREATE INDEX IF NOT EXISTS idx_pref_employee ON "EmployeePreferences"(employee_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_hist_employee ON "AssignmentHistory"(employee_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_hist_user ON "AssignmentHistory"(user_id);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_hist_source ON "AssignmentHistory"(source_assignment_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_users_employee_id ON "Users"(employee_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_invite_token ON "EmployeeInvites"(token_hash);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_invite_employee ON "EmployeeInvites"(employee_id);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_calendar_employee ON "EmployeeCalendarEntries"(employee_id);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_calendar_start ON "EmployeeCalendarEntries"(start_date);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_calendar_end ON "EmployeeCalendarEntries"(end_date);')
 
     conn.commit()
     cur.close()

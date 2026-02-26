@@ -86,6 +86,13 @@ def semantic_skill_match(model, task_description, skills, threshold=0.45):
 #   - their years of experience
 def build_employee_text(emp):
     skills = ", ".join(emp["skills"])
+    growth_text = str(emp.get("growth_text") or "").strip()
+    if growth_text:
+        return (
+            f"{emp['role']} with skills: {skills}. "
+            f"experience: {emp['experience']} years. "
+            f"growth preferences: {growth_text}"
+        )
     return f"{emp['role']} with skills: {skills}. experience: {emp['experience']} years."
 
 

@@ -3,6 +3,7 @@
 from datetime import date
 from db import get_connection
 from processing.availability_processing import calculate_availability, dashboard_window
+from processing.assignment_history_processing import archive_completed_assignments
 
 
 # ----------------------------------------------------------
@@ -35,6 +36,8 @@ def get_dashboard_summary(user_id: int):
     cur = conn.cursor()
 
     try:
+        archive_completed_assignments(user_id)
+
         cur.execute("""
             SELECT COUNT(*)
             FROM "Employees"
@@ -118,6 +121,8 @@ def get_employees_data(user_id: int, search=None, skills=None, availability=None
     cur = conn.cursor()
 
     try:
+        archive_completed_assignments(user_id)
+
         cur.execute("""
             SELECT COUNT(*)
             FROM "Employees"
@@ -148,10 +153,40 @@ def get_employees_data(user_id: int, search=None, skills=None, availability=None
                 WHERE employee_id = %s
                 ORDER BY skill_name ASC;
             """, (employee_id,))
-            parsed_skills = [
+            org_skills = [
                 {"skill_name": s, "years_experience": y}
                 for s, y in cur.fetchall()
             ]
+            cur.execute("""
+                SELECT skill_name, years_experience
+                FROM "EmployeeSelfSkills"
+                WHERE employee_id = %s
+                ORDER BY skill_name ASC;
+            """, (employee_id,))
+            self_skills = [
+                {"skill_name": s, "years_experience": y}
+                for s, y in cur.fetchall()
+            ]
+
+            merged = {}
+            for item in org_skills + self_skills:
+                label = str(item.get("skill_name") or "").strip()
+                if not label:
+                    continue
+                key = label.lower()
+                years = item.get("years_experience")
+                if key not in merged:
+                    merged[key] = {"skill_name": label, "years_experience": years}
+                else:
+                    try:
+                        merged[key]["years_experience"] = max(
+                            merged[key].get("years_experience") or 0,
+                            years or 0,
+                        )
+                    except Exception:
+                        merged[key]["years_experience"] = merged[key].get("years_experience") or years
+
+            parsed_skills = list(merged.values())
 
             # search filter (matches name or role)
             if search:

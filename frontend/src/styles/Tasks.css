@@ -139,6 +139,18 @@ body,
   border-bottom: 1px solid var(--border-subtle);
 }
 
+.employee-calendar-page .calendar-header {
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.employee-calendar-page .calendar-header .day-col:last-child {
+  border-right: none;
+}
+
+.employee-calendar-page .calendar-row {
+  grid-template-columns: 1fr;
+}
+
 .calendar-row:last-child {
   border-bottom: none;
 }
@@ -191,6 +203,12 @@ body,
   white-space: nowrap;
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
   cursor: pointer;
+}
+
+.task-block.personal {
+  background: var(--button-bg);
+  color: var(--button-text);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
 }
 
 .calendar-message {

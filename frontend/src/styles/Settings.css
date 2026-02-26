@@ -97,6 +97,16 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 15px;
+  align-items: end;
+}
+
+.settings-form .skill-row {
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+}
+
+.settings-form .skill-row label:last-child {
+  min-width: 90px;
 }
 
 .settings-form label {

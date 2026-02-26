@@ -1,21 +1,21 @@
 .employee-portal {
   min-height: 100vh;
-  background: var(--bg);
+  background: radial-gradient(circle at top, rgba(74, 122, 255, 0.10), transparent 55%) var(--bg);
   color: var(--text);
   padding: 32px 20px 60px;
 }
 
 .employee-hero {
   max-width: 1100px;
-  margin: 0 auto 30px;
+  margin: 0 auto 28px;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 20px;
-  background: linear-gradient(120deg, rgba(74,122,255,0.12), rgba(74,122,255,0.02));
+  background: linear-gradient(120deg, rgba(74,122,255,0.16), rgba(74,122,255,0.02));
   border: 1px solid var(--card-border);
-  border-radius: 16px;
-  padding: 24px 28px;
+  border-radius: 18px;
+  padding: 26px 28px;
 }
 
 .employee-hero h1 {
@@ -48,16 +48,27 @@
   max-width: 1100px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
 }
 
 .panel {
   background: var(--card);
   border: 1px solid var(--card-border);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 20px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel-intro {
+  background: var(--card);
+}
+
+.panel-wide {
+  grid-column: 1 / -1;
 }
 
 .panel h2 {
@@ -82,14 +93,14 @@
 
 .row {
   display: grid;
-  grid-template-columns: 1.2fr 0.6fr 0.8fr;
+  grid-template-columns: 1.6fr 0.6fr 0.9fr;
   gap: 10px;
   margin-bottom: 10px;
 }
 
 .row input {
-  padding: 9px 10px;
-  border-radius: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
   border: 1px solid var(--input-border);
   background: var(--input-bg);
   color: var(--text);
@@ -97,8 +108,8 @@
 
 .actions {
   display: flex;
-  gap: 10px;
-  margin-top: 10px;
+  gap: 12px;
+  margin-top: 8px;
 }
 
 .actions.full {
@@ -107,12 +118,13 @@
 
 .primary,
 .ghost {
-  border-radius: 8px;
-  padding: 9px 16px;
+  border-radius: 10px;
+  padding: 10px 16px;
   border: 1px solid var(--card-border);
   background: var(--card);
   color: var(--text);
   cursor: pointer;
+  font-weight: 600;
 }
 
 .primary {
@@ -139,8 +151,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
   background: var(--surface-muted);
   border: 1px solid var(--card-border);
 }
@@ -171,8 +183,9 @@
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  align-items: end;
 }
 
 .form-grid label {
@@ -181,12 +194,30 @@
   gap: 6px;
 }
 
-.form-grid input {
-  padding: 9px 10px;
-  border-radius: 8px;
+.form-grid input,
+.form-grid textarea {
+  padding: 10px 12px;
+  border-radius: 10px;
   border: 1px solid var(--input-border);
   background: var(--input-bg);
   color: var(--text);
+}
+
+.form-grid textarea {
+  min-height: 160px;
+  resize: vertical;
+}
+
+.form-grid .full {
+  grid-column: 1 / -1;
+}
+
+.reason-card {
+  grid-column: 1 / -1;
+  background: var(--surface-muted);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 12px;
 }
 
 @media (max-width: 720px) {
@@ -197,5 +228,13 @@
   .employee-hero {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .employee-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
   }
 }

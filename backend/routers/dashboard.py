@@ -72,8 +72,21 @@ def dashboard_skills(user_id: int):
         """, (user_id,))
         raw = cur.fetchall()
 
+        cur.execute("""
+            SELECT DISTINCT skill_name
+            FROM "EmployeeSelfSkills"
+            WHERE employee_id IN (
+                SELECT employee_id FROM "Employees" WHERE user_id = %s
+            );
+        """, (user_id,))
+        raw_self = cur.fetchall()
+
         all_skills = set()
         for (skill_name,) in raw:
+            s = str(skill_name).strip()
+            if s:
+                all_skills.add(s)
+        for (skill_name,) in raw_self:
             s = str(skill_name).strip()
             if s:
                 all_skills.add(s)

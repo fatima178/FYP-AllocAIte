@@ -626,7 +626,7 @@ function SettingsPage() {
               </label>
 
               {employeeSkills.map((skill, index) => (
-                <div key={index} className="form-grid">
+                <div key={index} className="form-grid skill-row">
                   <label>
                     Skill Name
                     <input

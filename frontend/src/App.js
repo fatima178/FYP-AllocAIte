@@ -12,6 +12,8 @@ import RecommendationsPage from './Pages/Recommendations';
 import SettingsPage from "./Pages/Settings";
 import ChatbotPopup from "./Pages/ChatbotPopup";
 import EmployeePortalPage from './Pages/EmployeePortal';
+import EmployeeCalendarPage from './Pages/EmployeeCalendar';
+import EmployeeSettingsPage from './Pages/EmployeeSettings';
 import InvitePage from './Pages/Invite';
 
 function App() {
@@ -57,6 +59,12 @@ function App() {
 
   // employee accounts only see their own portal
   if (accountType === 'employee') {
+    if (path === '/employee-calendar') {
+      return <EmployeeCalendarPage />;
+    }
+    if (path === '/employee-settings') {
+      return <EmployeeSettingsPage />;
+    }
     if (path !== '/employee') {
       window.location.replace('/employee');
       return null;

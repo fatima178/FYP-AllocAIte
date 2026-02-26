@@ -9,6 +9,8 @@ function Menu() {
   const links = accountType === 'employee'
     ? [
         { label: 'My Profile', path: '/employee' },
+        { label: 'My Calendar', path: '/employee-calendar' },
+        { label: 'Settings', path: '/employee-settings' },
       ]
     : [
         { label: 'Dashboard', path: '/dashboard' },

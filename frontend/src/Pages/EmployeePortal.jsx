@@ -10,17 +10,17 @@ function EmployeePortalPage() {
   const [profile, setProfile] = useState(null);
 
   const [selfSkills, setSelfSkills] = useState([{ skill_name: '', years_experience: '' }]);
-  const [learningGoals, setLearningGoals] = useState([{ skill_name: '', priority: 3, notes: '' }]);
-  const [preferences, setPreferences] = useState({
-    preferred_roles: '',
-    preferred_departments: '',
-    preferred_projects: '',
-    work_style: '',
-  });
+  const [growthText, setGrowthText] = useState('');
 
   const [skillStatus, setSkillStatus] = useState(null);
-  const [goalStatus, setGoalStatus] = useState(null);
-  const [prefStatus, setPrefStatus] = useState(null);
+  const [growthStatus, setGrowthStatus] = useState(null);
+  const [reasonStatus, setReasonStatus] = useState(null);
+  const [reasonResult, setReasonResult] = useState(null);
+  const [reasonForm, setReasonForm] = useState({
+    task_description: '',
+    start_date: '',
+    end_date: '',
+  });
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user_id');
@@ -43,15 +43,12 @@ function EmployeePortalPage() {
         setSelfSkills(data.self_skills && data.self_skills.length > 0
           ? data.self_skills
           : [{ skill_name: '', years_experience: '' }]);
-        setLearningGoals(data.learning_goals && data.learning_goals.length > 0
-          ? data.learning_goals
-          : [{ skill_name: '', priority: 3, notes: '' }]);
-        setPreferences({
-          preferred_roles: data.preferences?.preferred_roles || '',
-          preferred_departments: data.preferences?.preferred_departments || '',
-          preferred_projects: data.preferences?.preferred_projects || '',
-          work_style: data.preferences?.work_style || '',
-        });
+        setGrowthText(
+          data.preferences?.growth_text
+            || data.preferences?.preferences_text
+            || data.preferences_text
+            || ''
+        );
       } catch (err) {
         setError(err.message || 'Unable to load your profile.');
       } finally {
@@ -62,21 +59,28 @@ function EmployeePortalPage() {
     fetchProfile();
   }, [userId]);
 
-  const orgSkills = useMemo(() => profile?.org_skills || [], [profile]);
-  const currentAssignments = useMemo(() => profile?.current_assignments || [], [profile]);
-  const pastAssignments = useMemo(() => profile?.past_assignments || [], [profile]);
-  const history = useMemo(() => profile?.history || [], [profile]);
+  const mergedSkills = useMemo(() => {
+    const merged = {};
+    const all = [...(profile?.org_skills || []), ...(profile?.self_skills || [])];
+    all.forEach((item) => {
+      const label = String(item.skill_name || '').trim();
+      if (!label) return;
+      const key = label.toLowerCase();
+      const years = item.years_experience;
+      if (!merged[key]) {
+        merged[key] = { skill_name: label, years_experience: years };
+      } else {
+        const existing = merged[key].years_experience;
+        const next = years;
+        if (existing == null) merged[key].years_experience = next;
+        else if (next != null) merged[key].years_experience = Math.max(existing, next);
+      }
+    });
+    return Object.values(merged);
+  }, [profile]);
 
   const updateSkill = (index, field, value) => {
     setSelfSkills((prev) => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
-      return updated;
-    });
-  };
-
-  const updateGoal = (index, field, value) => {
-    setLearningGoals((prev) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
       return updated;
@@ -108,35 +112,9 @@ function EmployeePortalPage() {
     }
   };
 
-  const submitGoals = async (event) => {
+  const submitGrowth = async (event) => {
     event.preventDefault();
-    setGoalStatus(null);
-
-    if (!userId) return;
-
-    const payload = learningGoals
-      .filter((item) => String(item.skill_name || '').trim())
-      .map((item) => ({
-        skill_name: item.skill_name,
-        priority: item.priority,
-        notes: item.notes,
-      }));
-
-    try {
-      await apiFetch('/employee/learning-goals', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: Number(userId), learning_goals: payload }),
-      });
-      setGoalStatus({ type: 'success', message: 'Learning goals updated.' });
-    } catch (err) {
-      setGoalStatus({ type: 'error', message: err.message || 'Unable to update goals.' });
-    }
-  };
-
-  const submitPreferences = async (event) => {
-    event.preventDefault();
-    setPrefStatus(null);
+    setGrowthStatus(null);
 
     if (!userId) return;
 
@@ -144,11 +122,48 @@ function EmployeePortalPage() {
       await apiFetch('/employee/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: Number(userId), preferences }),
+        body: JSON.stringify({ user_id: Number(userId), preferences_text: growthText }),
       });
-      setPrefStatus({ type: 'success', message: 'Preferences saved.' });
+      setGrowthStatus({ type: 'success', message: 'Preferences and learning goals saved.' });
     } catch (err) {
-      setPrefStatus({ type: 'error', message: err.message || 'Unable to save preferences.' });
+      setGrowthStatus({ type: 'error', message: err.message || 'Unable to save details.' });
+    }
+  };
+
+  const submitReasonCheck = async (event) => {
+    event.preventDefault();
+    setReasonStatus(null);
+    setReasonResult(null);
+
+    if (!userId) return;
+
+    if (!reasonForm.task_description.trim()) {
+      setReasonStatus({ type: 'error', message: 'Task description is required.' });
+      return;
+    }
+    if (!reasonForm.start_date || !reasonForm.end_date) {
+      setReasonStatus({ type: 'error', message: 'Start and end dates are required.' });
+      return;
+    }
+
+    try {
+      const data = await apiFetch('/employee/recommendation-reason', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: Number(userId),
+          task_description: reasonForm.task_description,
+          start_date: reasonForm.start_date,
+          end_date: reasonForm.end_date,
+        }),
+      });
+      if (data.message) {
+        setReasonStatus({ type: 'info', message: data.message });
+      } else {
+        setReasonResult(data);
+      }
+    } catch (err) {
+      setReasonStatus({ type: 'error', message: err.message || 'Unable to check recommendation.' });
     }
   };
 
@@ -172,12 +187,12 @@ function EmployeePortalPage() {
 
         {!loading && !error && (
           <div className="employee-grid">
-            <section className="panel">
-              <h2>Organization Skills</h2>
-              <p className="muted">These were loaded by your manager.</p>
+            <section className="panel panel-intro">
+              <h2>Organisation Skills</h2>
+              <p className="muted">Skills recorded in your profile.</p>
               <div className="tags">
-                {orgSkills.length > 0 ? (
-                  orgSkills.map((skill, index) => (
+                {mergedSkills.length > 0 ? (
+                  mergedSkills.map((skill, index) => (
                     <span key={index} className="tag">
                       {skill.skill_name} ({skill.years_experience}y)
                     </span>
@@ -237,154 +252,86 @@ function EmployeePortalPage() {
               </form>
             </section>
 
-            <section className="panel">
-              <h2>Learning Goals</h2>
-              <p className="muted">These help shape future recommendations as a secondary signal.</p>
-              <form onSubmit={submitGoals}>
-                {learningGoals.map((goal, index) => (
-                  <div key={index} className="row">
-                    <input
-                      type="text"
-                      placeholder="Skill to develop"
-                      value={goal.skill_name}
-                      onChange={(e) => updateGoal(index, 'skill_name', e.target.value)}
-                    />
-                    <input
-                      type="number"
-                      min="1"
-                      max="5"
-                      value={goal.priority}
-                      onChange={(e) => updateGoal(index, 'priority', e.target.value)}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Notes"
-                      value={goal.notes || ''}
-                      onChange={(e) => updateGoal(index, 'notes', e.target.value)}
-                    />
-                    {learningGoals.length > 1 && (
-                      <button
-                        type="button"
-                        className="ghost"
-                        onClick={() => setLearningGoals((prev) => prev.filter((_, i) => i !== index))}
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                ))}
-
-                <div className="actions">
-                  <button
-                    type="button"
-                    className="ghost"
-                    onClick={() => setLearningGoals((prev) => [...prev, { skill_name: '', priority: 3, notes: '' }])}
-                  >
-                    Add goal
-                  </button>
-                  <button className="primary" type="submit">Save goals</button>
-                </div>
-
-                {goalStatus && (
-                  <p className={`status ${goalStatus.type || ''}`}>{goalStatus.message}</p>
-                )}
-              </form>
-            </section>
-
-            <section className="panel">
-              <h2>Preferences</h2>
-              <p className="muted">Share the kinds of work you want to grow into.</p>
-              <form onSubmit={submitPreferences} className="form-grid">
-                <label>
-                  Preferred Roles
-                  <input
-                    type="text"
-                    value={preferences.preferred_roles}
-                    onChange={(e) => setPreferences((prev) => ({ ...prev, preferred_roles: e.target.value }))}
-                  />
-                </label>
-                <label>
-                  Preferred Departments
-                  <input
-                    type="text"
-                    value={preferences.preferred_departments}
-                    onChange={(e) => setPreferences((prev) => ({ ...prev, preferred_departments: e.target.value }))}
-                  />
-                </label>
-                <label>
-                  Preferred Projects
-                  <input
-                    type="text"
-                    value={preferences.preferred_projects}
-                    onChange={(e) => setPreferences((prev) => ({ ...prev, preferred_projects: e.target.value }))}
-                  />
-                </label>
-                <label>
-                  Work Style
-                  <input
-                    type="text"
-                    value={preferences.work_style}
-                    onChange={(e) => setPreferences((prev) => ({ ...prev, work_style: e.target.value }))}
+            <section className="panel panel-wide">
+              <h2>Preferences & Learning Goals</h2>
+              <p className="muted">
+                Describe the work you want, the skills you want to build, and any growth goals.
+                This text is used for semantic matching.
+              </p>
+              <form onSubmit={submitGrowth} className="form-grid">
+                <label className="full">
+                  Growth Notes
+                  <textarea
+                    rows="6"
+                    placeholder="Examples: Interested in data engineering projects, want to grow in Python and ML, prefer cross-functional work..."
+                    value={growthText}
+                    onChange={(e) => setGrowthText(e.target.value)}
                   />
                 </label>
 
                 <div className="actions full">
-                  <button className="primary" type="submit">Save preferences</button>
+                  <button className="primary" type="submit">Save</button>
                 </div>
 
-                {prefStatus && (
-                  <p className={`status ${prefStatus.type || ''}`}>{prefStatus.message}</p>
+                {growthStatus && (
+                  <p className={`status ${growthStatus.type || ''}`}>{growthStatus.message}</p>
                 )}
               </form>
             </section>
 
-            <section className="panel">
-              <h2>Current Assignments</h2>
-              {currentAssignments.length > 0 ? (
-                <ul className="list">
-                  {currentAssignments.map((item, index) => (
-                    <li key={`${item.assignment_id || index}`}>
-                      <strong>{item.title}</strong>
-                      <span>{item.start_date} → {item.end_date}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="empty">No current assignments.</p>
-              )}
+            <section className="panel panel-wide">
+              <h2>Recommendation Reason</h2>
+              <p className="muted">Check why you might be recommended for a task.</p>
+              <form onSubmit={submitReasonCheck} className="form-grid">
+                <label>
+                  Task Description
+                  <input
+                    type="text"
+                    value={reasonForm.task_description}
+                    onChange={(e) =>
+                      setReasonForm((prev) => ({ ...prev, task_description: e.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  Start Date
+                  <input
+                    type="date"
+                    value={reasonForm.start_date}
+                    onChange={(e) =>
+                      setReasonForm((prev) => ({ ...prev, start_date: e.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  End Date
+                  <input
+                    type="date"
+                    value={reasonForm.end_date}
+                    onChange={(e) =>
+                      setReasonForm((prev) => ({ ...prev, end_date: e.target.value }))
+                    }
+                  />
+                </label>
+
+                <div className="actions full">
+                  <button className="primary" type="submit">Check fit</button>
+                </div>
+
+                {reasonStatus && (
+                  <p className={`status ${reasonStatus.type || ''}`}>{reasonStatus.message}</p>
+                )}
+
+                {reasonResult && (
+                  <div className="reason-card">
+                    <p><strong>Score:</strong> {reasonResult.score_percent}%</p>
+                    <p><strong>Availability:</strong> {reasonResult.availability_percent}%</p>
+                    <p><strong>Reason:</strong> {reasonResult.reason}</p>
+                  </div>
+                )}
+              </form>
             </section>
 
-            <section className="panel">
-              <h2>Past Assignments</h2>
-              {pastAssignments.length > 0 ? (
-                <ul className="list">
-                  {pastAssignments.map((item, index) => (
-                    <li key={`${item.assignment_id || index}`}>
-                      <strong>{item.title}</strong>
-                      <span>{item.start_date} → {item.end_date}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="empty">No past assignments.</p>
-              )}
-            </section>
-
-            <section className="panel">
-              <h2>Archived History</h2>
-              {history.length > 0 ? (
-                <ul className="list">
-                  {history.map((item, index) => (
-                    <li key={`${item.title}-${index}`}>
-                      <strong>{item.title}</strong>
-                      <span>{item.start_date} → {item.end_date}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="empty">No archived history yet.</p>
-              )}
-            </section>
           </div>
         )}
       </div>
