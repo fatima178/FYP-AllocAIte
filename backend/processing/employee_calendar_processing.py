@@ -69,6 +69,19 @@ def fetch_employee_calendar(user_id: int, week_start: Optional[date]) -> dict:
 
         cur.execute(
             """
+            SELECT history_id, title, start_date, end_date
+            FROM "AssignmentHistory"
+            WHERE employee_id = %s
+              AND start_date <= %s
+              AND end_date >= %s
+            ORDER BY start_date ASC;
+            """,
+            (employee_id, week_end_day, week_start_day),
+        )
+        history_rows = cur.fetchall()
+
+        cur.execute(
+            """
             SELECT entry_id, label, start_date, end_date
             FROM "EmployeeCalendarEntries"
             WHERE employee_id = %s
@@ -84,6 +97,11 @@ def fetch_employee_calendar(user_id: int, week_start: Optional[date]) -> dict:
             _build_item_payload(title, start_date, end_date, week_start_day, week_end_day, "assignment", assignment_id)
             for assignment_id, title, start_date, end_date in assignment_rows
         ]
+
+        items.extend(
+            _build_item_payload(title, start_date, end_date, week_start_day, week_end_day, "past", history_id)
+            for history_id, title, start_date, end_date in history_rows
+        )
 
         for entry_id, label, start_date, end_date in personal_rows:
             items.append(

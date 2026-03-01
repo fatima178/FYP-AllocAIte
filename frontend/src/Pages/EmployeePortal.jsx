@@ -42,15 +42,8 @@ function EmployeePortalPage() {
       try {
         const data = await apiFetch(`/employee/profile?user_id=${userId}`);
         setProfile(data);
-        setSelfSkills(data.self_skills && data.self_skills.length > 0
-          ? data.self_skills
-          : [{ skill_name: '', years_experience: '' }]);
-        setGrowthText(
-          data.preferences?.growth_text
-            || data.preferences?.preferences_text
-            || data.preferences_text
-            || ''
-        );
+        setSelfSkills([{ skill_name: '', years_experience: '' }]);
+        setGrowthText('');
         setSavedGrowthText(
           data.preferences?.growth_text
             || data.preferences?.preferences_text
@@ -134,6 +127,7 @@ function EmployeePortalPage() {
         body: JSON.stringify({ user_id: Number(userId), preferences_text: growthText }),
       });
       setSavedGrowthText(growthText);
+      setGrowthText('');
       setGrowthStatus({ type: 'success', message: 'Preferences and learning goals saved.' });
     } catch (err) {
       setGrowthStatus({ type: 'error', message: err.message || 'Unable to save details.' });

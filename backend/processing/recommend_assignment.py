@@ -85,6 +85,8 @@ def assign_recommended_task(
     clean_title = (title or "").strip()
     if not clean_title:
         raise ValueError("task description is required.")
+    if len(clean_title) > 150:
+        raise ValueError("task description must be 150 characters or fewer.")
 
     # validate date format (must be yyyy-mm-dd)
     try:

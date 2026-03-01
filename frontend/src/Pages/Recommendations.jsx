@@ -204,6 +204,11 @@ function RecommendationsPage() {
                 ? emp.reason
                 : "Relevant profile for this task.";
 
+            const reasonItems = reason
+              .split(/(?<=[.!?])\s+/)
+              .map((item) => item.trim())
+              .filter(Boolean);
+
             return (
               <div
                 key={emp.employee_id || index}
@@ -233,7 +238,11 @@ function RecommendationsPage() {
                 {/* explanation box from NLP engine */}
                 <div className="reason-box">
                   <strong>Why this match:</strong>
-                  <p>{reason}</p>
+                  <ul className="reason-list">
+                    {reasonItems.map((item, idx) => (
+                      <li key={idx}>{item}</li>
+                    ))}
+                  </ul>
                 </div>
 
                 {/* open modal to assign */}

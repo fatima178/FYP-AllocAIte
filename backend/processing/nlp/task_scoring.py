@@ -100,8 +100,13 @@ def _build_reason(skills, goals, role_score, role, experience, availability_perc
     # learning goals summary
     if goals:
         explanation.append(f"Learning goals aligned: {', '.join(goals)}")
-    elif preferences_score >= 0.55:
-        explanation.append("Preferences and learning goals text aligns with this task")
+    else:
+        if preferences_score >= 0.65:
+            explanation.append("Preferences and learning goals text aligns strongly with this task")
+        elif preferences_score >= 0.45:
+            explanation.append("Preferences and learning goals text aligns with this task")
+        else:
+            explanation.append("Preferences and learning goals text shows limited alignment")
 
     # role relevance summary
     if role_score >= 0.8:

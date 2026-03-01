@@ -57,6 +57,16 @@
   border: 1px solid var(--card-border);
 }
 
+.reason-list {
+  margin: 8px 0 0 18px;
+  padding: 0;
+  color: var(--text);
+}
+
+.reason-list li {
+  margin-bottom: 6px;
+}
+
 .assign-btn {
   margin-top: 15px;
   padding: 10px 16px;
