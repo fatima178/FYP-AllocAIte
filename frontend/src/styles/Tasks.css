@@ -35,6 +35,40 @@ body,
   gap: 0.75rem;
 }
 
+.tasks-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 200px;
+}
+
+.filter-group label {
+  font-size: 0.85rem;
+  color: var(--muted-text);
+  font-weight: 600;
+}
+
+.filter-group input,
+.filter-group select {
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  background: var(--card);
+  color: var(--text);
+}
+
+.filter-search {
+  flex: 0 0 260px;
+}
+
 .ghost-btn,
 .primary-btn {
   border-radius: 8px;
@@ -69,6 +103,7 @@ body,
   padding: 1.5rem;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
   color: var(--text);
+  --name-col-width: 180px;
 }
 
 .tasks-calendar-nav {
@@ -103,7 +138,7 @@ body,
 
 .calendar-header {
   display: grid;
-  grid-template-columns: 180px repeat(7, 1fr);
+  grid-template-columns: var(--name-col-width) repeat(var(--task-days, 7), 1fr);
   background: var(--surface-muted);
   border-radius: 8px 8px 0 0;
   overflow: hidden;
@@ -132,7 +167,7 @@ body,
 
 .calendar-row {
   display: grid;
-  grid-template-columns: 180px 1fr;
+  grid-template-columns: var(--name-col-width) 1fr;
   align-items: center;
   min-height: 70px;
   background: var(--card);
@@ -172,7 +207,7 @@ body,
 
 .timeline-cells {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(var(--task-days, 7), 1fr);
   height: 100%;
 }
 
@@ -300,9 +335,8 @@ body,
 }
 
 @media (max-width: 960px) {
-  .calendar-header,
-  .calendar-row {
-    grid-template-columns: 140px repeat(7, 1fr);
+  .tasks-calendar-card {
+    --name-col-width: 140px;
   }
 
   .tasks-page {

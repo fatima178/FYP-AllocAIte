@@ -98,11 +98,12 @@ def _build_task_payload(row, week_start: date, week_end: date):
 #   - list of unassigned tasks
 #   - employee options for dropdown selection
 #   - week boundaries (monday to sunday)
-def fetch_weekly_tasks(user_id: int, week_start: Optional[date]) -> dict:
+def fetch_weekly_tasks(user_id: int, week_start: Optional[date], weeks: int = 1) -> dict:
     archive_completed_assignments(user_id)
 
     week_start_day = _normalize_week_start(week_start)
-    week_end_day = week_start_day + timedelta(days=6)
+    total_days = max(1, int(weeks)) * 7
+    week_end_day = week_start_day + timedelta(days=total_days - 1)
 
     conn = get_connection()
     cur = conn.cursor()

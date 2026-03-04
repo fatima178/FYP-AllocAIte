@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Menu from './Menu';
 import '../styles/Dashboard.css';
 import { apiFetch } from '../api';
@@ -16,11 +16,16 @@ function DashboardPage() {
   // used to populate the skill filter dropdown
   const [availableSkills, setAvailableSkills] = useState([]);
 
-  // the currently selected skill to filter by
-  const [selectedSkill, setSelectedSkill] = useState('');
+  // the currently selected skills to filter by
+  const [selectedSkills, setSelectedSkills] = useState([]);
 
   // current availability filter (available/partial/busy)
   const [availability, setAvailability] = useState('');
+
+  // optional dashboard window for calculations (applied on button click)
+  const [rangeStartInput, setRangeStartInput] = useState('');
+  const [rangeEndInput, setRangeEndInput] = useState('');
+  const [appliedRange, setAppliedRange] = useState({ start: '', end: '' });
 
   // summary stats like total employees, active projects, available employees
   const [data, setData] = useState(null);
@@ -30,6 +35,11 @@ function DashboardPage() {
 
   // dashboard-wide error message, e.g. backend offline
   const [error, setError] = useState(null);
+
+  const [skillsOpen, setSkillsOpen] = useState(false);
+  const [rangeOpen, setRangeOpen] = useState(false);
+  const skillsRef = useRef(null);
+  const rangeRef = useRef(null);
 
   // on mount, verify that a user is logged in
   // if not, instantly redirect them back to login page
@@ -42,6 +52,21 @@ function DashboardPage() {
     setUserId(storedUser);
   }, []);
 
+  // close dropdowns on outside click
+  useEffect(() => {
+    const handleClick = (event) => {
+      if (skillsRef.current && !skillsRef.current.contains(event.target)) {
+        setSkillsOpen(false);
+      }
+      if (rangeRef.current && !rangeRef.current.contains(event.target)) {
+        setRangeOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
   // fetch the dashboard summary once a valid userId is loaded
   // this data powers the "Total Employees / Active Projects / Available This Week" cards
   useEffect(() => {
@@ -49,7 +74,12 @@ function DashboardPage() {
 
     const fetchSummary = async () => {
       try {
-        const json = await apiFetch(`/dashboard/summary?user_id=${userId}`);
+        const params = new URLSearchParams({ user_id: userId });
+        if (appliedRange.start && appliedRange.end) {
+          params.append('start_date', appliedRange.start);
+          params.append('end_date', appliedRange.end);
+        }
+        const json = await apiFetch(`/dashboard/summary?${params.toString()}`);
         setData(json);
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
@@ -58,13 +88,14 @@ function DashboardPage() {
     };
 
     fetchSummary();
-  }, [userId]);
+  }, [userId, appliedRange]);
 
   // fetch the employees list whenever:
   // - userId is available
   // - searchTerm changes
-  // - selectedSkill changes
+  // - selectedSkills changes
   // - availability filter changes
+  // - applied date range changes
   // this ensures the UI updates immediately after the user interacts with filters
   useEffect(() => {
     if (!userId) return;
@@ -76,11 +107,19 @@ function DashboardPage() {
         // include search filter if user typed anything
         if (searchTerm.trim()) params.append('search', searchTerm.trim());
 
-        // include skill filter (only one skill at a time)
-        if (selectedSkill) params.append('skills', selectedSkill);
+        // include skill filter (multiple skills)
+        selectedSkills.forEach((skill) => {
+          params.append('skills', skill);
+        });
 
         // include availability filter
         if (availability) params.append('availability', availability);
+
+        // include optional dashboard window
+        if (appliedRange.start && appliedRange.end) {
+          params.append('start_date', appliedRange.start);
+          params.append('end_date', appliedRange.end);
+        }
 
         const json = await apiFetch(`/dashboard/employees?${params.toString()}`);
         setEmployees(json.employees || []);
@@ -90,7 +129,7 @@ function DashboardPage() {
     };
 
     fetchEmployees();
-  }, [userId, searchTerm, selectedSkill, availability]);
+  }, [userId, searchTerm, selectedSkills, availability, appliedRange]);
 
   // fetch all distinct skills from backend
   // so the user can filter employees by a specific skill
@@ -109,10 +148,54 @@ function DashboardPage() {
     fetchSkills();
   }, [userId]);
 
-  // handler for dropdown skill selection
+  // handler for multi-select skill selection
   const handleSkillChange = (event) => {
-    setSelectedSkill(event.target.value);
+    const { value, checked } = event.target;
+    setSelectedSkills((prev) => {
+      if (checked) return [...prev, value];
+      return prev.filter((s) => s !== value);
+    });
   };
+
+  const removeSelectedSkill = (skill) => {
+    setSelectedSkills((prev) => prev.filter((s) => s !== skill));
+  };
+
+  const applyDateRange = () => {
+    if (rangeStartInput && rangeEndInput) {
+      setAppliedRange({ start: rangeStartInput, end: rangeEndInput });
+      return;
+    }
+    if (!rangeStartInput && !rangeEndInput) {
+      setAppliedRange({ start: '', end: '' });
+    }
+  };
+
+  const clearDateRange = () => {
+    setRangeStartInput('');
+    setRangeEndInput('');
+    setAppliedRange({ start: '', end: '' });
+  };
+
+  const availabilityLabel = appliedRange.start && appliedRange.end
+    ? `Availability (${appliedRange.start} → ${appliedRange.end})`
+    : 'Weekly Availability';
+
+  const summaryAvailabilityLabel = appliedRange.start && appliedRange.end
+    ? 'Available in Range'
+    : 'Available This Week';
+
+  const summaryProjectsLabel = appliedRange.start && appliedRange.end
+    ? 'Active Projects (Range)'
+    : 'Active Projects';
+
+  const selectedSkillsLabel = selectedSkills.length
+    ? `${selectedSkills.length} skills selected`
+    : 'Filter by skills';
+
+  const selectedRangeLabel = appliedRange.start && appliedRange.end
+    ? `${appliedRange.start} → ${appliedRange.end}`
+    : 'Filter by date range';
 
   return (
     <>
@@ -137,12 +220,12 @@ function DashboardPage() {
                 </div>
 
                 <div className="card">
-                  <h3>Active Projects</h3>
+                  <h3>{summaryProjectsLabel}</h3>
                   <p>{data.active_projects}</p>
                 </div>
 
                 <div className="card">
-                  <h3>Available This Week</h3>
+                  <h3>{summaryAvailabilityLabel}</h3>
                   <p>{data.available_this_week}</p>
                 </div>
               </div>
@@ -158,14 +241,38 @@ function DashboardPage() {
                 />
 
                 {/* filter employees by selected skill */}
-                <select value={selectedSkill} onChange={handleSkillChange}>
-                  <option value="">Filter by skills</option>
-                  {availableSkills.map((skill) => (
-                    <option key={skill} value={skill}>
-                      {skill}
-                    </option>
-                  ))}
-                </select>
+                <div className="filter-dropdown" ref={skillsRef}>
+                  <button
+                    type="button"
+                    className="filter-trigger"
+                    onClick={() => setSkillsOpen((open) => !open)}
+                    aria-expanded={skillsOpen}
+                  >
+                    {selectedSkillsLabel}
+                  </button>
+                  {skillsOpen && (
+                    <div className="filter-panel" role="listbox" aria-label="Filter by skills">
+                      <div className="filter-panel-header">Filter by skills</div>
+                      {availableSkills.length === 0 ? (
+                        <div className="skills-empty">No skills available</div>
+                      ) : (
+                        <div className="skills-filter-list">
+                          {availableSkills.map((skill) => (
+                            <label key={skill} className="skill-option">
+                              <input
+                                type="checkbox"
+                                value={skill}
+                                checked={selectedSkills.includes(skill)}
+                                onChange={handleSkillChange}
+                              />
+                              <span>{skill}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {/* filter by weekly availability */}
                 <select value={availability} onChange={(e) => setAvailability(e.target.value)}>
@@ -174,79 +281,161 @@ function DashboardPage() {
                   <option value="partial">Partial</option>
                   <option value="busy">Busy</option>
                 </select>
+
+                <div className="filter-dropdown range-filter" ref={rangeRef}>
+                  <button
+                    type="button"
+                    className="filter-trigger"
+                    onClick={() => setRangeOpen((open) => !open)}
+                    aria-expanded={rangeOpen}
+                  >
+                    {selectedRangeLabel}
+                  </button>
+                  {rangeOpen && (
+                    <div className="filter-panel">
+                      <div className="filter-panel-header">Availability date range</div>
+                      <div className="availability-range">
+                        <div className="date-field">
+                          <label htmlFor="availability-start">Start date</label>
+                          <input
+                            id="availability-start"
+                            type="date"
+                            value={rangeStartInput}
+                            onChange={(e) => setRangeStartInput(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="date-field">
+                          <label htmlFor="availability-end">End date</label>
+                          <input
+                            id="availability-end"
+                            type="date"
+                            value={rangeEndInput}
+                            onChange={(e) => setRangeEndInput(e.target.value)}
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          className="apply-range"
+                          onClick={applyDateRange}
+                          disabled={!rangeStartInput || !rangeEndInput}
+                        >
+                          Apply range
+                        </button>
+
+                        <button
+                          type="button"
+                          className="clear-range"
+                          onClick={clearDateRange}
+                          disabled={!rangeStartInput && !rangeEndInput && !appliedRange.start && !appliedRange.end}
+                        >
+                          Clear range
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {selectedSkills.length > 0 && (
+                <div className="selected-skills">
+                  <span className="selected-label">Selected skills:</span>
+                  <div className="selected-skill-list">
+                    {selectedSkills.map((skill) => (
+                      <button
+                        key={skill}
+                        type="button"
+                        className="selected-skill"
+                        onClick={() => removeSelectedSkill(skill)}
+                        title="Remove skill"
+                      >
+                        {skill}
+                        <span className="remove-x">×</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* employee cards render after all filters are applied */}
-              <div className="employee-grid">
-                {employees.map((emp) => (
-                  <div key={emp.employee_id} className="employee-card">
+              {employees.length === 0 ? (
+                <div className="empty-state">
+                  <h3>No results</h3>
+                  <p>Try adjusting your filters or date range.</p>
+                </div>
+              ) : (
+                <div className="employee-grid">
+                  {employees.map((emp) => (
+                    <div key={emp.employee_id} className="employee-card">
 
-                    {/* employee card header containing avatar, name, and role */}
-                    <div className="employee-header">
-                      <div className="avatar">
-                        {(emp.initials || emp.name?.slice(0, 2) || '').toUpperCase()}
+                      {/* employee card header containing avatar, name, and role */}
+                      <div className="employee-header">
+                        <div className="avatar">
+                          {(emp.initials || emp.name?.slice(0, 2) || '').toUpperCase()}
+                        </div>
+
+                        <div className="info">
+                          <h3>{emp.name}</h3>
+                          <p className="role">{emp.role}</p>
+                        </div>
+
+                        {/* availability badge, dynamically styled */}
+                        <span className={`status ${emp.availability_status?.toLowerCase?.() || 'available'}`}>
+                          {emp.availability_status}
+                        </span>
                       </div>
 
-                      <div className="info">
-                        <h3>{emp.name}</h3>
-                        <p className="role">{emp.role}</p>
+                      {/* skill list */}
+                      <div className="skills-section">
+                        <h4>Skills</h4>
+
+                        <div className="skills">
+                          {emp.skills && emp.skills.length > 0 ? (
+                            emp.skills.map((skill, i) => (
+                              <span key={i} className="skill-tag">
+                                {skill.skill_name} ({skill.years_experience}y)
+                              </span>
+                            ))
+                          ) : (
+                            <p className="no-skills">No skills listed</p>
+                          )}
+                        </div>
                       </div>
 
-                      {/* availability badge, dynamically styled */}
-                      <span className={`status ${emp.availability_status?.toLowerCase?.() || 'available'}`}>
-                        {emp.availability_status}
-                      </span>
-                    </div>
+                      {/* active assignments section */}
+                      <div className="active-assignments">
+                        <h4>Active Assignments</h4>
 
-                    {/* skill list */}
-                    <div className="skills-section">
-                      <h4>Skills</h4>
-
-                      <div className="skills">
-                        {emp.skills && emp.skills.length > 0 ? (
-                          emp.skills.map((skill, i) => (
-                            <span key={i} className="skill-tag">
-                              {skill.skill_name} ({skill.years_experience}y)
-                            </span>
-                          ))
+                        {/* each assignment displayed as bullet list item */}
+                        {emp.active_assignments && emp.active_assignments.length > 0 ? (
+                          <ul>
+                            {emp.active_assignments.map((a, i) => (
+                              <li key={i}>
+                                {a.title}{a.priority ? ` (${a.priority})` : ''}
+                              </li>
+                            ))}
+                          </ul>
                         ) : (
-                          <p className="no-skills">No skills listed</p>
+                          <p>No active assignments</p>
                         )}
                       </div>
+
+                      {/* numeric percentage showing availability */}
+                      <div className="availability">
+                        <h4>{availabilityLabel}</h4>
+                        <p className="availability-percent">
+                          {typeof emp.availability_percent === 'number'
+                            ? emp.availability_percent
+                            : 0}
+                          %
+                        </p>
+                      </div>
+
                     </div>
-
-                    {/* active assignments section */}
-                    <div className="active-assignments">
-                      <h4>Active Assignments</h4>
-
-                      {/* each assignment displayed as bullet list item */}
-                      {emp.active_assignments && emp.active_assignments.length > 0 ? (
-                        <ul>
-                          {emp.active_assignments.map((a, i) => (
-                            <li key={i}>
-                              {a.title}{a.priority ? ` (${a.priority})` : ''}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p>No active assignments</p>
-                      )}
-                    </div>
-
-                    {/* numeric percentage showing availability */}
-                    <div className="availability">
-                      <h4>Weekly Availability</h4>
-                      <p className="availability-percent">
-                        {typeof emp.availability_percent === 'number'
-                          ? emp.availability_percent
-                          : 0}
-                        %
-                      </p>
-                    </div>
-
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </>
           )
         )}

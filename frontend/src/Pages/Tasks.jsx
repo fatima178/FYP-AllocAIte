@@ -69,6 +69,8 @@ function TasksPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [viewWeeks, setViewWeeks] = useState(1);
+  const [peopleSearch, setPeopleSearch] = useState('');
 
   // modal for adding tasks
   const [showModal, setShowModal] = useState(false);
@@ -98,22 +100,24 @@ function TasksPage() {
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Monday + 6 = Sunday of that week
-  const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
+  const viewDays = useMemo(() => viewWeeks * 7, [viewWeeks]);
+
+  // Monday + (viewDays - 1) = end of visible range
+  const weekEnd = useMemo(() => addDays(weekStart, viewDays - 1), [weekStart, viewDays]);
 
   /* 
     Pre-computed array of all 7 days in the current week.
     Saves recalculating during rendering.
   */
   const weekDays = useMemo(() => {
-    return Array.from({ length: 7 }).map((_, index) => {
+    return Array.from({ length: viewDays }).map((_, index) => {
       const date = addDays(weekStart, index);
       return {
         date,
         label: formatDayLabel(date),
       };
     });
-  }, [weekStart]);
+  }, [weekStart, viewDays]);
 
   /* 
     Flatten tasks into a row structure:
@@ -137,8 +141,14 @@ function TasksPage() {
     ];
   }, [weekData]);
 
+  const filteredRows = useMemo(() => {
+    const term = peopleSearch.trim().toLowerCase();
+    if (!term) return rows;
+    return rows.filter((row) => row.name.toLowerCase().includes(term));
+  }, [rows, peopleSearch]);
+
   // used to decide if "No tasks scheduled this week" should appear
-  const hasAnyTasks = rows.some((row) => row.tasks.length > 0);
+  const hasAnyTasks = filteredRows.some((row) => row.tasks.length > 0);
 
   /* 
     Fetches all tasks for a given week.
@@ -158,7 +168,7 @@ function TasksPage() {
 
     try {
       const payload = await apiFetch(
-        `/tasks/week?user_id=${userId}&week_start=${formatDateInput(weekStart)}`
+        `/tasks/week?user_id=${userId}&week_start=${formatDateInput(weekStart)}&weeks=${viewWeeks}`
       );
 
       setWeekData({
@@ -179,7 +189,7 @@ function TasksPage() {
     } finally {
       setLoading(false);
     }
-  }, [userId, weekStart]);
+  }, [userId, weekStart, viewWeeks]);
 
   // reload tasks whenever the selected week changes
   useEffect(() => {
@@ -187,8 +197,8 @@ function TasksPage() {
   }, [fetchWeekData]);
 
   // allows moving forward/backward in increments of one week
-  const changeWeek = (offset) => {
-    setWeekStart((prev) => addDays(prev, offset));
+  const changeWeek = (pageOffset) => {
+    setWeekStart((prev) => addDays(prev, pageOffset * viewDays));
   };
 
   // resets modal form and opens modal
@@ -356,22 +366,46 @@ function TasksPage() {
           </div>
 
           <div className="tasks-header__actions">
-            <button type="button" className="ghost-btn">
-              Filters
-            </button>
             <button type="button" className="primary-btn" onClick={openModal}>
               Add task
             </button>
           </div>
         </div>
 
+        <div className="tasks-filters">
+          <div className="filter-group">
+            <label htmlFor="task-view">View</label>
+            <select
+              id="task-view"
+              value={viewWeeks}
+              onChange={(e) => setViewWeeks(Number(e.target.value))}
+            >
+              <option value={1}>Weekly view</option>
+              <option value={2}>2 week view</option>
+              <option value={4}>4 week view</option>
+              <option value={6}>6 week view</option>
+            </select>
+          </div>
+
+          <div className="filter-group filter-search">
+            <label htmlFor="task-search">Search people</label>
+            <input
+              id="task-search"
+              type="text"
+              placeholder="Search by name..."
+              value={peopleSearch}
+              onChange={(e) => setPeopleSearch(e.target.value)}
+            />
+          </div>
+        </div>
+
         {/* WEEK VIEW */}
-        <div className="tasks-calendar-card">
+        <div className="tasks-calendar-card" style={{ '--task-days': viewDays }}>
           <div className="tasks-calendar-nav">
 
             {/* WEEK NAVIGATION */}
             <div className="nav-buttons">
-              <button type="button" onClick={() => changeWeek(-7)}>
+              <button type="button" onClick={() => changeWeek(-1)}>
                 &lt;
               </button>
 
@@ -379,7 +413,7 @@ function TasksPage() {
                 {formatRangeLabel(weekStart)} – {formatRangeLabel(weekEnd)}
               </span>
 
-              <button type="button" onClick={() => changeWeek(7)}>
+              <button type="button" onClick={() => changeWeek(1)}>
                 &gt;
               </button>
             </div>
@@ -405,7 +439,7 @@ function TasksPage() {
             {/* RENDER ROW FOR EACH EMPLOYEE */}
             {!loading &&
               !error &&
-              rows.map((row) => (
+              filteredRows.map((row) => (
                 <div key={row.id} className="calendar-row">
                   <div className="name-col">{row.name}</div>
 
@@ -433,8 +467,8 @@ function TasksPage() {
                           : a.span - b.span
                       )
                       .map((task, index) => {
-                        const left = Math.max(0, Math.min((task.start_offset / 7) * 100, 100));
-                        const width = Math.min((task.span / 7) * 100, 100 - left);
+                        const left = Math.max(0, Math.min((task.start_offset / viewDays) * 100, 100));
+                        const width = Math.min((task.span / viewDays) * 100, 100 - left);
                         const top = LANE_BASE_OFFSET + index * (LANE_HEIGHT + LANE_GAP);
 
                         return (
@@ -461,7 +495,7 @@ function TasksPage() {
             {/* EMPTY WEEK STATE */}
             {!loading && !error && !hasAnyTasks && (
               <div className="calendar-message empty">
-                No tasks scheduled this week.
+                No tasks scheduled for this view.
               </div>
             )}
           </div>

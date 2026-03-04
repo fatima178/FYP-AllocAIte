@@ -31,7 +31,7 @@ def get_latest_upload_id(cur, user_id: int):
 #   - active projects (assignments running today)
 #   - employees available in next 7 days
 #   - available_this_week mirrors this for frontend consistency
-def get_dashboard_summary(user_id: int):
+def get_dashboard_summary(user_id: int, window_start=None, window_end=None):
     conn = get_connection()
     cur = conn.cursor()
 
@@ -54,8 +54,10 @@ def get_dashboard_summary(user_id: int):
                 "available_this_week": 0,
             }
 
-        # 2. active projects: assignments overlapping today's date
-        today = date.today()
+        if not window_start or not window_end:
+            window_start, window_end = dashboard_window()
+
+        # active projects: assignments overlapping the selected window
         cur.execute("""
             SELECT COUNT(*)
             FROM "Assignments" a
@@ -63,12 +65,10 @@ def get_dashboard_summary(user_id: int):
             WHERE e.user_id = %s
               AND a.start_date <= %s
               AND a.end_date >= %s;
-        """, (user_id, today, today))
+        """, (user_id, window_end, window_start))
         active_projects = cur.fetchone()[0]
 
         # 3. employees available in the next 7 days
-        window_start, window_end = dashboard_window()
-
         cur.execute("""
             SELECT employee_id
             FROM "Employees"
@@ -113,7 +113,14 @@ def get_dashboard_summary(user_id: int):
 #   - search text (name or role)
 #   - required skills
 #   - availability level
-def get_employees_data(user_id: int, search=None, skills=None, availability=None):
+def get_employees_data(
+    user_id: int,
+    search=None,
+    skills=None,
+    availability=None,
+    window_start=None,
+    window_end=None,
+):
 
     # returns a structured list of employees + availability + active assignments.
 
@@ -131,7 +138,8 @@ def get_employees_data(user_id: int, search=None, skills=None, availability=None
         if cur.fetchone()[0] == 0:
             return {"employees": []}
 
-        window_start, window_end = dashboard_window()
+        if not window_start or not window_end:
+            window_start, window_end = dashboard_window()
 
         # fetch full employee records
         cur.execute("""

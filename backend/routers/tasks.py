@@ -36,11 +36,17 @@ class TaskUpdate(BaseModel):
 
 
 @router.get("/tasks/week")
-def get_weekly_tasks(user_id: int, week_start: Optional[date] = Query(None)):
+def get_weekly_tasks(
+    user_id: int,
+    week_start: Optional[date] = Query(None),
+    weeks: int = Query(1, ge=1, le=6),
+):
     # fetch tasks for the specified week; if no week_start provided,
     # the service will normalize it to the current week's monday
     try:
-        return fetch_weekly_tasks(user_id, week_start)
+        if weeks not in {1, 2, 4, 6}:
+            raise TaskProcessingError(400, "weeks must be one of 1, 2, 4, 6")
+        return fetch_weekly_tasks(user_id, week_start, weeks)
     except TaskProcessingError as exc:
         raise HTTPException(exc.status_code, exc.message)
 
