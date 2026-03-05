@@ -61,28 +61,15 @@ def _fetch_employee_record(cur, employee_id: int) -> Dict[str, Any]:
     }
 
 
-def _fetch_employee_skills(cur, employee_id: int) -> List[Dict[str, Any]]:
+def _fetch_employee_skills(cur, employee_id: int, skill_type: str) -> List[Dict[str, Any]]:
     cur.execute(
         """
         SELECT skill_name, years_experience
         FROM "EmployeeSkills"
-        WHERE employee_id = %s
+        WHERE employee_id = %s AND skill_type = %s
         ORDER BY skill_name ASC;
         """,
-        (employee_id,),
-    )
-    return [{"skill_name": s, "years_experience": y} for s, y in cur.fetchall()]
-
-
-def _fetch_self_skills(cur, employee_id: int) -> List[Dict[str, Any]]:
-    cur.execute(
-        """
-        SELECT skill_name, years_experience
-        FROM "EmployeeSelfSkills"
-        WHERE employee_id = %s
-        ORDER BY skill_name ASC;
-        """,
-        (employee_id,),
+        (employee_id, skill_type),
     )
     return [{"skill_name": s, "years_experience": y} for s, y in cur.fetchall()]
 
@@ -196,16 +183,16 @@ def get_employee_profile(user_id: int) -> Dict[str, Any]:
     cur = conn.cursor()
     try:
         record = _fetch_employee_record(cur, employee_id)
-        org_skills = _fetch_employee_skills(cur, employee_id)
-        self_skills = _fetch_self_skills(cur, employee_id)
+        technical_skills = _fetch_employee_skills(cur, employee_id, "technical")
+        soft_skills = _fetch_employee_skills(cur, employee_id, "soft")
         learning_goals = _fetch_learning_goals(cur, employee_id)
         preferences = _fetch_preferences(cur, employee_id)
         assignments = _fetch_assignments(cur, employee_id)
 
         return {
             **record,
-            "org_skills": org_skills,
-            "self_skills": self_skills,
+            "technical_skills": technical_skills,
+            "soft_skills": soft_skills,
             "learning_goals": learning_goals,
             "preferences": preferences,
             **assignments,
@@ -254,6 +241,7 @@ def get_employee_recommendation_reason(
             "score_percent": entry.get("score_percent"),
             "availability_percent": entry.get("availability_percent"),
             "skills": entry.get("skills", []),
+            "soft_skills": entry.get("soft_skills", []),
             "learning_goals": entry.get("learning_goals", []),
         }
 
@@ -302,7 +290,12 @@ def _normalize_skill_list(skills_raw) -> List[Dict[str, Any]]:
         if not isinstance(item, dict):
             continue
         try:
-            skills.append(normalize_skill_entry(item.get("skill_name"), item.get("years_experience")))
+            cleaned = normalize_skill_entry(item.get("skill_name"), item.get("years_experience"))
+            skill_type = str(item.get("skill_type") or "technical").strip().lower()
+            if skill_type not in ("technical", "soft"):
+                raise EmployeeProfileError(400, "skill_type must be technical or soft")
+            cleaned["skill_type"] = skill_type
+            skills.append(cleaned)
         except EmployeeProcessingError as exc:
             raise EmployeeProfileError(exc.status_code, exc.message)
     return skills
@@ -315,23 +308,72 @@ def update_employee_self_skills(user_id: int, skills_raw) -> Dict[str, Any]:
     conn = get_connection()
     cur = conn.cursor()
     try:
-        cur.execute(
-            'DELETE FROM "EmployeeSelfSkills" WHERE employee_id = %s;',
-            (employee_id,),
-        )
         for item in skills:
             cur.execute(
                 """
-                INSERT INTO "EmployeeSelfSkills" (employee_id, skill_name, years_experience)
-                VALUES (%s, %s, %s);
+                SELECT id
+                FROM "EmployeeSkills"
+                WHERE employee_id = %s
+                  AND LOWER(skill_name) = LOWER(%s)
+                  AND skill_type = %s;
                 """,
-                (employee_id, item["skill_name"], item["years_experience"]),
+                (employee_id, item["skill_name"], item["skill_type"]),
             )
+            row = cur.fetchone()
+            if row:
+                cur.execute(
+                    """
+                    UPDATE "EmployeeSkills"
+                    SET years_experience = %s
+                    WHERE id = %s;
+                    """,
+                    (item["years_experience"], row[0]),
+                )
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO "EmployeeSkills" (employee_id, skill_name, years_experience, skill_type)
+                    VALUES (%s, %s, %s, %s);
+                    """,
+                    (employee_id, item["skill_name"], item["years_experience"], item["skill_type"]),
+                )
         conn.commit()
         return {"employee_id": employee_id, "skill_count": len(skills)}
     except EmployeeProfileError:
         conn.rollback()
         raise
+    except Exception as exc:
+        conn.rollback()
+        raise EmployeeProfileError(500, str(exc))
+    finally:
+        cur.close()
+        conn.close()
+
+
+def delete_employee_skill(user_id: int, skill_name: str, skill_type: str) -> Dict[str, Any]:
+    employee_id = _resolve_employee_id(user_id)
+    clean_name = str(skill_name or "").strip()
+    if not clean_name:
+        raise EmployeeProfileError(400, "skill_name is required")
+    clean_type = str(skill_type or "").strip().lower()
+    if clean_type not in ("technical", "soft"):
+        raise EmployeeProfileError(400, "skill_type must be technical or soft")
+
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            DELETE FROM "EmployeeSkills"
+            WHERE employee_id = %s
+              AND LOWER(skill_name) = LOWER(%s)
+              AND skill_type = %s;
+            """,
+            (employee_id, clean_name, clean_type),
+        )
+        deleted = cur.rowcount or 0
+        conn.commit()
+        return {"employee_id": employee_id, "deleted": deleted}
     except Exception as exc:
         conn.rollback()
         raise EmployeeProfileError(500, str(exc))

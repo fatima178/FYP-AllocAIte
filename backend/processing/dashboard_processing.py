@@ -158,26 +158,16 @@ def get_employees_data(
             cur.execute("""
                 SELECT skill_name, years_experience
                 FROM "EmployeeSkills"
-                WHERE employee_id = %s
+                WHERE employee_id = %s AND skill_type = 'technical'
                 ORDER BY skill_name ASC;
             """, (employee_id,))
             org_skills = [
                 {"skill_name": s, "years_experience": y}
                 for s, y in cur.fetchall()
             ]
-            cur.execute("""
-                SELECT skill_name, years_experience
-                FROM "EmployeeSelfSkills"
-                WHERE employee_id = %s
-                ORDER BY skill_name ASC;
-            """, (employee_id,))
-            self_skills = [
-                {"skill_name": s, "years_experience": y}
-                for s, y in cur.fetchall()
-            ]
 
             merged = {}
-            for item in org_skills + self_skills:
+            for item in org_skills:
                 label = str(item.get("skill_name") or "").strip()
                 if not label:
                     continue

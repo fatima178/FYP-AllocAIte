@@ -48,10 +48,10 @@ def compute_role_match(task_description, role):
 # if no skills matched: semantic + experience dominate
 def _default_weights(skill_score):
     if skill_score > 0:
-        # skills matched: emphasize skills + experience
-        return 0.26, 0.28, 0.18, 0.10, 0.08, 0.05, 0.05
-    # no skill match: emphasize semantic understanding
-    return 0.30, 0.12, 0.18, 0.15, 0.15, 0.05, 0.05
+        # skills matched: emphasize skills + experience, keep soft skills as a boost
+        return 0.22, 0.26, 0.10, 0.16, 0.10, 0.08, 0.04, 0.04
+    # no skill match: emphasize semantic understanding, soft skills still matter
+    return 0.28, 0.12, 0.10, 0.16, 0.12, 0.10, 0.06, 0.06
 
 
 def _determine_weights(skill_score, custom_weights=None, use_custom_weights=False):
@@ -59,6 +59,7 @@ def _determine_weights(skill_score, custom_weights=None, use_custom_weights=Fals
         return (
             custom_weights.get("semantic", 0),
             custom_weights.get("skill", 0),
+            custom_weights.get("soft_skill", 0),
             custom_weights.get("experience", 0),
             custom_weights.get("role", 0),
             custom_weights.get("availability", 0),
@@ -88,7 +89,7 @@ def _availability_label(percent):
 #   - role relevance
 #   - experience level
 #   - availability
-def _build_reason(skills, goals, role_score, role, experience, availability_percent, workload_score, preferences_score):
+def _build_reason(skills, soft_skills, goals, role_score, role, experience, availability_percent, workload_score, preferences_score):
     explanation = []
 
     # skills summary
@@ -96,6 +97,12 @@ def _build_reason(skills, goals, role_score, role, experience, availability_perc
         explanation.append(f"Direct skill matches: {', '.join(skills)}")
     else:
         explanation.append("No direct skill overlap with this task")
+
+    # soft skills summary
+    if soft_skills:
+        explanation.append(f"Soft skill matches: {', '.join(soft_skills)}")
+    else:
+        explanation.append("No soft skill overlap detected")
 
     # learning goals summary
     if goals:
@@ -155,10 +162,12 @@ def build_recommendation_entry(
     employee,
     semantic_score,
     skill_score,
+    soft_skill_score,
     experience_score,
     role_score,
     availability_score,
     matched_skills,
+    matched_soft_skills,
     matched_goals,
     workload_score,
     preferences_score,
@@ -169,6 +178,7 @@ def build_recommendation_entry(
     (
         weight_semantic,
         weight_skill,
+        weight_soft,
         weight_experience,
         weight_role,
         weight_availability,
@@ -180,6 +190,7 @@ def build_recommendation_entry(
     final_score = (
         weight_semantic * semantic_score +
         weight_skill * skill_score +
+        weight_soft * soft_skill_score +
         weight_experience * experience_score +
         weight_role * role_score +
         weight_availability * availability_score +
@@ -195,6 +206,7 @@ def build_recommendation_entry(
     # generate explanation text
     reason = _build_reason(
         matched_skills,
+        matched_soft_skills,
         matched_goals,
         role_score,
         employee["role"],
@@ -213,6 +225,7 @@ def build_recommendation_entry(
         "availability_percent": availability_percent,
         "availability_label": availability_label,
         "skills": matched_skills,
+        "soft_skills": matched_soft_skills,
         "learning_goals": matched_goals,
         "workload_score": workload_score,
         "preferences_score": preferences_score,

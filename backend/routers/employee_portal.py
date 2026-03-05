@@ -7,6 +7,7 @@ from processing.employee_profile_processing import (
     get_employee_recommendation_reason,
     get_employee_settings,
     update_employee_self_skills,
+    delete_employee_skill,
     update_learning_goals,
     update_preferences,
 )
@@ -43,6 +44,20 @@ def employee_update_skills(payload: dict):
         raise HTTPException(400, "user_id is required")
     try:
         return update_employee_self_skills(int(user_id), skills)
+    except EmployeeProfileError as exc:
+        raise HTTPException(exc.status_code, exc.message)
+
+
+@router.delete("/employee/skills")
+def employee_delete_skill(user_id: int, skill_name: str, skill_type: str):
+    if not user_id:
+        raise HTTPException(400, "user_id is required")
+    if not skill_name:
+        raise HTTPException(400, "skill_name is required")
+    if not skill_type:
+        raise HTTPException(400, "skill_type is required")
+    try:
+        return delete_employee_skill(int(user_id), skill_name, skill_type)
     except EmployeeProfileError as exc:
         raise HTTPException(exc.status_code, exc.message)
 

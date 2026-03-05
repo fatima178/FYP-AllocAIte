@@ -55,6 +55,14 @@
   color: var(--text);
 }
 
+.upload-hint .optional-columns {
+  display: block;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text);
+  opacity: 0.75;
+}
+
 .drop-zone {
   position: relative;
   border: 2px dashed var(--card-border);

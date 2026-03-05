@@ -26,6 +26,7 @@ def fetch_user_settings(user_id: int):
                    COALESCE(s.use_custom_weights, FALSE),
                    s.weight_semantic,
                    s.weight_skill,
+                   s.weight_soft_skill,
                    s.weight_experience,
                    s.weight_role,
                    s.weight_availability,
@@ -50,11 +51,12 @@ def fetch_user_settings(user_id: int):
             "weights": {
                 "semantic": row[6],
                 "skill": row[7],
-                "experience": row[8],
-                "role": row[9],
-                "availability": row[10],
-                "fairness": row[11],
-                "preferences": row[12],
+                "soft_skill": row[8],
+                "experience": row[9],
+                "role": row[10],
+                "availability": row[11],
+                "fairness": row[12],
+                "preferences": row[13],
             },
         }
 
@@ -72,9 +74,12 @@ def _normalise_weights(weights: dict):
     if not isinstance(weights, dict):
         return None
     clean = {}
-    for key in ("semantic", "skill", "experience", "role", "availability", "fairness", "preferences"):
+    for key in ("semantic", "skill", "soft_skill", "experience", "role", "availability", "fairness", "preferences"):
         value = weights.get(key)
         if value is None or value == "":
+            if key == "soft_skill":
+                clean[key] = 0.0
+                continue
             return None
         try:
             num = float(value)
@@ -117,6 +122,7 @@ def persist_user_settings(
                 use_custom_weights = COALESCE(%s, use_custom_weights),
                 weight_semantic = COALESCE(%s, weight_semantic),
                 weight_skill = COALESCE(%s, weight_skill),
+                weight_soft_skill = COALESCE(%s, weight_soft_skill),
                 weight_experience = COALESCE(%s, weight_experience),
                 weight_role = COALESCE(%s, weight_role),
                 weight_availability = COALESCE(%s, weight_availability),
@@ -129,6 +135,7 @@ def persist_user_settings(
             use_custom_weights,
             normalized.get("semantic") if normalized else None,
             normalized.get("skill") if normalized else None,
+            normalized.get("soft_skill") if normalized else None,
             normalized.get("experience") if normalized else None,
             normalized.get("role") if normalized else None,
             normalized.get("availability") if normalized else None,

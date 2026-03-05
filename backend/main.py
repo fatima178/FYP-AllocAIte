@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db import init_db
-from routers import upload, dashboard, auth, recommend, settings, tasks, chatbot, setup, employees, employee_portal, invites
+from routers import upload, dashboard, auth, recommend, settings, tasks, chatbot, employees, employee_portal, invites
 
 app = FastAPI()
 
@@ -32,7 +32,6 @@ app.include_router(recommend.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
 app.include_router(tasks.router, prefix="/api")
 app.include_router(chatbot.router, prefix="/api")
-app.include_router(setup.router, prefix="/api")
 app.include_router(employees.router, prefix="/api")
 app.include_router(employee_portal.router, prefix="/api")
 app.include_router(invites.router, prefix="/api")

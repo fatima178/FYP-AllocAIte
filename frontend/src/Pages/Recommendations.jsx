@@ -198,6 +198,7 @@ function RecommendationsPage() {
             const availabilityLabel = emp.availability_label || "Availability";
 
             const skills = Array.isArray(emp.skills) ? emp.skills : [];
+            const softSkills = Array.isArray(emp.soft_skills) ? emp.soft_skills : [];
 
             const reason =
               typeof emp.reason === "string" && emp.reason.trim().length > 0
@@ -233,6 +234,11 @@ function RecommendationsPage() {
                 <p>
                   <strong>Applicable Skills:</strong>{" "}
                   {skills.length > 0 ? skills.join(", ") : "None matched"}
+                </p>
+
+                <p>
+                  <strong>Soft Skills:</strong>{" "}
+                  {softSkills.length > 0 ? softSkills.join(", ") : "None matched"}
                 </p>
 
                 {/* explanation box from NLP engine */}

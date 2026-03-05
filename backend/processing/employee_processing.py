@@ -87,7 +87,7 @@ def list_employees(user_id: int) -> List[Dict[str, Any]]:
         try:
             cur.execute(
                 """
-                SELECT skill_name, years_experience
+                SELECT skill_name, years_experience, skill_type
                 FROM "EmployeeSkills"
                 WHERE employee_id = %s
                 ORDER BY skill_name ASC;
@@ -95,16 +95,6 @@ def list_employees(user_id: int) -> List[Dict[str, Any]]:
                 (employee_id,),
             )
             skill_rows = cur.fetchall()
-            cur.execute(
-                """
-                SELECT skill_name, years_experience
-                FROM "EmployeeSelfSkills"
-                WHERE employee_id = %s
-                ORDER BY skill_name ASC;
-                """,
-                (employee_id,),
-            )
-            self_rows = cur.fetchall()
             cur.execute(
                 """
                 SELECT skill_name, priority
@@ -119,8 +109,7 @@ def list_employees(user_id: int) -> List[Dict[str, Any]]:
             cur.close()
             conn.close()
 
-        skills = [{"skill_name": s, "years_experience": y} for s, y in skill_rows]
-        self_skills = [{"skill_name": s, "years_experience": y} for s, y in self_rows]
+        skills = [{"skill_name": s, "years_experience": y, "skill_type": t} for s, y, t in skill_rows]
         learning_goals = [{"skill_name": s, "priority": p} for s, p in goal_rows]
         results.append({
             "employee_id": employee_id,
@@ -128,7 +117,6 @@ def list_employees(user_id: int) -> List[Dict[str, Any]]:
             "role": row[2],
             "department": row[3],
             "skills": skills,
-            "self_skills": self_skills,
             "learning_goals": learning_goals,
         })
     return results
@@ -171,10 +159,10 @@ def create_employee_entry(user_id: int, payload: Dict[str, Any]):
         for item in skills:
             cur.execute(
                 """
-                INSERT INTO "EmployeeSkills" (employee_id, skill_name, years_experience)
-                VALUES (%s, %s, %s);
+                INSERT INTO "EmployeeSkills" (employee_id, skill_name, years_experience, skill_type)
+                VALUES (%s, %s, %s, %s);
                 """,
-                (employee_id, item["skill_name"], item["years_experience"]),
+                (employee_id, item["skill_name"], item["years_experience"], "technical"),
             )
         conn.commit()
         return {"employee_id": employee_id}

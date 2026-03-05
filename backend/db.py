@@ -62,7 +62,8 @@ def init_db():
             id SERIAL PRIMARY KEY,
             employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
             skill_name VARCHAR(100),
-            years_experience FLOAT
+            years_experience FLOAT,
+            skill_type VARCHAR(20) DEFAULT 'technical'
         );
     """)
 
@@ -181,6 +182,7 @@ def init_db():
             use_custom_weights BOOLEAN DEFAULT FALSE,
             weight_semantic FLOAT,
             weight_skill FLOAT,
+            weight_soft_skill FLOAT,
             weight_experience FLOAT,
             weight_role FLOAT,
             weight_availability FLOAT,
@@ -210,6 +212,8 @@ def init_db():
     cur.execute('ALTER TABLE "Assignments" ADD COLUMN IF NOT EXISTS user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE;')
     cur.execute('ALTER TABLE "Employees" DROP COLUMN IF EXISTS experience_years;')
     cur.execute('ALTER TABLE "Employees" DROP COLUMN IF EXISTS skills;')
+    cur.execute('ALTER TABLE "EmployeeSkills" ADD COLUMN IF NOT EXISTS skill_type VARCHAR(20) DEFAULT \'technical\';')
+    cur.execute('UPDATE "EmployeeSkills" SET skill_type = COALESCE(skill_type, \'technical\');')
     cur.execute('ALTER TABLE "EmployeeLearningGoals" ADD COLUMN IF NOT EXISTS notes TEXT;')
     cur.execute('ALTER TABLE "EmployeePreferences" ADD COLUMN IF NOT EXISTS growth_text TEXT;')
     cur.execute('ALTER TABLE "EmployeeCalendarEntries" ADD COLUMN IF NOT EXISTS label TEXT;')
@@ -234,6 +238,7 @@ def init_db():
     cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_user ON "Employees"(user_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_skill_employee ON "EmployeeSkills"(employee_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_skill_name ON "EmployeeSkills"(skill_name);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_skill_type ON "EmployeeSkills"(skill_type);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_self_skill_employee ON "EmployeeSelfSkills"(employee_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_self_skill_name ON "EmployeeSelfSkills"(skill_name);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_goal_employee ON "EmployeeLearningGoals"(employee_id);')

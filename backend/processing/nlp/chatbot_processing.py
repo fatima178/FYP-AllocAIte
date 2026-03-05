@@ -202,6 +202,7 @@ def handle_skills(cur, upload_id: int, message: str):
         FROM "Employees" e
         JOIN "EmployeeSkills" es ON e.employee_id = es.employee_id
         WHERE e.user_id = %s
+          AND es.skill_type = 'technical'
           AND {where_clause};
     """
     cur.execute(query, params)

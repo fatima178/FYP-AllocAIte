@@ -104,14 +104,17 @@ def semantic_skill_match(model, task_description, skills, threshold=0.45):
 #   - their years of experience
 def build_employee_text(emp):
     skills = ", ".join(emp["skills"])
+    soft_skills = ", ".join(emp.get("soft_skills") or [])
     growth_text = str(emp.get("growth_text") or "").strip()
+    soft_clause = f"soft skills: {soft_skills}. " if soft_skills else ""
     if growth_text:
         return (
             f"{emp['role']} with skills: {skills}. "
+            f"{soft_clause}"
             f"experience: {emp['experience']} years. "
             f"growth preferences: {growth_text}"
         )
-    return f"{emp['role']} with skills: {skills}. experience: {emp['experience']} years."
+    return f"{emp['role']} with skills: {skills}. {soft_clause}experience: {emp['experience']} years."
 
 
 # encode a task description into an sbert embedding
@@ -177,7 +180,7 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
         # evaluate whether the employee's role fits the task title/keywords
         role_score = compute_role_match(task_description, emp["role"])
 
-        # full semantic skill-level matching
+        # full semantic skill-level matching (technical skills)
         skill_matches = semantic_skill_match(model, task_description, emp.get("skills_detail") or emp["skills"])
         matched_labels = [m["label"] for m in skill_matches]
 
@@ -205,6 +208,20 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
         # semantic similarity vs. skill coverage
         skill_score = min(1.0, max(avg_skill_sim, coverage) + goal_bonus)
 
+        # soft skill matching (boost only)
+        soft_skill_matches = semantic_skill_match(
+            model,
+            task_description,
+            emp.get("soft_skills_detail") or emp.get("soft_skills") or [],
+            threshold=0.4,
+        )
+        matched_soft_labels = [m["label"] for m in soft_skill_matches]
+        soft_weight = sum(m.get("weight", 1.0) for m in soft_skill_matches)
+        soft_skill_score = (
+            sum(m["score"] * m.get("weight", 1.0) for m in soft_skill_matches) / soft_weight
+            if soft_skill_matches and soft_weight > 0 else 0
+        )
+
         # preferences + learning goals free-text score
         preferences_score = 0.0
         growth_text = str(emp.get("growth_text") or "").strip()
@@ -230,10 +247,12 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
                 emp,
                 semantic,
                 skill_score,
+                soft_skill_score,
                 exp_score,
                 role_score,
                 availability,
                 matched_labels,
+                matched_soft_labels,
                 [m["label"] for m in goal_matches],
                 workload_score,
                 preferences_score,

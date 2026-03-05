@@ -10,32 +10,15 @@ from db import get_connection
 # fetch skills for a given employee
 # ----------------------------------------------------------
 # returns list of dicts with per-skill experience
-def _fetch_employee_skills(cur, employee_id: int) -> List[Dict[str, Any]]:
+def _fetch_employee_skills(cur, employee_id: int, skill_type: str) -> List[Dict[str, Any]]:
     cur.execute(
         """
         SELECT skill_name, years_experience
         FROM "EmployeeSkills"
-        WHERE employee_id = %s
+        WHERE employee_id = %s AND skill_type = %s
         ORDER BY skill_name ASC;
         """,
-        (employee_id,),
-    )
-    return [{"skill_name": s, "years_experience": y} for s, y in cur.fetchall()]
-
-
-# ----------------------------------------------------------
-# fetch self-entered skills for a given employee
-# ----------------------------------------------------------
-# returns list of dicts with per-skill experience
-def _fetch_employee_self_skills(cur, employee_id: int) -> List[Dict[str, Any]]:
-    cur.execute(
-        """
-        SELECT skill_name, years_experience
-        FROM "EmployeeSelfSkills"
-        WHERE employee_id = %s
-        ORDER BY skill_name ASC;
-        """,
-        (employee_id,),
+        (employee_id, skill_type),
     )
     return [{"skill_name": s, "years_experience": y} for s, y in cur.fetchall()]
 
@@ -72,9 +55,9 @@ def _fetch_employee_growth_text(cur, employee_id: int) -> str:
     return row[0]
 
 
-def _merge_skills(primary: List[Dict[str, Any]], secondary: List[Dict[str, Any]]):
+def _merge_skills(skills: List[Dict[str, Any]]):
     merged = {}
-    for item in primary + secondary:
+    for item in skills:
         name = str(item.get("skill_name") or "").strip()
         if not name:
             continue
@@ -146,11 +129,12 @@ def fetch_employees_by_upload(upload_id: int) -> List[Dict[str, Any]]:
         conn_skills = get_connection()
         cur_skills = conn_skills.cursor()
         try:
-            org_skills = _fetch_employee_skills(cur_skills, employee_id)
-            self_skills = _fetch_employee_self_skills(cur_skills, employee_id)
+            technical_skills = _fetch_employee_skills(cur_skills, employee_id, "technical")
+            soft_skills = _fetch_employee_skills(cur_skills, employee_id, "soft")
             goals = _fetch_employee_learning_goals(cur_skills, employee_id)
             growth_text = _fetch_employee_growth_text(cur_skills, employee_id)
-            skills = _merge_skills(org_skills, self_skills)
+            skills = _merge_skills(technical_skills)
+            soft_skills = _merge_skills(soft_skills)
             recent_workload = _fetch_recent_workload_hours(cur_skills, employee_id)
         finally:
             cur_skills.close()
@@ -163,6 +147,8 @@ def fetch_employees_by_upload(upload_id: int) -> List[Dict[str, Any]]:
             "experience": max(years) if years else 0,
             "skills": [s["skill_name"] for s in skills],
             "skills_detail": skills,
+            "soft_skills": [s["skill_name"] for s in soft_skills],
+            "soft_skills_detail": soft_skills,
             "learning_goals": [g["skill_name"] for g in goals],
             "growth_text": growth_text,
             "recent_workload_hours": recent_workload,
@@ -201,11 +187,12 @@ def fetch_employees_by_user(user_id: int) -> List[Dict[str, Any]]:
         conn_skills = get_connection()
         cur_skills = conn_skills.cursor()
         try:
-            org_skills = _fetch_employee_skills(cur_skills, employee_id)
-            self_skills = _fetch_employee_self_skills(cur_skills, employee_id)
+            technical_skills = _fetch_employee_skills(cur_skills, employee_id, "technical")
+            soft_skills = _fetch_employee_skills(cur_skills, employee_id, "soft")
             goals = _fetch_employee_learning_goals(cur_skills, employee_id)
             growth_text = _fetch_employee_growth_text(cur_skills, employee_id)
-            skills = _merge_skills(org_skills, self_skills)
+            skills = _merge_skills(technical_skills)
+            soft_skills = _merge_skills(soft_skills)
             recent_workload = _fetch_recent_workload_hours(cur_skills, employee_id)
         finally:
             cur_skills.close()
@@ -218,6 +205,8 @@ def fetch_employees_by_user(user_id: int) -> List[Dict[str, Any]]:
             "experience": max(years) if years else 0,
             "skills": [s["skill_name"] for s in skills],
             "skills_detail": skills,
+            "soft_skills": [s["skill_name"] for s in soft_skills],
+            "soft_skills_detail": soft_skills,
             "learning_goals": [g["skill_name"] for g in goals],
             "growth_text": growth_text,
             "recent_workload_hours": recent_workload,

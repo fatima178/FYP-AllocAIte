@@ -98,6 +98,14 @@ def _insert_employee(cur, user_id: int, upload_id: int, group_name: str, row: pd
     if len(skills) != len(years):
         raise UploadProcessingError(400, "skills and experience counts must match.")
 
+    raw_soft_skills = str(row.get("Soft Skill Set", "")).strip()
+    raw_soft_years = str(row.get("Soft Skill Experience (Years)", "")).strip()
+    soft_skills = [s.strip() for s in raw_soft_skills.split(",") if s.strip()]
+    soft_years = [s.strip() for s in raw_soft_years.split(",") if s.strip()]
+
+    if soft_skills and soft_years and len(soft_skills) != len(soft_years):
+        raise UploadProcessingError(400, "soft skills and experience counts must match.")
+
     cur.execute(
         """
         INSERT INTO "Employees" (user_id, upload_id, name, role, department)
@@ -117,11 +125,25 @@ def _insert_employee(cur, user_id: int, upload_id: int, group_name: str, row: pd
     for skill, exp in zip(skills, years):
         cur.execute(
             """
-            INSERT INTO "EmployeeSkills" (employee_id, skill_name, years_experience)
-            VALUES (%s, %s, %s);
+            INSERT INTO "EmployeeSkills" (employee_id, skill_name, years_experience, skill_type)
+            VALUES (%s, %s, %s, %s);
             """,
-            (employee_id, skill, float(exp)),
+            (employee_id, skill, float(exp), "technical"),
         )
+
+    if soft_skills:
+        if soft_years and len(soft_years) == len(soft_skills):
+            pairs = zip(soft_skills, soft_years)
+        else:
+            pairs = [(skill, None) for skill in soft_skills]
+        for skill, exp in pairs:
+            cur.execute(
+                """
+                INSERT INTO "EmployeeSkills" (employee_id, skill_name, years_experience, skill_type)
+                VALUES (%s, %s, %s, %s);
+                """,
+                (employee_id, skill, float(exp) if exp not in (None, "") else None, "soft"),
+            )
 
     return employee_id
 
