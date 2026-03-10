@@ -387,21 +387,37 @@ function DashboardPage() {
                       </div>
 
                       {/* skill list */}
-                      <div className="skills-section">
-                        <h4>Skills</h4>
+                    <div className="skills-section">
+                      <h4>Skills</h4>
 
-                        <div className="skills">
-                          {emp.skills && emp.skills.length > 0 ? (
-                            emp.skills.map((skill, i) => (
-                              <span key={i} className="skill-tag">
-                                {skill.skill_name} ({skill.years_experience}y)
-                              </span>
-                            ))
-                          ) : (
-                            <p className="no-skills">No skills listed</p>
-                          )}
-                        </div>
+                      <div className="skills">
+                        {emp.skills && emp.skills.length > 0 ? (
+                          emp.skills.map((skill, i) => (
+                            <span key={i} className="skill-tag">
+                              {skill.skill_name} ({skill.years_experience}y)
+                            </span>
+                          ))
+                        ) : (
+                          <p className="no-skills">No skills listed</p>
+                        )}
                       </div>
+                    </div>
+
+                    <div className="skills-section">
+                      <h4>Soft Skills</h4>
+
+                      <div className="skills">
+                        {emp.soft_skills && emp.soft_skills.length > 0 ? (
+                          emp.soft_skills.map((skill, i) => (
+                            <span key={i} className="skill-tag">
+                              {skill.skill_name} ({skill.years_experience}y)
+                            </span>
+                          ))
+                        ) : (
+                          <p className="no-skills">No soft skills listed</p>
+                        )}
+                      </div>
+                    </div>
 
                       {/* active assignments section */}
                       <div className="active-assignments">

@@ -49,7 +49,28 @@ def _skill_label_and_weight(raw_skill):
     return label, years_val, weight
 
 
-def semantic_skill_match(model, task_description, skills, threshold=0.45):
+def _skill_candidate_phrases(label: str):
+    base = str(label or "").strip().lower()
+    if not base:
+        return []
+    phrases = [
+        base,
+        f"experience with {base}",
+        f"strong {base} skills",
+        f"{base} expertise",
+        f"knowledge of {base}",
+    ]
+    # de-duplicate while preserving order
+    seen = set()
+    unique = []
+    for p in phrases:
+        if p not in seen:
+            unique.append(p)
+            seen.add(p)
+    return unique
+
+
+def semantic_skill_match(model, task_description, skills, threshold=0.35):
     if not skills or not task_description:
         return []
 
@@ -60,6 +81,7 @@ def semantic_skill_match(model, task_description, skills, threshold=0.45):
 
     # embed the task once because this will be reused for each skill
     task_emb = model.encode(description, convert_to_tensor=True)
+    phrase_emb_cache = {}
 
     matches = []
 
@@ -84,8 +106,14 @@ def semantic_skill_match(model, task_description, skills, threshold=0.45):
 
         # fallback: compute semantic similarity with sbert
         if sim < 0.75:
-            skill_emb = model.encode(normal, convert_to_tensor=True)
-            sim = max(sim, util.cos_sim(task_emb, skill_emb).item())
+            best = sim
+            for phrase in _skill_candidate_phrases(label):
+                skill_emb = phrase_emb_cache.get(phrase)
+                if skill_emb is None:
+                    skill_emb = model.encode(phrase, convert_to_tensor=True)
+                    phrase_emb_cache[phrase] = skill_emb
+                best = max(best, util.cos_sim(task_emb, skill_emb).item())
+            sim = best
 
         # keep only useful matches based on threshold
         if sim >= threshold:
@@ -213,7 +241,7 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
             model,
             task_description,
             emp.get("soft_skills_detail") or emp.get("soft_skills") or [],
-            threshold=0.4,
+            threshold=0.35,
         )
         matched_soft_labels = [m["label"] for m in soft_skill_matches]
         soft_weight = sum(m.get("weight", 1.0) for m in soft_skill_matches)

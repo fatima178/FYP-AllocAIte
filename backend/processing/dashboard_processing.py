@@ -166,6 +166,17 @@ def get_employees_data(
                 for s, y in cur.fetchall()
             ]
 
+            cur.execute("""
+                SELECT skill_name, years_experience
+                FROM "EmployeeSkills"
+                WHERE employee_id = %s AND skill_type = 'soft'
+                ORDER BY skill_name ASC;
+            """, (employee_id,))
+            soft_skills = [
+                {"skill_name": s, "years_experience": y}
+                for s, y in cur.fetchall()
+            ]
+
             merged = {}
             for item in org_skills:
                 label = str(item.get("skill_name") or "").strip()
@@ -243,6 +254,7 @@ def get_employees_data(
                 "role": role,
                 "department": dept,
                 "skills": parsed_skills,
+                "soft_skills": soft_skills,
                 "availability_status": availability_obj["status"],
                 "availability_percent": availability_obj["percent"],
                 "active_assignments": assignments
