@@ -125,6 +125,14 @@
   color: var(--text);
 }
 
+.settings-form .readonly-weight {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
 .settings-form select {
   padding: 10px;
   border-radius: 6px;

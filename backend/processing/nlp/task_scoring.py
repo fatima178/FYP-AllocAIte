@@ -47,11 +47,8 @@ def compute_role_match(task_description, role):
 # if skills matched: skill + experience become more important
 # if no skills matched: semantic + experience dominate
 def _default_weights(skill_score):
-    if skill_score > 0:
-        # skills matched: emphasize skills + experience, keep soft skills as a boost
-        return 0.22, 0.26, 0.10, 0.16, 0.10, 0.08, 0.04, 0.04
-    # no skill match: emphasize semantic understanding, soft skills still matter
-    return 0.28, 0.12, 0.10, 0.16, 0.12, 0.10, 0.06, 0.06
+    # fixed distribution for both cases
+    return 0.35, 0.22, 0.005, 0.02, 0.005, 0.15, 0.08, 0.10, 0.02, 0.05
 
 
 def _determine_weights(skill_score, custom_weights=None, use_custom_weights=False):
@@ -59,7 +56,9 @@ def _determine_weights(skill_score, custom_weights=None, use_custom_weights=Fals
         return (
             custom_weights.get("semantic", 0),
             custom_weights.get("skill", 0),
+            custom_weights.get("possible_skill", 0),
             custom_weights.get("soft_skill", 0),
+            custom_weights.get("possible_soft_skill", 0),
             custom_weights.get("experience", 0),
             custom_weights.get("role", 0),
             custom_weights.get("availability", 0),
@@ -89,7 +88,19 @@ def _availability_label(percent):
 #   - role relevance
 #   - experience level
 #   - availability
-def _build_reason(skills, soft_skills, goals, role_score, role, experience, availability_percent, workload_score, preferences_score):
+def _build_reason(
+    skills,
+    soft_skills,
+    possible_skills,
+    possible_soft_skills,
+    goals,
+    role_score,
+    role,
+    experience,
+    availability_percent,
+    workload_score,
+    preferences_score,
+):
     explanation = []
 
     # skills summary
@@ -97,12 +108,18 @@ def _build_reason(skills, soft_skills, goals, role_score, role, experience, avai
         explanation.append(f"Direct skill matches: {', '.join(skills)}")
     else:
         explanation.append("No direct skill overlap with this task")
+        if possible_skills:
+            explanation.append(f"Possible skill matches (low confidence): {', '.join(possible_skills)}")
 
     # soft skills summary
     if soft_skills:
         explanation.append(f"Soft skill matches: {', '.join(soft_skills)}")
     else:
         explanation.append("No soft skill overlap detected")
+        if possible_soft_skills:
+            explanation.append(
+                f"Possible soft skill matches (low confidence): {', '.join(possible_soft_skills)}"
+            )
 
     # learning goals summary
     if goals:
@@ -168,6 +185,10 @@ def build_recommendation_entry(
     availability_score,
     matched_skills,
     matched_soft_skills,
+    possible_skills,
+    possible_soft_skills,
+    possible_skill_score,
+    possible_soft_skill_score,
     matched_goals,
     workload_score,
     preferences_score,
@@ -178,7 +199,9 @@ def build_recommendation_entry(
     (
         weight_semantic,
         weight_skill,
+        weight_possible_skill,
         weight_soft,
+        weight_possible_soft,
         weight_experience,
         weight_role,
         weight_availability,
@@ -190,7 +213,9 @@ def build_recommendation_entry(
     final_score = (
         weight_semantic * semantic_score +
         weight_skill * skill_score +
+        weight_possible_skill * possible_skill_score +
         weight_soft * soft_skill_score +
+        weight_possible_soft * possible_soft_skill_score +
         weight_experience * experience_score +
         weight_role * role_score +
         weight_availability * availability_score +
@@ -207,6 +232,8 @@ def build_recommendation_entry(
     reason = _build_reason(
         matched_skills,
         matched_soft_skills,
+        possible_skills,
+        possible_soft_skills,
         matched_goals,
         role_score,
         employee["role"],
@@ -226,6 +253,10 @@ def build_recommendation_entry(
         "availability_label": availability_label,
         "skills": matched_skills,
         "soft_skills": matched_soft_skills,
+        "possible_skills": possible_skills,
+        "possible_soft_skills": possible_soft_skills,
+        "possible_skill_score": possible_skill_score,
+        "possible_soft_skill_score": possible_soft_skill_score,
         "learning_goals": matched_goals,
         "workload_score": workload_score,
         "preferences_score": preferences_score,

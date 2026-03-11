@@ -56,6 +56,9 @@ function RecommendationsPage() {
   // editable label shown in the modal before confirming assignment
   const [taskLabel, setTaskLabel] = useState("");
 
+  // score display mode: absolute vs relative to top recommendation
+  const [scoreMode, setScoreMode] = useState("absolute");
+
   // opens modal for assigning employee
   const openAssignModal = (emp) => {
     // recommendations depend on saved taskContext, so ensure we have it
@@ -183,12 +186,51 @@ function RecommendationsPage() {
           </p>
         )}
 
+        <div className="recommendations-actions">
+          <button
+            type="button"
+            className="ghost-btn"
+            onClick={() => {
+              window.location.href = "/assignments";
+            }}
+          >
+            New Recommendation
+          </button>
+        </div>
+
+        <div className="score-toggle">
+          <span>Score display:</span>
+          <button
+            type="button"
+            className={scoreMode === "absolute" ? "primary" : ""}
+            onClick={() => setScoreMode("absolute")}
+          >
+            Absolute
+          </button>
+          <button
+            type="button"
+            className={scoreMode === "relative" ? "primary" : ""}
+            onClick={() => setScoreMode("relative")}
+          >
+            Relative to Top
+          </button>
+        </div>
+
         {/* list of recommendation cards */}
         <div className="recommendations-list">
           {recommendations.map((emp, index) => {
             // defensive parsing of backend values
             const scorePercent =
               typeof emp.score_percent === "number" ? emp.score_percent : 0;
+            const maxScore = Math.max(
+              1,
+              ...recommendations.map((item) =>
+                typeof item.score_percent === "number" ? item.score_percent : 0
+              )
+            );
+            const relativeScorePercent = Math.round((scorePercent / maxScore) * 100);
+            const displayScore =
+              scoreMode === "relative" ? relativeScorePercent : scorePercent;
 
             const availabilityPercent =
               typeof emp.availability_percent === "number"
@@ -199,6 +241,10 @@ function RecommendationsPage() {
 
             const skills = Array.isArray(emp.skills) ? emp.skills : [];
             const softSkills = Array.isArray(emp.soft_skills) ? emp.soft_skills : [];
+            const possibleSkills = Array.isArray(emp.possible_skills) ? emp.possible_skills : [];
+            const possibleSoftSkills = Array.isArray(emp.possible_soft_skills)
+              ? emp.possible_soft_skills
+              : [];
 
             const reason =
               typeof emp.reason === "string" && emp.reason.trim().length > 0
@@ -221,7 +267,7 @@ function RecommendationsPage() {
                     <h3>{emp.name || "Unknown employee"}</h3>
                     <p className="role">{emp.role || "Not specified"}</p>
                   </div>
-                  <div className="score-circle">{scorePercent}%</div>
+                  <div className="score-circle">{displayScore}%</div>
                 </div>
 
                 {/* availability line */}
@@ -236,10 +282,24 @@ function RecommendationsPage() {
                   {skills.length > 0 ? skills.join(", ") : "None matched"}
                 </p>
 
+                {skills.length === 0 && possibleSkills.length > 0 && (
+                  <p>
+                    <strong>Possible matches (low confidence):</strong>{" "}
+                    {possibleSkills.join(", ")}
+                  </p>
+                )}
+
                 <p>
                   <strong>Soft Skills:</strong>{" "}
                   {softSkills.length > 0 ? softSkills.join(", ") : "None matched"}
                 </p>
+
+                {softSkills.length === 0 && possibleSoftSkills.length > 0 && (
+                  <p>
+                    <strong>Possible soft skills (low confidence):</strong>{" "}
+                    {possibleSoftSkills.join(", ")}
+                  </p>
+                )}
 
                 {/* explanation box from NLP engine */}
                 <div className="reason-box">

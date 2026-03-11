@@ -70,7 +70,7 @@ def _skill_candidate_phrases(label: str):
     return unique
 
 
-def semantic_skill_match(model, task_description, skills, threshold=0.35):
+def _score_skills(model, task_description, skills):
     if not skills or not task_description:
         return []
 
@@ -83,7 +83,7 @@ def semantic_skill_match(model, task_description, skills, threshold=0.35):
     task_emb = model.encode(description, convert_to_tensor=True)
     phrase_emb_cache = {}
 
-    matches = []
+    scored = []
 
     for raw_skill in skills:
         label, years_val, weight = _skill_label_and_weight(raw_skill)
@@ -115,11 +115,16 @@ def semantic_skill_match(model, task_description, skills, threshold=0.35):
                 best = max(best, util.cos_sim(task_emb, skill_emb).item())
             sim = best
 
-        # keep only useful matches based on threshold
-        if sim >= threshold:
-            matches.append({"label": label, "score": sim, "weight": weight, "years_experience": years_val})
+        scored.append({"label": label, "score": sim, "weight": weight, "years_experience": years_val})
 
-    return matches
+    return scored
+
+
+def semantic_skill_match(model, task_description, skills, threshold=0.35):
+    scored = _score_skills(model, task_description, skills)
+    if not scored:
+        return []
+    return [m for m in scored if m["score"] >= threshold]
 
 
 # ----------------------------------------------------------
@@ -209,8 +214,29 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
         role_score = compute_role_match(task_description, emp["role"])
 
         # full semantic skill-level matching (technical skills)
-        skill_matches = semantic_skill_match(model, task_description, emp.get("skills_detail") or emp["skills"])
-        matched_labels = [m["label"] for m in skill_matches]
+        skill_scored = _score_skills(model, task_description, emp.get("skills_detail") or emp["skills"])
+        skill_matches = [m for m in skill_scored if m["score"] >= 0.3]
+        inferred_skill_labels = [
+            m["label"]
+            for m in skill_scored
+            if 0.2 <= m["score"] < 0.3
+        ]
+        matched_labels = [m["label"] for m in skill_matches] + inferred_skill_labels
+        possible_skill_labels = []
+        possible_skill_score = 0.0
+        possible_skill_candidates = [
+            m for m in skill_scored if 0.2 <= m["score"] < 0.3
+        ]
+        if not matched_labels and possible_skill_candidates:
+            possible_skill_labels = [
+                m["label"]
+                for m in sorted(possible_skill_candidates, key=lambda x: x["score"], reverse=True)
+            ][:3]
+        if possible_skill_candidates:
+            top_possible = sorted(
+                possible_skill_candidates, key=lambda x: x["score"], reverse=True
+            )[:3]
+            possible_skill_score = sum(m["score"] for m in top_possible) / len(top_possible)
 
         # weighted average match score across matched skills (by years experience)
         total_weight = sum(m.get("weight", 1.0) for m in skill_matches)
@@ -237,13 +263,33 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
         skill_score = min(1.0, max(avg_skill_sim, coverage) + goal_bonus)
 
         # soft skill matching (boost only)
-        soft_skill_matches = semantic_skill_match(
+        soft_scored = _score_skills(
             model,
             task_description,
             emp.get("soft_skills_detail") or emp.get("soft_skills") or [],
-            threshold=0.35,
         )
-        matched_soft_labels = [m["label"] for m in soft_skill_matches]
+        soft_skill_matches = [m for m in soft_scored if m["score"] >= 0.3]
+        inferred_soft_labels = [
+            m["label"]
+            for m in soft_scored
+            if 0.2 <= m["score"] < 0.3
+        ]
+        matched_soft_labels = [m["label"] for m in soft_skill_matches] + inferred_soft_labels
+        possible_soft_labels = []
+        possible_soft_score = 0.0
+        possible_soft_candidates = [
+            m for m in soft_scored if 0.2 <= m["score"] < 0.3
+        ]
+        if not matched_soft_labels and possible_soft_candidates:
+            possible_soft_labels = [
+                m["label"]
+                for m in sorted(possible_soft_candidates, key=lambda x: x["score"], reverse=True)
+            ][:3]
+        if possible_soft_candidates:
+            top_possible_soft = sorted(
+                possible_soft_candidates, key=lambda x: x["score"], reverse=True
+            )[:3]
+            possible_soft_score = sum(m["score"] for m in top_possible_soft) / len(top_possible_soft)
         soft_weight = sum(m.get("weight", 1.0) for m in soft_skill_matches)
         soft_skill_score = (
             sum(m["score"] * m.get("weight", 1.0) for m in soft_skill_matches) / soft_weight
@@ -281,6 +327,10 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
                 availability,
                 matched_labels,
                 matched_soft_labels,
+                possible_skill_labels,
+                possible_soft_labels,
+                possible_skill_score,
+                possible_soft_score,
                 [m["label"] for m in goal_matches],
                 workload_score,
                 preferences_score,

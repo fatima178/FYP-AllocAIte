@@ -14,6 +14,54 @@
   gap: 22px;
 }
 
+.score-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 18px;
+  flex-wrap: wrap;
+}
+
+.recommendations-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 10px 0 6px;
+}
+
+.recommendations-actions .ghost-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-muted, rgba(0, 0, 0, 0.04));
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.recommendations-actions .ghost-btn:hover {
+  filter: brightness(0.97);
+}
+
+.score-toggle span {
+  font-weight: 600;
+}
+
+.score-toggle button {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-muted, rgba(0, 0, 0, 0.04));
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.score-toggle button.primary {
+  background: var(--button-bg);
+  color: var(--button-text);
+  border-color: transparent;
+}
+
 .rec-card {
   background: var(--card);
   padding: 22px;

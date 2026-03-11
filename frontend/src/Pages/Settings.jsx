@@ -116,14 +116,17 @@ function SettingsPage() {
   const [fontSize, setFontSize] = useState(() =>
     readPreference("fontSize", DEFAULT_FONT_SIZE)
   );
-  const [useCustomWeights, setUseCustomWeights] = useState(false);
+  const FIXED_SEMANTIC_WEIGHT = 0.35;
   const [weights, setWeights] = useState({
-    semantic: 0.26,
-    skill: 0.28,
-    experience: 0.18,
-    role: 0.10,
-    availability: 0.08,
-    fairness: 0.05,
+    semantic: FIXED_SEMANTIC_WEIGHT,
+    skill: 0.22,
+    possible_skill: 0.005,
+    soft_skill: 0.02,
+    possible_soft_skill: 0.005,
+    experience: 0.15,
+    role: 0.08,
+    availability: 0.10,
+    fairness: 0.02,
     preferences: 0.05,
   });
 
@@ -156,13 +159,14 @@ function SettingsPage() {
           setFontSize(data.font_size);
           writePreference("fontSize", data.font_size);
         }
-        if (typeof data.use_custom_weights === "boolean") {
-          setUseCustomWeights(data.use_custom_weights);
-        }
         if (data.weights) {
           setWeights((prev) => ({
-            semantic: data.weights.semantic ?? prev.semantic,
+            semantic: FIXED_SEMANTIC_WEIGHT,
             skill: data.weights.skill ?? prev.skill,
+            possible_skill: data.weights.possible_skill ?? prev.possible_skill,
+            soft_skill: data.weights.soft_skill ?? prev.soft_skill,
+            possible_soft_skill:
+              data.weights.possible_soft_skill ?? prev.possible_soft_skill,
             experience: data.weights.experience ?? prev.experience,
             role: data.weights.role ?? prev.role,
             availability: data.weights.availability ?? prev.availability,
@@ -204,7 +208,7 @@ function SettingsPage() {
   }, [theme, fontSize]);
 
   // sends updated UI preferences to the backend
-  const updateSettings = async (payload) => {
+  const updateSettings = async (payload, successMessage = "Settings updated") => {
     const userId = localStorage.getItem("user_id");
     if (!userId) return;
 
@@ -214,7 +218,7 @@ function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: Number(userId), ...payload }),
       });
-      setStatus("Settings updated");
+      setStatus(successMessage);
       setTimeout(() => setStatus(""), 2000);
     } catch (err) {
       setStatus(err.message || "Unable to save settings.");
@@ -238,12 +242,17 @@ function SettingsPage() {
     updateSettings({ font_size: value });
   };
 
-  const toggleCustomWeights = (value) => {
-    setUseCustomWeights(value);
-    updateSettings({ use_custom_weights: value });
+  const formatWeight = (key, value) => {
+    const num = Number(value);
+    if (Number.isNaN(num)) return value;
+    if (key === "possible_skill" || key === "possible_soft_skill") {
+      return num.toFixed(3);
+    }
+    return num.toFixed(2);
   };
 
   const updateWeight = (key, value) => {
+    if (key === "semantic") return;
     setWeights((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -275,21 +284,24 @@ function SettingsPage() {
       setTimeout(() => setStatus(""), 2500);
       return;
     }
-    updateSettings({ use_custom_weights: true, weights });
+    updateSettings({ use_custom_weights: true, weights }, "Weightings saved.");
   };
 
   const resetWeights = () => {
     const defaults = {
-      semantic: 0.26,
-      skill: 0.28,
-      experience: 0.18,
-      role: 0.10,
-      availability: 0.08,
-      fairness: 0.05,
+      semantic: FIXED_SEMANTIC_WEIGHT,
+      skill: 0.22,
+      possible_skill: 0.005,
+      soft_skill: 0.02,
+      possible_soft_skill: 0.005,
+      experience: 0.15,
+      role: 0.08,
+      availability: 0.10,
+      fairness: 0.02,
       preferences: 0.05,
     };
     setWeights(defaults);
-    updateSettings({ use_custom_weights: false, weights: defaults });
+    updateSettings({ use_custom_weights: true, weights: defaults }, "Weightings reset.");
   };
 
   // update edit details fields
@@ -666,33 +678,14 @@ function SettingsPage() {
         <div className="settings-card">
           <h2>Ranking Weightings</h2>
           <p className="muted">Customise how recommendations are ranked.</p>
-
-          <p><strong>Use Custom Weightings</strong></p>
-          <div className="button-row">
-            <button
-              className={useCustomWeights ? "primary" : ""}
-              onClick={() => toggleCustomWeights(true)}
-            >
-              Custom
-            </button>
-            <button
-              className={!useCustomWeights ? "primary" : ""}
-              onClick={() => toggleCustomWeights(false)}
-            >
-              Default
-            </button>
-          </div>
+          <p className="muted">
+            Skill matching bands: direct ≥ 0.30, inferred 0.20–0.29.
+          </p>
 
           <div className="form-grid">
             <label>
-              Semantic
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={weights.semantic}
-                onChange={(e) => updateWeight("semantic", e.target.value)}
-              />
+              Task Relevance (fixed)
+              <div className="readonly-weight">{weights.semantic.toFixed(2)}</div>
             </label>
             <label>
               Skill Match
@@ -700,8 +693,38 @@ function SettingsPage() {
                 type="number"
                 step="0.01"
                 min="0"
-                value={weights.skill}
+                value={formatWeight("skill", weights.skill)}
                 onChange={(e) => updateWeight("skill", e.target.value)}
+              />
+            </label>
+            <label>
+              Possible Skill Match
+              <input
+                type="number"
+                step="0.001"
+                min="0"
+                value={formatWeight("possible_skill", weights.possible_skill)}
+                onChange={(e) => updateWeight("possible_skill", e.target.value)}
+              />
+            </label>
+            <label>
+              Soft Skill Match
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formatWeight("soft_skill", weights.soft_skill)}
+                onChange={(e) => updateWeight("soft_skill", e.target.value)}
+              />
+            </label>
+            <label>
+              Possible Soft Skill Match
+              <input
+                type="number"
+                step="0.001"
+                min="0"
+                value={formatWeight("possible_soft_skill", weights.possible_soft_skill)}
+                onChange={(e) => updateWeight("possible_soft_skill", e.target.value)}
               />
             </label>
             <label>
@@ -710,7 +733,7 @@ function SettingsPage() {
                 type="number"
                 step="0.01"
                 min="0"
-                value={weights.experience}
+                value={formatWeight("experience", weights.experience)}
                 onChange={(e) => updateWeight("experience", e.target.value)}
               />
             </label>
@@ -720,7 +743,7 @@ function SettingsPage() {
                 type="number"
                 step="0.01"
                 min="0"
-                value={weights.role}
+                value={formatWeight("role", weights.role)}
                 onChange={(e) => updateWeight("role", e.target.value)}
               />
             </label>
@@ -730,7 +753,7 @@ function SettingsPage() {
                 type="number"
                 step="0.01"
                 min="0"
-                value={weights.availability}
+                value={formatWeight("availability", weights.availability)}
                 onChange={(e) => updateWeight("availability", e.target.value)}
               />
             </label>
@@ -740,17 +763,17 @@ function SettingsPage() {
                 type="number"
                 step="0.01"
                 min="0"
-                value={weights.fairness}
+                value={formatWeight("fairness", weights.fairness)}
                 onChange={(e) => updateWeight("fairness", e.target.value)}
               />
             </label>
             <label>
-              Preferences
+              Employee Preference
               <input
                 type="number"
                 step="0.01"
                 min="0"
-                value={weights.preferences}
+                value={formatWeight("preferences", weights.preferences)}
                 onChange={(e) => updateWeight("preferences", e.target.value)}
               />
             </label>

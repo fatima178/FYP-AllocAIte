@@ -26,7 +26,9 @@ def fetch_user_settings(user_id: int):
                    COALESCE(s.use_custom_weights, FALSE),
                    s.weight_semantic,
                    s.weight_skill,
+                   s.weight_possible_skill,
                    s.weight_soft_skill,
+                   s.weight_possible_soft_skill,
                    s.weight_experience,
                    s.weight_role,
                    s.weight_availability,
@@ -49,14 +51,16 @@ def fetch_user_settings(user_id: int):
             "font_size": row[4],
             "use_custom_weights": bool(row[5]),
             "weights": {
-                "semantic": row[6],
+                "semantic": _FIXED_SEMANTIC_WEIGHT,
                 "skill": row[7],
-                "soft_skill": row[8],
-                "experience": row[9],
-                "role": row[10],
-                "availability": row[11],
-                "fairness": row[12],
-                "preferences": row[13],
+                "possible_skill": row[8],
+                "soft_skill": row[9],
+                "possible_soft_skill": row[10],
+                "experience": row[11],
+                "role": row[12],
+                "availability": row[13],
+                "fairness": row[14],
+                "preferences": row[15],
             },
         }
 
@@ -70,14 +74,27 @@ def fetch_user_settings(user_id: int):
 # ----------------------------------------------------------
 # ensures the row exists first (insert with do-nothing on conflict),
 # then updates only the fields provided.
+_FIXED_SEMANTIC_WEIGHT = 0.35
+
+
 def _normalise_weights(weights: dict):
     if not isinstance(weights, dict):
         return None
     clean = {}
-    for key in ("semantic", "skill", "soft_skill", "experience", "role", "availability", "fairness", "preferences"):
+    for key in (
+        "skill",
+        "possible_skill",
+        "soft_skill",
+        "possible_soft_skill",
+        "experience",
+        "role",
+        "availability",
+        "fairness",
+        "preferences",
+    ):
         value = weights.get(key)
         if value is None or value == "":
-            if key == "soft_skill":
+            if key in ("soft_skill", "possible_soft_skill"):
                 clean[key] = 0.0
                 continue
             return None
@@ -88,10 +105,17 @@ def _normalise_weights(weights: dict):
         if num < 0:
             return None
         clean[key] = num
-    total = sum(clean.values())
-    if total <= 0:
+    total_other = sum(clean.values())
+    if total_other <= 0:
         return None
-    return {key: clean[key] / total for key in clean}
+    if _FIXED_SEMANTIC_WEIGHT >= 1:
+        return None
+    scaled = {
+        key: round((clean[key] / total_other) * (1 - _FIXED_SEMANTIC_WEIGHT), 6)
+        for key in clean
+    }
+    scaled["semantic"] = _FIXED_SEMANTIC_WEIGHT
+    return scaled
 
 
 def persist_user_settings(
@@ -122,7 +146,9 @@ def persist_user_settings(
                 use_custom_weights = COALESCE(%s, use_custom_weights),
                 weight_semantic = COALESCE(%s, weight_semantic),
                 weight_skill = COALESCE(%s, weight_skill),
+                weight_possible_skill = COALESCE(%s, weight_possible_skill),
                 weight_soft_skill = COALESCE(%s, weight_soft_skill),
+                weight_possible_soft_skill = COALESCE(%s, weight_possible_soft_skill),
                 weight_experience = COALESCE(%s, weight_experience),
                 weight_role = COALESCE(%s, weight_role),
                 weight_availability = COALESCE(%s, weight_availability),
@@ -135,7 +161,9 @@ def persist_user_settings(
             use_custom_weights,
             normalized.get("semantic") if normalized else None,
             normalized.get("skill") if normalized else None,
+            normalized.get("possible_skill") if normalized else None,
             normalized.get("soft_skill") if normalized else None,
+            normalized.get("possible_soft_skill") if normalized else None,
             normalized.get("experience") if normalized else None,
             normalized.get("role") if normalized else None,
             normalized.get("availability") if normalized else None,

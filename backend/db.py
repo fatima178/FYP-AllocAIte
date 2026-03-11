@@ -182,7 +182,9 @@ def init_db():
             use_custom_weights BOOLEAN DEFAULT FALSE,
             weight_semantic FLOAT,
             weight_skill FLOAT,
+            weight_possible_skill FLOAT,
             weight_soft_skill FLOAT,
+            weight_possible_soft_skill FLOAT,
             weight_experience FLOAT,
             weight_role FLOAT,
             weight_availability FLOAT,
@@ -223,6 +225,8 @@ def init_db():
     cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS use_custom_weights BOOLEAN DEFAULT FALSE;')
     cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_semantic FLOAT;')
     cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_skill FLOAT;')
+    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_possible_skill FLOAT;')
+    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_possible_soft_skill FLOAT;')
     cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_experience FLOAT;')
     cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_role FLOAT;')
     cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_availability FLOAT;')
