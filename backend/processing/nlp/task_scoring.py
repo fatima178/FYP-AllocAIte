@@ -1,5 +1,7 @@
 """helpers for computing task matching scores and explanations."""
 
+import math
+
 # ----------------------------------------------------------
 # experience normalisation
 # ----------------------------------------------------------
@@ -10,7 +12,14 @@ def normalize_experience(experience, max_experience):
     if not max_experience:
         return 0.0
     safe_exp = experience or 0
-    return max(0.0, safe_exp / max_experience)
+    try:
+        safe_exp = float(safe_exp)
+        max_exp = float(max_experience)
+    except Exception:
+        return 0.0
+    if max_exp <= 0:
+        return 0.0
+    return max(0.0, math.log1p(safe_exp) / math.log1p(max_exp))
 
 
 # ----------------------------------------------------------
@@ -85,6 +94,7 @@ def _availability_label(percent):
 # ----------------------------------------------------------
 # produces a short, human readable explanation summarising:
 #   - skill matches
+#   - role-expanded keyword matches
 #   - role relevance
 #   - experience level
 #   - availability
@@ -93,6 +103,7 @@ def _build_reason(
     soft_skills,
     possible_skills,
     possible_soft_skills,
+    expanded_skills,
     goals,
     role_score,
     role,
@@ -110,6 +121,10 @@ def _build_reason(
         explanation.append("No direct skill overlap with this task")
         if possible_skills:
             explanation.append(f"Possible skill matches (low confidence): {', '.join(possible_skills)}")
+    if expanded_skills:
+        explanation.append(
+            f"Their role suggests experience with {', '.join(expanded_skills)}, which suits this task"
+        )
 
     # soft skills summary
     if soft_skills:
@@ -187,6 +202,7 @@ def build_recommendation_entry(
     matched_soft_skills,
     possible_skills,
     possible_soft_skills,
+    expanded_skills,
     possible_skill_score,
     possible_soft_skill_score,
     matched_goals,
@@ -234,6 +250,7 @@ def build_recommendation_entry(
         matched_soft_skills,
         possible_skills,
         possible_soft_skills,
+        expanded_skills,
         matched_goals,
         role_score,
         employee["role"],

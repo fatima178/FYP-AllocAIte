@@ -58,6 +58,10 @@ function RecommendationsPage() {
 
   // score display mode: absolute vs relative to top recommendation
   const [scoreMode, setScoreMode] = useState("absolute");
+  const capSkill = (value) => {
+    const text = String(value || "");
+    return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+  };
 
   // opens modal for assigning employee
   const openAssignModal = (emp) => {
@@ -279,25 +283,25 @@ function RecommendationsPage() {
                 {/* skills summary */}
                 <p>
                   <strong>Applicable Skills:</strong>{" "}
-                  {skills.length > 0 ? skills.join(", ") : "None matched"}
+                  {skills.length > 0 ? skills.map(capSkill).join(", ") : "None matched"}
                 </p>
 
                 {skills.length === 0 && possibleSkills.length > 0 && (
                   <p>
                     <strong>Possible matches (low confidence):</strong>{" "}
-                    {possibleSkills.join(", ")}
+                    {possibleSkills.map(capSkill).join(", ")}
                   </p>
                 )}
 
                 <p>
                   <strong>Soft Skills:</strong>{" "}
-                  {softSkills.length > 0 ? softSkills.join(", ") : "None matched"}
+                  {softSkills.length > 0 ? softSkills.map(capSkill).join(", ") : "None matched"}
                 </p>
 
                 {softSkills.length === 0 && possibleSoftSkills.length > 0 && (
                   <p>
                     <strong>Possible soft skills (low confidence):</strong>{" "}
-                    {possibleSoftSkills.join(", ")}
+                    {possibleSoftSkills.map(capSkill).join(", ")}
                   </p>
                 )}
 

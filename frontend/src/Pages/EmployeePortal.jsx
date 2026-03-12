@@ -23,6 +23,10 @@ function EmployeePortalPage() {
   const [skillWarning, setSkillWarning] = useState(null);
   const [pendingSkills, setPendingSkills] = useState(null);
   const [deleteStatus, setDeleteStatus] = useState(null);
+  const capSkill = (value) => {
+    const text = String(value || "");
+    return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+  };
   const [pendingDelete, setPendingDelete] = useState(null);
   const [reasonForm, setReasonForm] = useState({
     task_description: '',
@@ -310,7 +314,7 @@ function EmployeePortalPage() {
                   {technicalSkills.length > 0 ? (
                     technicalSkills.map((skill, index) => (
                       <span key={`tech-${index}`} className="tag">
-                        {skill.skill_name} ({skill.years_experience}y)
+                        {capSkill(skill.skill_name)} ({skill.years_experience}y)
                         <button
                           type="button"
                           className="tag-delete"
@@ -330,7 +334,7 @@ function EmployeePortalPage() {
                   {softSkills.length > 0 ? (
                     softSkills.map((skill, index) => (
                       <span key={`soft-${index}`} className="tag">
-                        {skill.skill_name} ({skill.years_experience}y)
+                        {capSkill(skill.skill_name)} ({skill.years_experience}y)
                         <button
                           type="button"
                           className="tag-delete"

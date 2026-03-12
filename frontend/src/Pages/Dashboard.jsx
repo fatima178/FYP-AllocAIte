@@ -37,6 +37,10 @@ function DashboardPage() {
   const [error, setError] = useState(null);
 
   const [skillsOpen, setSkillsOpen] = useState(false);
+  const capSkill = (value) => {
+    const text = String(value || "");
+    return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+  };
   const [rangeOpen, setRangeOpen] = useState(false);
   const skillsRef = useRef(null);
   const rangeRef = useRef(null);
@@ -265,7 +269,7 @@ function DashboardPage() {
                                 checked={selectedSkills.includes(skill)}
                                 onChange={handleSkillChange}
                               />
-                              <span>{skill}</span>
+                              <span>{capSkill(skill)}</span>
                             </label>
                           ))}
                         </div>
@@ -350,7 +354,7 @@ function DashboardPage() {
                         onClick={() => removeSelectedSkill(skill)}
                         title="Remove skill"
                       >
-                        {skill}
+                        {capSkill(skill)}
                         <span className="remove-x">×</span>
                       </button>
                     ))}
@@ -392,9 +396,9 @@ function DashboardPage() {
 
                       <div className="skills">
                         {emp.skills && emp.skills.length > 0 ? (
-                          emp.skills.map((skill, i) => (
+                          emp.skills.filter((skill) => !skill.derived).map((skill, i) => (
                             <span key={i} className="skill-tag">
-                              {skill.skill_name} ({skill.years_experience}y)
+                              {capSkill(skill.skill_name)} ({skill.years_experience}y)
                             </span>
                           ))
                         ) : (
@@ -410,7 +414,7 @@ function DashboardPage() {
                         {emp.soft_skills && emp.soft_skills.length > 0 ? (
                           emp.soft_skills.map((skill, i) => (
                             <span key={i} className="skill-tag">
-                              {skill.skill_name} ({skill.years_experience}y)
+                              {capSkill(skill.skill_name)} ({skill.years_experience}y)
                             </span>
                           ))
                         ) : (

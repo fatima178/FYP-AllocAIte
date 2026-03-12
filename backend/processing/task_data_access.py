@@ -74,6 +74,76 @@ def _merge_skills(skills: List[Dict[str, Any]]):
     return list(merged.values())
 
 
+def _derive_role_tags(role: str) -> List[str]:
+    if not role:
+        return []
+    r = role.lower()
+    tags = set()
+    if "backend" in r:
+        tags.update([
+            "backend", "api", "server", "rest", "microservices",
+            "backend development", "service", "services",
+            "authentication", "authorization", "jwt", "oauth",
+            "database", "sql", "postgres", "mysql",
+        ])
+    if "front" in r:
+        tags.update([
+            "frontend", "ui", "web", "frontend development",
+            "react", "vue", "angular", "javascript", "typescript",
+            "css", "html",
+        ])
+    if "full stack" in r or "fullstack" in r:
+        tags.update([
+            "frontend", "backend", "api", "web", "full stack",
+            "react", "node", "express",
+        ])
+    if "data" in r or "analyst" in r:
+        tags.update([
+            "data", "analytics", "sql", "etl", "bi",
+            "dashboard", "reporting", "metrics", "warehouse",
+            "data modeling", "visualization",
+        ])
+    if "ml" in r or "machine learning" in r:
+        tags.update([
+            "machine learning", "ml", "ai", "modeling",
+            "training", "inference", "classification", "regression",
+            "nlp", "computer vision",
+        ])
+    if "devops" in r:
+        tags.update([
+            "devops", "infrastructure", "ci/cd", "docker", "kubernetes",
+            "terraform", "ansible", "monitoring", "logging",
+            "deployment", "pipelines",
+        ])
+    if "qa" in r or "test" in r:
+        tags.update([
+            "qa", "testing", "automation",
+            "unit testing", "integration testing", "e2e",
+            "test cases", "quality assurance",
+        ])
+    if "design" in r or "ux" in r:
+        tags.update([
+            "design", "ux", "ui", "figma",
+            "wireframes", "prototyping", "user research",
+        ])
+    if "mobile" in r:
+        tags.update([
+            "mobile", "ios", "android", "react native",
+            "swift", "kotlin",
+        ])
+    if "security" in r:
+        tags.update([
+            "security", "infosec", "vulnerability", "threat",
+            "risk", "compliance",
+        ])
+    if "cloud" in r:
+        tags.update([
+            "cloud", "aws", "azure", "gcp",
+            "cloud infrastructure", "serverless",
+        ])
+    return sorted(tags)
+
+
 def _fetch_recent_workload_hours(cur, employee_id: int, window_days: int = 90) -> float:
     cur.execute(
         """
@@ -139,6 +209,12 @@ def fetch_employees_by_upload(upload_id: int) -> List[Dict[str, Any]]:
         finally:
             cur_skills.close()
             conn_skills.close()
+        derived = _derive_role_tags(role)
+        skill_names = {s["skill_name"].lower() for s in skills}
+        for tag in derived:
+            if tag.lower() not in skill_names:
+                skills.append({"skill_name": tag, "years_experience": None, "derived": True})
+                skill_names.add(tag.lower())
         years = [s["years_experience"] for s in skills if s.get("years_experience") is not None]
         employees.append({
             "employee_id": employee_id,
@@ -197,6 +273,12 @@ def fetch_employees_by_user(user_id: int) -> List[Dict[str, Any]]:
         finally:
             cur_skills.close()
             conn_skills.close()
+        derived = _derive_role_tags(role)
+        skill_names = {s["skill_name"].lower() for s in skills}
+        for tag in derived:
+            if tag.lower() not in skill_names:
+                skills.append({"skill_name": tag, "years_experience": None, "derived": True})
+                skill_names.add(tag.lower())
         years = [s["years_experience"] for s in skills if s.get("years_experience") is not None]
         employees.append({
             "employee_id": employee_id,
