@@ -21,10 +21,6 @@ const REQUIRED_COLUMNS = [
   'End Date',
   'Total Hours',
   'Remaining Hours',
-  'Priority',
-];
-
-const OPTIONAL_COLUMNS = [
   'Soft Skill Set',
   'Soft Skill Experience (Years)',
 ];
@@ -49,7 +45,6 @@ function UploadPage() {
   }, []);
 
   const columnsText = REQUIRED_COLUMNS.join(', ');
-  const optionalColumnsText = OPTIONAL_COLUMNS.join(', ');
 
   /*
     Validates uploaded file:
@@ -151,8 +146,6 @@ function UploadPage() {
             <div className="upload-hint">
               <span>Accepted format: .xlsx — required columns:</span>
               <strong>{columnsText}</strong>
-              <span className="optional-columns">Optional:</span>
-              <strong>{optionalColumnsText}</strong>
             </div>
 
             {/* Drag and drop zone */}

@@ -28,8 +28,7 @@ def archive_completed_assignments(user_id: int, as_of: Optional[date] = None) ->
                 start_date,
                 end_date,
                 total_hours,
-                remaining_hours,
-                priority
+                remaining_hours
             )
             SELECT
                 a.user_id,
@@ -40,8 +39,7 @@ def archive_completed_assignments(user_id: int, as_of: Optional[date] = None) ->
                 a.start_date,
                 a.end_date,
                 a.total_hours,
-                a.remaining_hours,
-                a.priority
+                a.remaining_hours
             FROM "Assignments" a
             LEFT JOIN "Employees" e ON a.employee_id = e.employee_id
             WHERE (

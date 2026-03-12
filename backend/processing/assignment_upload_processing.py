@@ -20,7 +20,6 @@ DEFAULT_COLUMN_MAP = {
     "end_date": "End Date",
     "total_hours": "Total Hours",
     "remaining_hours": "Remaining Hours",
-    "priority": "Priority",
 }
 
 ALLOWED_EXTENSIONS = {".xlsx", ".xls"}
@@ -88,7 +87,6 @@ def _normalize_rows(df: pd.DataFrame, column_map: dict):
             "end_date": row.get(column_map["end_date"]),
             "total_hours": row.get(column_map.get("total_hours")),
             "remaining_hours": row.get(column_map.get("remaining_hours")),
-            "priority": str(row.get(column_map.get("priority"), "")).strip() or None,
         })
     return rows
 
@@ -186,10 +184,9 @@ def process_assignment_upload(user_id: int, filename: str, file_bytes: bytes, co
                     start_date,
                     end_date,
                     total_hours,
-                    remaining_hours,
-                    priority
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
+                remaining_hours,
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
                 """,
                 (
                     user_id,
@@ -200,7 +197,6 @@ def process_assignment_upload(user_id: int, filename: str, file_bytes: bytes, co
                     end_date.date(),
                     total_hours,
                     remaining_hours,
-                    row["priority"],
                 ),
             )
 

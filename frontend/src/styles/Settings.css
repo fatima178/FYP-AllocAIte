@@ -97,16 +97,39 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 15px;
-  align-items: end;
+  align-items: start;
+}
+
+.settings-form .skill-rows {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .settings-form .skill-row {
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: minmax(140px, 1fr) minmax(220px, 2fr) minmax(180px, 1fr) auto;
   align-items: end;
+  width: 100%;
 }
 
 .settings-form .skill-row label:last-child {
   min-width: 90px;
+}
+
+.settings-form .skill-row label {
+  min-width: 0;
+}
+
+.settings-form .skill-row input,
+.settings-form .skill-row select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.settings-form .skill-row label {
+  line-height: 1.2;
+  font-size: 0.92rem;
 }
 
 .settings-form label {

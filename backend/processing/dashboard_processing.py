@@ -224,7 +224,7 @@ def get_employees_data(
 
             # fetch assignments active in the dashboard window
             cur.execute("""
-                SELECT title, start_date, end_date, priority
+                SELECT title, start_date, end_date
                 FROM "Assignments"
                 WHERE employee_id = %s
                   AND start_date <= %s
@@ -232,12 +232,11 @@ def get_employees_data(
             """, (employee_id, window_end, window_start))
 
             assignments = []
-            for title, start_d, end_d, priority in cur.fetchall():
+            for title, start_d, end_d in cur.fetchall():
                 assignments.append({
                     "title": title,
                     "start_date": str(start_d),
                     "end_date": str(end_d),
-                    "priority": priority
                 })
 
             # generate initials for UI

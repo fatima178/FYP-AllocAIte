@@ -428,7 +428,7 @@ function DashboardPage() {
                           <ul>
                             {emp.active_assignments.map((a, i) => (
                               <li key={i}>
-                                {a.title}{a.priority ? ` (${a.priority})` : ''}
+                                {a.title}
                               </li>
                             ))}
                           </ul>

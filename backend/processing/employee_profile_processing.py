@@ -122,7 +122,7 @@ def _fetch_assignments(cur, employee_id: int) -> Dict[str, Any]:
 
     cur.execute(
         """
-        SELECT assignment_id, title, start_date, end_date, total_hours, remaining_hours, priority
+        SELECT assignment_id, title, start_date, end_date, total_hours, remaining_hours
         FROM "Assignments"
         WHERE employee_id = %s
         ORDER BY start_date DESC;
@@ -140,7 +140,6 @@ def _fetch_assignments(cur, employee_id: int) -> Dict[str, Any]:
             "end_date": str(row[3]),
             "total_hours": row[4],
             "remaining_hours": row[5],
-            "priority": row[6],
         }
         if row[3] and row[3] < today:
             past_assignments.append(payload)
@@ -149,7 +148,7 @@ def _fetch_assignments(cur, employee_id: int) -> Dict[str, Any]:
 
     cur.execute(
         """
-        SELECT title, start_date, end_date, total_hours, remaining_hours, priority, archived_at
+        SELECT title, start_date, end_date, total_hours, remaining_hours, archived_at
         FROM "AssignmentHistory"
         WHERE employee_id = %s
         ORDER BY end_date DESC;
@@ -163,8 +162,7 @@ def _fetch_assignments(cur, employee_id: int) -> Dict[str, Any]:
             "end_date": str(row[2]),
             "total_hours": row[3],
             "remaining_hours": row[4],
-            "priority": row[5],
-            "archived_at": row[6].isoformat() if row[6] else None,
+            "archived_at": row[5].isoformat() if row[5] else None,
         }
         for row in cur.fetchall()
     ]

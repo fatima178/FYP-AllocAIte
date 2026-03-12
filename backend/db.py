@@ -127,8 +127,7 @@ def init_db():
             start_date DATE,
             end_date DATE,
             total_hours FLOAT,
-            remaining_hours FLOAT,
-            priority VARCHAR(50)
+            remaining_hours FLOAT
         );
     """)
 
@@ -145,7 +144,6 @@ def init_db():
             end_date DATE,
             total_hours FLOAT,
             remaining_hours FLOAT,
-            priority VARCHAR(50),
             archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)

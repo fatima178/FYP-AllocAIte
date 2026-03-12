@@ -168,7 +168,7 @@
 
 .row {
   display: grid;
-  grid-template-columns: 1fr 1.6fr 0.6fr 0.9fr;
+  grid-template-columns: 140px 1fr 110px 120px;
   gap: 10px;
   margin-bottom: 10px;
 }
@@ -180,16 +180,28 @@
   border: 1px solid var(--input-border);
   background: var(--input-bg);
   color: var(--text);
+  height: 44px;
+}
+
+.row .ghost {
+  height: 44px;
+  align-self: center;
 }
 
 .actions {
   display: flex;
   gap: 12px;
   margin-top: 8px;
+  align-items: center;
 }
 
 .actions.full {
   grid-column: 1 / -1;
+}
+
+.actions .ghost,
+.actions .primary {
+  height: 44px;
 }
 
 .primary,
@@ -201,6 +213,10 @@
   color: var(--text);
   cursor: pointer;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .primary {

@@ -83,7 +83,7 @@ function SettingsPage() {
     department: "",
   });
   const [employeeSkills, setEmployeeSkills] = useState([
-    { skill_name: "", years_experience: "" },
+    { skill_name: "", years_experience: "", skill_type: "technical" },
   ]);
   const [skillError, setSkillError] = useState(null);
   const [employeeStatus, setEmployeeStatus] = useState(null);
@@ -415,10 +415,14 @@ function SettingsPage() {
     setEmployeeSaving(true);
     try {
       const skillsPayload = employeeSkills
-        .filter((skill) => String(skill.skill_name || "").trim() || String(skill.years_experience || "").trim())
+        .filter((skill) =>
+          String(skill.skill_name || "").trim() ||
+          String(skill.years_experience || "").trim()
+        )
         .map((skill) => ({
           skill_name: skill.skill_name,
           years_experience: skill.years_experience,
+          skill_type: skill.skill_type || "technical",
         }));
 
       await apiFetch("/employees", {
@@ -439,7 +443,7 @@ function SettingsPage() {
         role: "",
         department: "",
       });
-      setEmployeeSkills([{ skill_name: "", years_experience: "" }]);
+      setEmployeeSkills([{ skill_name: "", years_experience: "", skill_type: "technical" }]);
     } catch (err) {
       setEmployeeStatus({ type: "error", message: err.message || "Unable to add employee." });
     } finally {
@@ -688,7 +692,7 @@ function SettingsPage() {
               <div className="readonly-weight">{weights.semantic.toFixed(2)}</div>
             </label>
             <label>
-              Skill Match
+              Technical Skill Match
               <input
                 type="number"
                 step="0.01"
@@ -698,7 +702,7 @@ function SettingsPage() {
               />
             </label>
             <label>
-              Possible Skill Match
+              Possible Technical Skill Match
               <input
                 type="number"
                 step="0.001"
@@ -829,8 +833,27 @@ function SettingsPage() {
                 />
               </label>
 
-              {employeeSkills.map((skill, index) => (
-                <div key={index} className="form-grid skill-row">
+              <div className="skill-rows">
+                {employeeSkills.map((skill, index) => (
+                  <div key={index} className="form-grid skill-row">
+                  <label>
+                    Skill Type
+                    <select
+                      value={skill.skill_type || "technical"}
+                      onChange={(e) => {
+                        const updated = [...employeeSkills];
+                        updated[index] = {
+                          ...updated[index],
+                          skill_type: e.target.value,
+                        };
+                        setEmployeeSkills(updated);
+                      }}
+                    >
+                      <option value="technical">Technical</option>
+                      <option value="soft">Soft</option>
+                    </select>
+                  </label>
+
                   <label>
                     Skill Name
                     <input
@@ -882,8 +905,9 @@ function SettingsPage() {
                       </button>
                     </label>
                   )}
-                </div>
-              ))}
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="button-row">
@@ -893,7 +917,7 @@ function SettingsPage() {
                   setSkillError(null);
                   setEmployeeSkills((prev) => [
                     ...prev,
-                    { skill_name: "", years_experience: "" },
+                    { skill_name: "", years_experience: "", skill_type: "technical" },
                   ]);
                 }}
               >

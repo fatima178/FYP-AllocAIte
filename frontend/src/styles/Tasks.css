@@ -240,6 +240,12 @@ body,
   cursor: pointer;
 }
 
+.task-block.unassigned {
+  background: #dc2626;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+}
+
 .task-block.personal {
   background: var(--button-bg);
   color: var(--button-text);

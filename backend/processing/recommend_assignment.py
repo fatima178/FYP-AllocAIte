@@ -116,7 +116,7 @@ def assign_recommended_task(
             raise ValueError("employee not found for this user.")
 
         # insert assignment into database
-        # total_hours, remaining_hours, priority are left null, to be filled later
+        # total_hours and remaining_hours are left null, to be filled later
         cur.execute(
             """
             INSERT INTO "Assignments" (
@@ -127,10 +127,9 @@ def assign_recommended_task(
                 start_date,
                 end_date,
                 total_hours,
-                remaining_hours,
-                priority
+                remaining_hours
             )
-            VALUES (%s, %s, NULL, %s, %s, %s, NULL, NULL, NULL)
+            VALUES (%s, %s, NULL, %s, %s, %s, NULL, NULL)
             RETURNING assignment_id;
             """,
             (

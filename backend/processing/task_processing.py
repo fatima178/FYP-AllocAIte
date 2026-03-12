@@ -245,10 +245,9 @@ def create_task_entry(
                 start_date,
                 end_date,
                 total_hours,
-                remaining_hours,
-                priority
+                remaining_hours
             )
-            VALUES (%s, %s, NULL, %s, %s, %s, %s, %s, NULL)
+            VALUES (%s, %s, NULL, %s, %s, %s, %s, %s)
             RETURNING assignment_id;
             """,
             (user_id, employee_id, clean_title, start_date, end_date, total_hours, total_hours),
@@ -310,8 +309,7 @@ def _archive_assignment(cur, assignment_id: int):
             start_date,
             end_date,
             total_hours,
-            remaining_hours,
-            priority
+            remaining_hours
         )
         SELECT
             user_id,
@@ -322,8 +320,7 @@ def _archive_assignment(cur, assignment_id: int):
             start_date,
             end_date,
             total_hours,
-            remaining_hours,
-            priority
+            remaining_hours
         FROM "Assignments"
         WHERE assignment_id = %s;
         """,

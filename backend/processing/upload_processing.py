@@ -19,7 +19,8 @@ REQUIRED_COLUMNS = [
     "End Date",
     "Total Hours",
     "Remaining Hours",
-    "Priority",
+    "Soft Skill Set",
+    "Soft Skill Experience (Years)",
 ]
 
 ALLOWED_EXTENSIONS = {".xlsx", ".xls"}
@@ -170,16 +171,14 @@ def _insert_assignments(cur, upload_id: int, employee_id: int, group: pd.DataFra
 
         total_hours = float(row.get("Total Hours", 0) or 0)
         remaining_hours = float(row.get("Remaining Hours", 0) or 0)
-        priority = str(row.get("Priority", "")).strip() or None
-
         # insert assignment entry
         cur.execute(
         """
             INSERT INTO "Assignments" (
                 employee_id, upload_id, title, start_date, end_date,
-                total_hours, remaining_hours, priority
+                total_hours, remaining_hours
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+            VALUES (%s, %s, %s, %s, %s, %s, %s);
         """,
             (
                 employee_id,
@@ -189,7 +188,6 @@ def _insert_assignments(cur, upload_id: int, employee_id: int, group: pd.DataFra
                 end_date.date(),
                 total_hours,
                 remaining_hours,
-                priority,
             ),
         )
 

@@ -471,10 +471,12 @@ function TasksPage() {
                         const width = Math.min((task.span / viewDays) * 100, 100 - left);
                         const top = LANE_BASE_OFFSET + index * (LANE_HEIGHT + LANE_GAP);
 
+                        const isUnassignedRow = row.id === 'unassigned';
+
                         return (
                           <div
                             key={task.assignment_id}
-                            className="task-block"
+                            className={`task-block${isUnassignedRow ? ' unassigned' : ''}`}
                             onClick={() => openEditModal(task)}
                             style={{
                               left: `${left}%`,
