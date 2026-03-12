@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Menu from "./Menu";
 import "../styles/Settings.css";
-import { apiFetch } from "../api";
+import { apiFetch, API_BASE_URL } from "../api";
 
 // default values for UI appearance
 const DEFAULT_THEME = "light";
@@ -47,6 +47,8 @@ function SettingsPage() {
 
   // temporary status text (e.g. “Settings updated”)
   const [status, setStatus] = useState("");
+  const [exportStatus, setExportStatus] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   // stores the user's account details from backend
   const [account, setAccount] = useState({
@@ -98,6 +100,7 @@ function SettingsPage() {
   const [inviteStatus, setInviteStatus] = useState(null);
   const [inviteLink, setInviteLink] = useState("");
   const [inviteSaving, setInviteSaving] = useState(false);
+  const [activeSection, setActiveSection] = useState("account");
 
   // display formatting for "member since"
   const formatMemberSince = (value) => {
@@ -302,6 +305,44 @@ function SettingsPage() {
     };
     setWeights(defaults);
     updateSettings({ use_custom_weights: true, weights: defaults }, "Weightings reset.");
+  };
+
+  const exportAllData = async () => {
+    const userId = localStorage.getItem("user_id");
+    if (!userId) {
+      setExportStatus("Please log in to export data.");
+      return;
+    }
+
+    setExporting(true);
+    setExportStatus("");
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/settings/export?user_id=${userId}`,
+        { method: "GET" }
+      );
+
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(detail || "Export failed.");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateTag = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `allocaite_export_${dateTag}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setExportStatus("Export ready.");
+    } catch (err) {
+      setExportStatus(err.message || "Unable to export data.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   // update edit details fields
@@ -613,7 +654,47 @@ function SettingsPage() {
       {/* top navigation bar */}
       <Menu />
 
-      <div className="settings-content">
+      <div className="settings-content settings-layout">
+        <aside className="settings-sidebar">
+          <p className="sidebar-title">Sections</p>
+          <button
+            type="button"
+            className={activeSection === "account" ? "active" : ""}
+            onClick={() => setActiveSection("account")}
+          >
+            Account
+          </button>
+          <button
+            type="button"
+            className={activeSection === "appearance" ? "active" : ""}
+            onClick={() => setActiveSection("appearance")}
+          >
+            Appearance
+          </button>
+          <button
+            type="button"
+            className={activeSection === "weights" ? "active" : ""}
+            onClick={() => setActiveSection("weights")}
+          >
+            Weightings
+          </button>
+          <button
+            type="button"
+            className={activeSection === "team" ? "active" : ""}
+            onClick={() => setActiveSection("team")}
+          >
+            Team
+          </button>
+          <button
+            type="button"
+            className={activeSection === "export" ? "active" : ""}
+            onClick={() => setActiveSection("export")}
+          >
+            Export
+          </button>
+        </aside>
+
+        <div className="settings-main">
         <h1>Settings</h1>
         <p className="subtitle">Manage your account and preferences</p>
         {loading && <p>Loading settings...</p>}
@@ -621,6 +702,7 @@ function SettingsPage() {
         {status && <p className="status-message info">{status}</p>}
 
         {/* ACCOUNT DETAILS SECTION */}
+        {activeSection === "account" && (
         <div className="settings-card">
           <h2>Account Details</h2>
 
@@ -633,8 +715,10 @@ function SettingsPage() {
             <button onClick={openPasswordModal}>Change Password</button>
           </div>
         </div>
+        )}
 
         {/* THEME & FONT SIZE SECTION */}
+        {activeSection === "appearance" && (
         <div className="settings-card">
           <h2>Appearance</h2>
 
@@ -678,7 +762,9 @@ function SettingsPage() {
             </button>
           </div>
         </div>
+        )}
 
+        {activeSection === "weights" && (
         <div className="settings-card">
           <h2>Ranking Weightings</h2>
           <p className="muted">Customise how recommendations are ranked.</p>
@@ -792,8 +878,23 @@ function SettingsPage() {
             </button>
           </div>
         </div>
+        )}
+
+        {activeSection === "export" && (
+        <div className="settings-card">
+          <h2>Export Data</h2>
+          <p className="muted">Download all your team data in the same Excel format as uploads.</p>
+          <div className="button-row">
+            <button className="primary" onClick={exportAllData} disabled={exporting}>
+              {exporting ? "Exporting..." : "Export All Data"}
+            </button>
+          </div>
+          {exportStatus && <p className="status-message info">{exportStatus}</p>}
+        </div>
+        )}
 
         {/* EMPLOYEE MANAGEMENT SECTION */}
+        {activeSection === "team" && (
         <div className="settings-card">
           <h2>Add Employee</h2>
           <p className="muted">Create employees directly in the system without Excel.</p>
@@ -940,8 +1041,10 @@ function SettingsPage() {
             )}
           </form>
         </div>
+        )}
 
         {/* EMPLOYEE INVITE SECTION */}
+        {activeSection === "team" && (
         <div className="settings-card">
           <h2>Create Employee Invite</h2>
           <p className="muted">Generate a link for an employee to create their account.</p>
@@ -1005,7 +1108,8 @@ function SettingsPage() {
             )}
           </form>
         </div>
-
+        )}
+        </div>
       </div>
 
       {/* EDIT DETAILS MODAL */}

@@ -5,9 +5,61 @@
 }
 
 .settings-content {
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: 32px 20px;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.settings-sidebar {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+  padding: 10px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-sidebar .sidebar-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted-text);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 4px 0 6px;
+}
+
+.settings-sidebar button {
+  border: 1px solid var(--card-border);
+  background: var(--surface-muted);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.settings-sidebar button.active {
+  background: var(--button-bg);
+  color: var(--button-text);
+  border-color: transparent;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+}
+
+.settings-main {
+  min-width: 0;
 }
 
 .settings-content h1 {
@@ -15,6 +67,7 @@
   font-weight: 700;
   color: var(--text);
   margin-bottom: 5px;
+  margin-top: 0;
 }
 
 .subtitle {
@@ -76,6 +129,24 @@
   background: var(--button-hover-bg);
   color: var(--button-hover-text);
   border-color: var(--button-hover-bg);
+}
+
+@media (max-width: 960px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-sidebar {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .settings-sidebar button {
+    flex: 1 1 140px;
+    text-align: center;
+  }
 }
 
 .button-row button:not(.primary):hover,

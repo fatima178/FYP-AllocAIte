@@ -1,6 +1,8 @@
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
+from io import BytesIO
 from pydantic import BaseModel, EmailStr
 
 from processing.settings_processing import (
@@ -10,6 +12,7 @@ from processing.settings_processing import (
     update_account_details as process_account_details,
     verify_user_password,
 )
+from processing.export_processing import export_manager_data
 
 router = APIRouter()
 
@@ -87,4 +90,15 @@ def change_password(payload: ChangePasswordRequest):
         payload.user_id,
         payload.current_password,
         payload.new_password
+    )
+
+
+@router.get("/settings/export")
+def export_settings(user_id: int):
+    content = export_manager_data(user_id)
+    filename = "allocaite_export.xlsx"
+    return StreamingResponse(
+        BytesIO(content),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename=\"{filename}\"'},
     )
