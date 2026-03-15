@@ -133,6 +133,7 @@ function RecommendationsPage() {
         task_description: cleanedLabel,
         start_date: taskContext.start_date,
         end_date: taskContext.end_date,
+        task_id: taskContext.task_id ?? null,
       };
 
       // call backend API to create assignment
@@ -160,6 +161,7 @@ function RecommendationsPage() {
       setAssignLoading(false);
     }
   };
+
 
   // if user visits this page with no stored recommendations
   if (recommendations.length === 0) {
@@ -388,6 +390,7 @@ function RecommendationsPage() {
           </div>
         </div>
       )}
+
     </>
   );
 }

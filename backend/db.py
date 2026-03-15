@@ -160,6 +160,36 @@ def init_db():
         );
     """)
 
+    # recommendation tasks represent a specific recommendation request
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS "RecommendationTasks" (
+            task_id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE,
+            task_description TEXT,
+            start_date DATE,
+            end_date DATE,
+            assignment_id INT REFERENCES "Assignments"(assignment_id) ON DELETE SET NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
+    # recommendation log records each ranked recommendation and feedback
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS "RecommendationLog" (
+            log_id SERIAL PRIMARY KEY,
+            task_id INT REFERENCES "RecommendationTasks"(task_id) ON DELETE CASCADE,
+            employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+            recommendation_rank INT,
+            recommendation_score FLOAT,
+            manager_selected BOOLEAN DEFAULT FALSE,
+            performance_rating VARCHAR(20),
+            feedback_notes TEXT,
+            feedback_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CHECK (performance_rating IS NULL OR performance_rating IN ('Excellent', 'Good', 'Average', 'Poor'))
+        );
+    """)
+
     # chatlogs store user queries and responses for auditing/debugging
     cur.execute("""
         CREATE TABLE IF NOT EXISTS "ChatLogs" (
@@ -231,6 +261,7 @@ def init_db():
     cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_fairness FLOAT;')
     cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_preferences FLOAT;')
     cur.execute('UPDATE "Users" SET account_type = COALESCE(account_type, \'manager\');')
+    cur.execute('ALTER TABLE "RecommendationTasks" ADD COLUMN IF NOT EXISTS assignment_id INT REFERENCES "Assignments"(assignment_id) ON DELETE SET NULL;')
     # indexes to speed up availability calculations and dashboard queries
     cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_employee ON "Assignments"(employee_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_dates ON "Assignments"(start_date, end_date);')
@@ -255,6 +286,10 @@ def init_db():
     cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_calendar_employee ON "EmployeeCalendarEntries"(employee_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_calendar_start ON "EmployeeCalendarEntries"(start_date);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_calendar_end ON "EmployeeCalendarEntries"(end_date);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_rec_task_user ON "RecommendationTasks"(user_id);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_rec_task_assignment ON "RecommendationTasks"(assignment_id);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_rec_log_task ON "RecommendationLog"(task_id);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_rec_log_employee ON "RecommendationLog"(employee_id);')
 
     conn.commit()
     cur.close()

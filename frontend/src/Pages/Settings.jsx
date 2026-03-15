@@ -768,9 +768,6 @@ function SettingsPage() {
         <div className="settings-card">
           <h2>Ranking Weightings</h2>
           <p className="muted">Customise how recommendations are ranked.</p>
-          <p className="muted">
-            Skill matching bands: direct ≥ 0.30, inferred 0.20–0.29.
-          </p>
 
           <div className="form-grid">
             <label>

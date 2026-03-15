@@ -57,7 +57,7 @@ def compute_role_match(task_description, role):
 # if no skills matched: semantic + experience dominate
 def _default_weights(skill_score):
     # fixed distribution for both cases
-    return 0.35, 0.22, 0.005, 0.02, 0.005, 0.15, 0.08, 0.10, 0.02, 0.05
+    return 0.35, 0.22, 0.005, 0.02, 0.005, 0.15, 0.08, 0.10, 0.02, 0.05, 0.03
 
 
 def _determine_weights(skill_score, custom_weights=None, use_custom_weights=False):
@@ -73,6 +73,7 @@ def _determine_weights(skill_score, custom_weights=None, use_custom_weights=Fals
             custom_weights.get("availability", 0),
             custom_weights.get("fairness", 0),
             custom_weights.get("preferences", 0),
+            custom_weights.get("feedback", 0),
         )
     return _default_weights(skill_score)
 
@@ -89,6 +90,17 @@ def _availability_label(percent):
     return "Limited availability"
 
 
+def _format_experience(value):
+    try:
+        num = float(value)
+    except Exception:
+        return "0"
+    rounded = round(num, 1)
+    if rounded.is_integer():
+        return str(int(rounded))
+    return f"{rounded:.1f}"
+
+
 # ----------------------------------------------------------
 # construct natural sounding explanatory text
 # ----------------------------------------------------------
@@ -98,6 +110,7 @@ def _availability_label(percent):
 #   - role relevance
 #   - experience level
 #   - availability
+#   - past feedback on similar tasks
 def _build_reason(
     skills,
     soft_skills,
@@ -105,6 +118,8 @@ def _build_reason(
     possible_soft_skills,
     expanded_skills,
     goals,
+    preferences_present,
+    feedback_score,
     role_score,
     role,
     experience,
@@ -140,12 +155,21 @@ def _build_reason(
     if goals:
         explanation.append(f"Learning goals aligned: {', '.join(goals)}")
     else:
-        if preferences_score >= 0.65:
-            explanation.append("Preferences and learning goals text aligns strongly with this task")
-        elif preferences_score >= 0.45:
-            explanation.append("Preferences and learning goals text aligns with this task")
-        else:
-            explanation.append("Preferences and learning goals text shows limited alignment")
+        if preferences_present:
+            if preferences_score >= 0.65:
+                explanation.append("Preferences and learning goals text aligns strongly with this task")
+            elif preferences_score >= 0.45:
+                explanation.append("Preferences and learning goals text aligns with this task")
+            else:
+                explanation.append("Preferences and learning goals text shows limited alignment")
+
+    # feedback summary
+    if feedback_score >= 0.7:
+        explanation.append("Past feedback on similar tasks has been excellent")
+    elif feedback_score >= 0.5:
+        explanation.append("Past feedback on similar tasks has been strong")
+    elif feedback_score >= 0.3:
+        explanation.append("Past feedback on similar tasks has been positive")
 
     # role relevance summary
     if role_score >= 0.8:
@@ -156,10 +180,11 @@ def _build_reason(
         explanation.append(f"Role as {role} provides partial relevance")
 
     # experience summary
+    exp_text = _format_experience(experience)
     if experience >= 5:
-        explanation.append(f"Strong experience ({experience} years)")
+        explanation.append(f"Strong experience ({exp_text} years)")
     else:
-        explanation.append(f"{experience} years of experience")
+        explanation.append(f"{exp_text} years of experience")
 
     # availability summary
     if availability_percent >= 70:
@@ -198,6 +223,8 @@ def build_recommendation_entry(
     experience_score,
     role_score,
     availability_score,
+    feedback_score,
+    preferences_present,
     matched_skills,
     matched_soft_skills,
     possible_skills,
@@ -223,6 +250,7 @@ def build_recommendation_entry(
         weight_availability,
         weight_fairness,
         weight_preferences,
+        weight_feedback,
     ) = _determine_weights(skill_score, custom_weights, use_custom_weights)
 
     # weighted sum combining all signals into a single relevance score
@@ -236,7 +264,8 @@ def build_recommendation_entry(
         weight_role * role_score +
         weight_availability * availability_score +
         weight_fairness * workload_score +
-        weight_preferences * preferences_score
+        weight_preferences * preferences_score +
+        weight_feedback * feedback_score
     )
 
     # convert continuous scores into readable percentages
@@ -252,6 +281,8 @@ def build_recommendation_entry(
         possible_soft_skills,
         expanded_skills,
         matched_goals,
+        preferences_present,
+        feedback_score,
         role_score,
         employee["role"],
         employee["experience"],
@@ -272,6 +303,7 @@ def build_recommendation_entry(
         "soft_skills": matched_soft_skills,
         "possible_skills": possible_skills,
         "possible_soft_skills": possible_soft_skills,
+        "feedback_score": feedback_score,
         "possible_skill_score": possible_skill_score,
         "possible_soft_skill_score": possible_soft_skill_score,
         "learning_goals": matched_goals,

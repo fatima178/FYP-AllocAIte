@@ -60,8 +60,14 @@ function AssignmentsPage() {
         body: JSON.stringify(payload),
       });
 
+      const recommendations = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.recommendations)
+          ? data.recommendations
+          : [];
+
       // store response so recommendation page can show results
-      localStorage.setItem("recommendations", JSON.stringify(data));
+      localStorage.setItem("recommendations", JSON.stringify(recommendations));
 
       // store user context for next page
       localStorage.setItem(
@@ -70,6 +76,7 @@ function AssignmentsPage() {
           task_description: taskDescription.trim(),
           start_date: startDate,
           end_date: endDate,
+          task_id: data?.task_id ?? null,
         })
       );
 

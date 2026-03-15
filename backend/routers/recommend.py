@@ -6,6 +6,12 @@ from processing.recommend_processing import (
     generate_recommendations,
 )
 from processing.recommend_assignment import assign_recommended_task
+from processing.recommendation_log_processing import (
+    RecommendationLogError,
+    attach_assignment_to_task,
+    mark_manager_selected,
+    submit_recommendation_feedback,
+)
 
 router = APIRouter()
 
@@ -85,6 +91,7 @@ def assign_recommendation(data: dict):
     start = data.get("start_date")
     end = data.get("end_date")
     upload_id = data.get("upload_id")
+    task_id = data.get("task_id")
 
     # required fields
     if not user_id:
@@ -107,7 +114,48 @@ def assign_recommendation(data: dict):
             None,
         )
 
+        # mark which recommendation was selected (if task_id provided)
+        if task_id is not None:
+            try:
+                mark_manager_selected(int(user_id), int(task_id), int(employee_id))
+                attach_assignment_to_task(
+                    int(user_id),
+                    int(task_id),
+                    int(result.get("assignment_id")),
+                )
+            except RecommendationLogError:
+                pass
+
         return {"message": "Task assigned successfully.", **result}
 
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+
+
+# ----------------------------------------------------------
+# submit feedback for a completed assignment
+# ----------------------------------------------------------
+@router.post("/recommend/feedback")
+def submit_feedback(data: dict):
+    user_id = data.get("user_id")
+    task_id = data.get("task_id")
+    employee_id = data.get("employee_id")
+    rating = data.get("performance_rating")
+    notes = data.get("feedback_notes")
+
+    if not user_id or not task_id or not employee_id:
+        raise HTTPException(400, "user_id, task_id, and employee_id are required")
+    if not rating:
+        raise HTTPException(400, "performance_rating is required")
+
+    try:
+        submit_recommendation_feedback(
+            int(user_id),
+            int(task_id),
+            int(employee_id),
+            str(rating),
+            str(notes).strip() if notes is not None else None,
+        )
+        return {"message": "Feedback submitted successfully."}
+    except RecommendationLogError as exc:
+        raise HTTPException(exc.status_code, exc.message)

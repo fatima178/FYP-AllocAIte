@@ -8,6 +8,7 @@ from processing.task_processing import (
     TaskProcessingError,
     create_task_entry,
     delete_task_entry,
+    fetch_completed_tasks,
     fetch_weekly_tasks,
     update_task_entry,
 )
@@ -47,6 +48,17 @@ def get_weekly_tasks(
         if weeks not in {1, 2, 4, 6}:
             raise TaskProcessingError(400, "weeks must be one of 1, 2, 4, 6")
         return fetch_weekly_tasks(user_id, week_start, weeks)
+    except TaskProcessingError as exc:
+        raise HTTPException(exc.status_code, exc.message)
+
+
+@router.get("/tasks/completed")
+def get_completed_tasks(
+    user_id: int,
+    limit: int = Query(20, ge=1, le=100),
+):
+    try:
+        return fetch_completed_tasks(user_id, limit)
     except TaskProcessingError as exc:
         raise HTTPException(exc.status_code, exc.message)
 

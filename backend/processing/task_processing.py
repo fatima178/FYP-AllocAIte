@@ -194,6 +194,96 @@ def fetch_weekly_tasks(user_id: int, week_start: Optional[date], weeks: int = 1)
 
 
 # ----------------------------------------------------------
+# fetch completed tasks for feedback
+# ----------------------------------------------------------
+def fetch_completed_tasks(user_id: int, limit: int = 20) -> dict:
+    archive_completed_assignments(user_id)
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            WITH feedback_source AS (
+                SELECT
+                    h.history_id::int AS history_id,
+                    h.source_assignment_id::int AS assignment_id,
+                    h.employee_id::int AS employee_id,
+                    e.name AS employee_name,
+                    h.title,
+                    h.start_date,
+                    h.end_date,
+                    h.archived_at,
+                    TRUE AS is_completed
+                FROM "AssignmentHistory" h
+                LEFT JOIN "Employees" e ON h.employee_id = e.employee_id
+                WHERE h.user_id = %s
+
+                UNION ALL
+
+                SELECT
+                    NULL::int AS history_id,
+                    a.assignment_id::int AS assignment_id,
+                    a.employee_id::int AS employee_id,
+                    e.name AS employee_name,
+                    a.title,
+                    a.start_date,
+                    a.end_date,
+                    NULL::timestamp AS archived_at,
+                    FALSE AS is_completed
+                FROM "Assignments" a
+                LEFT JOIN "Employees" e ON a.employee_id = e.employee_id
+                WHERE a.user_id = %s
+            )
+            SELECT
+                fs.history_id,
+                fs.assignment_id,
+                fs.employee_id,
+                fs.employee_name,
+                fs.title,
+                fs.start_date,
+                fs.end_date,
+                fs.archived_at,
+                fs.is_completed,
+                rt.task_id,
+                rl.performance_rating,
+                rl.feedback_notes
+            FROM feedback_source fs
+            LEFT JOIN "RecommendationTasks" rt ON rt.assignment_id = fs.assignment_id
+            LEFT JOIN "RecommendationLog" rl
+              ON rl.task_id = rt.task_id AND rl.manager_selected = TRUE
+            ORDER BY fs.end_date DESC NULLS LAST
+            LIMIT %s;
+            """,
+            (user_id, user_id, int(limit)),
+        )
+        rows = cur.fetchall()
+        items = []
+        for row in rows:
+            items.append({
+                "history_id": row[0],
+                "assignment_id": row[1],
+                "employee_id": row[2],
+                "employee_name": row[3] or "Unassigned",
+                "title": row[4],
+                "start_date": str(row[5]),
+                "end_date": str(row[6]) if row[6] else None,
+                "archived_at": row[7].isoformat() if row[7] else None,
+                "is_completed": bool(row[8]),
+                "task_id": row[9],
+                "performance_rating": row[10],
+                "feedback_notes": row[11],
+            })
+
+        return {"completed": items}
+
+    except Exception as exc:
+        raise TaskProcessingError(500, str(exc))
+    finally:
+        cur.close()
+        conn.close()
+
+
+# ----------------------------------------------------------
 # create new assignment entry
 # ----------------------------------------------------------
 # validates:

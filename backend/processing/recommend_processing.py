@@ -1,7 +1,13 @@
 from typing import Optional
 
 from db import get_connection
+from datetime import date
+
 from processing.nlp.task_matching import match_employees
+from processing.recommendation_log_processing import (
+    create_recommendation_task,
+    log_recommendations,
+)
 
 
 # ----------------------------------------------------------
@@ -111,4 +117,24 @@ def generate_recommendations(
         raise RecommendationError(400, "user_id is required")
 
     # run the matching engine and return ranking results
-    return match_employees(task_description, user_id, start_date, end_date)
+    recommendations = match_employees(task_description, user_id, start_date, end_date)
+
+    # record the recommendation request + ranked results for evaluation
+    try:
+        start_dt = date.fromisoformat(str(start_date))
+        end_dt = date.fromisoformat(str(end_date))
+        task_id = create_recommendation_task(
+            user_id,
+            task_description,
+            start_dt,
+            end_dt,
+        )
+        log_recommendations(task_id, recommendations)
+    except Exception:
+        # recommendation logging should not block the response
+        task_id = None
+
+    return {
+        "task_id": task_id,
+        "recommendations": recommendations,
+    }

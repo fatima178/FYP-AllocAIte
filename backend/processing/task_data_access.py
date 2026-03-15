@@ -298,6 +298,39 @@ def fetch_employees_by_user(user_id: int) -> List[Dict[str, Any]]:
 
 
 # ----------------------------------------------------------
+# fetch feedback history for an employee
+# ----------------------------------------------------------
+def fetch_employee_feedback(user_id: int, employee_id: int, limit: int = 30) -> List[Dict[str, Any]]:
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute(
+            """
+            SELECT
+                rt.task_description,
+                rl.performance_rating
+            FROM "RecommendationLog" rl
+            JOIN "RecommendationTasks" rt ON rl.task_id = rt.task_id
+            WHERE rt.user_id = %s
+              AND rl.employee_id = %s
+              AND rl.manager_selected = TRUE
+              AND rl.performance_rating IS NOT NULL
+            ORDER BY COALESCE(rl.feedback_at, rl.created_at) DESC
+            LIMIT %s;
+            """,
+            (user_id, employee_id, int(limit)),
+        )
+        return [
+            {"task_description": row[0], "performance_rating": row[1]}
+            for row in cur.fetchall()
+        ]
+    finally:
+        cur.close()
+        conn.close()
+
+
+# ----------------------------------------------------------
 # calculate assignment-based availability ratio (0 → 1)
 # ----------------------------------------------------------
 # logic:

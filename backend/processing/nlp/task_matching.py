@@ -2,6 +2,7 @@ from sentence_transformers import SentenceTransformer, util
 from ..task_data_access import (
     fetch_employees_by_user,
     calculate_assignment_availability,
+    fetch_employee_feedback,
 )
 from .task_scoring import (
     normalize_experience,
@@ -245,6 +246,35 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
     ranked = []
 
     # evaluate each employee individually
+    feedback_cache = {}
+    task_phrase_cache = {}
+
+    def _feedback_score(task_emb, feedback_items):
+        if not feedback_items:
+            return 0.0
+        rating_weight = {
+            "Excellent": 1.0,
+            "Good": 0.7,
+            "Average": 0.4,
+            "Poor": 0.0,
+        }
+        scored = []
+        for item in feedback_items:
+            desc = str(item.get("task_description") or "").strip()
+            rating = str(item.get("performance_rating") or "").strip()
+            if not desc or rating not in rating_weight:
+                continue
+            emb = task_phrase_cache.get(desc)
+            if emb is None:
+                emb = model.encode(desc, convert_to_tensor=True)
+                task_phrase_cache[desc] = emb
+            sim = float(util.cos_sim(task_emb, emb).item())
+            scored.append(sim * rating_weight[rating])
+        if not scored:
+            return 0.0
+        top = sorted(scored, reverse=True)[:3]
+        return max(0.0, min(1.0, sum(top) / len(top)))
+
     for idx, emp in enumerate(employees):
 
         # semantic similarity between task and employee profile
@@ -322,7 +352,9 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
         )
 
         # learning goals are a secondary signal
-        goal_matches = semantic_skill_match(model, task_description, emp.get("learning_goals") or [], threshold=0.4)
+        raw_goals = emp.get("learning_goals") or []
+        clean_goals = [g for g in raw_goals if str(g or "").strip()]
+        goal_matches = semantic_skill_match(model, task_description, clean_goals, threshold=0.4)
         goal_score = (
             sum(m["score"] for m in goal_matches) / len(goal_matches)
             if goal_matches else 0
@@ -370,9 +402,17 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
         # preferences + learning goals free-text score
         preferences_score = 0.0
         growth_text = str(emp.get("growth_text") or "").strip()
+        preferences_present = bool(growth_text)
         if growth_text:
             pref_emb = model.encode(growth_text, convert_to_tensor=True)
             preferences_score = float(util.cos_sim(task_emb, pref_emb).item())
+
+        # feedback score: past ratings on similar tasks
+        emp_feedback = feedback_cache.get(emp["employee_id"])
+        if emp_feedback is None:
+            emp_feedback = fetch_employee_feedback(user_id, emp["employee_id"])
+            feedback_cache[emp["employee_id"]] = emp_feedback
+        feedback_score = _feedback_score(task_emb, emp_feedback)
 
         # availability score ranges from 0 (fully unavailable) to 1 (fully available)
         availability = calculate_assignment_availability(
@@ -397,6 +437,8 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
                 exp_score,
                 role_score,
                 availability,
+                feedback_score,
+                preferences_present,
                 display_matched_labels,
                 matched_soft_labels,
                 display_possible_skill_labels or possible_skill_labels,

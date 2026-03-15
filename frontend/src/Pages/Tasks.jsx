@@ -100,6 +100,17 @@ function TasksPage() {
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const [completedTasks, setCompletedTasks] = useState([]);
+  const [completedLoading, setCompletedLoading] = useState(false);
+  const [completedError, setCompletedError] = useState('');
+
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackTarget, setFeedbackTarget] = useState(null);
+  const [feedbackRating, setFeedbackRating] = useState('');
+  const [feedbackNotes, setFeedbackNotes] = useState('');
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackPanelOpen, setFeedbackPanelOpen] = useState(false);
+
   const viewDays = useMemo(() => viewWeeks * 7, [viewWeeks]);
 
   // Monday + (viewDays - 1) = end of visible range
@@ -191,10 +202,31 @@ function TasksPage() {
     }
   }, [userId, weekStart, viewWeeks]);
 
+  const fetchCompletedTasks = useCallback(async () => {
+    if (!userId) return;
+    setCompletedLoading(true);
+    setCompletedError('');
+    try {
+      const payload = await apiFetch(
+        `/tasks/completed?user_id=${userId}&limit=20`
+      );
+      setCompletedTasks(Array.isArray(payload.completed) ? payload.completed : []);
+    } catch (err) {
+      setCompletedError(err.message || 'Unable to load completed tasks.');
+      setCompletedTasks([]);
+    } finally {
+      setCompletedLoading(false);
+    }
+  }, [userId]);
+
   // reload tasks whenever the selected week changes
   useEffect(() => {
     fetchWeekData();
   }, [fetchWeekData]);
+
+  useEffect(() => {
+    fetchCompletedTasks();
+  }, [fetchCompletedTasks]);
 
   // allows moving forward/backward in increments of one week
   const changeWeek = (pageOffset) => {
@@ -218,6 +250,45 @@ function TasksPage() {
     if (saving) return;
     setShowModal(false);
     setFormError('');
+  };
+
+  const openFeedbackModal = (task) => {
+    setFeedbackTarget(task);
+    setFeedbackRating(task?.performance_rating || '');
+    setFeedbackNotes(task?.feedback_notes || '');
+    setFeedbackPanelOpen(false);
+    setFeedbackOpen(true);
+  };
+
+  const submitFeedback = async () => {
+    if (!feedbackTarget || !feedbackTarget.task_id) return;
+    if (!feedbackRating) {
+      setCompletedError('Please select a performance rating.');
+      return;
+    }
+    setFeedbackSubmitting(true);
+    setCompletedError('');
+    try {
+      const payload = {
+        user_id: Number(userId),
+        task_id: Number(feedbackTarget.task_id),
+        employee_id: Number(feedbackTarget.employee_id),
+        performance_rating: feedbackRating,
+        feedback_notes: feedbackNotes.trim() || null,
+      };
+      await apiFetch('/recommend/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      setFeedbackOpen(false);
+      setFeedbackTarget(null);
+      await fetchCompletedTasks();
+    } catch (err) {
+      setCompletedError(err.message || 'Unable to submit feedback.');
+    } finally {
+      setFeedbackSubmitting(false);
+    }
   };
 
   // open edit modal for a task
@@ -366,6 +437,13 @@ function TasksPage() {
           </div>
 
           <div className="tasks-header__actions">
+            <button
+              type="button"
+              className="ghost-btn"
+              onClick={() => setFeedbackPanelOpen(true)}
+            >
+              Feedback
+            </button>
             <button type="button" className="primary-btn" onClick={openModal}>
               Add task
             </button>
@@ -656,6 +734,120 @@ function TasksPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {feedbackOpen && feedbackTarget && (
+        <div className="task-modal">
+          <div className="task-modal__content">
+            <div className="task-modal__header">
+              <h2>Assignment Feedback</h2>
+              <button type="button" onClick={() => setFeedbackOpen(false)} aria-label="Close">
+                ×
+              </button>
+            </div>
+            <form>
+              <label>
+                Performance rating
+                <select
+                  value={feedbackRating}
+                  onChange={(e) => setFeedbackRating(e.target.value)}
+                  disabled={feedbackSubmitting}
+                >
+                  <option value="">Select rating</option>
+                  <option value="Excellent">Excellent</option>
+                  <option value="Good">Good</option>
+                  <option value="Average">Average</option>
+                  <option value="Poor">Poor</option>
+                </select>
+              </label>
+              <label>
+                Optional feedback notes
+                <textarea
+                  rows={3}
+                  value={feedbackNotes}
+                  onChange={(e) => setFeedbackNotes(e.target.value)}
+                  disabled={feedbackSubmitting}
+                />
+              </label>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  onClick={() => setFeedbackOpen(false)}
+                  disabled={feedbackSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={submitFeedback}
+                  disabled={feedbackSubmitting}
+                >
+                  {feedbackSubmitting ? 'Submitting...' : 'Submit Feedback'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {feedbackPanelOpen && (
+        <div className="task-modal">
+          <div className="task-modal__content">
+            <div className="task-modal__header">
+              <h2>Completed Tasks Feedback</h2>
+              <button type="button" onClick={() => setFeedbackPanelOpen(false)} aria-label="Close">
+                ×
+              </button>
+            </div>
+
+            {completedLoading && <p className="calendar-message">Loading completed tasks...</p>}
+            {completedError && <p className="calendar-message error">{completedError}</p>}
+
+            {!completedLoading && !completedError && completedTasks.length === 0 && (
+              <p className="calendar-message empty">No completed tasks yet.</p>
+            )}
+
+            <p className="calendar-message">
+              Feedback can be submitted for recommendation-generated tasks, even if they are still in progress.
+            </p>
+
+            <div className="completed-list">
+              {completedTasks
+                .filter((task) => task.task_id)
+                .map((task) => (
+                <div key={task.history_id} className="completed-card">
+                  <div>
+                    <h4>{task.title}</h4>
+                    <p className="completed-meta">
+                      {task.employee_name} • {task.start_date} – {task.end_date}
+                    </p>
+                  </div>
+                  <div className="completed-actions">
+                    {task.performance_rating ? (
+                      <button
+                        type="button"
+                        className="ghost-btn"
+                        onClick={() => openFeedbackModal(task)}
+                      >
+                        Edit Feedback ({task.performance_rating})
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="primary-btn"
+                        onClick={() => openFeedbackModal(task)}
+                      >
+                        Add Feedback
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
