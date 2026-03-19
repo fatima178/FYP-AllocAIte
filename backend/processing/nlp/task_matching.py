@@ -262,13 +262,32 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
         for item in feedback_items:
             desc = str(item.get("task_description") or "").strip()
             rating = str(item.get("performance_rating") or "").strip()
-            if not desc or rating not in rating_weight:
+            notes = str(item.get("feedback_notes") or "").strip()
+            if rating not in rating_weight:
                 continue
-            emb = task_phrase_cache.get(desc)
-            if emb is None:
-                emb = model.encode(desc, convert_to_tensor=True)
-                task_phrase_cache[desc] = emb
-            sim = float(util.cos_sim(task_emb, emb).item())
+
+            similarity_parts = []
+
+            if desc:
+                desc_emb = task_phrase_cache.get(desc)
+                if desc_emb is None:
+                    desc_emb = model.encode(desc, convert_to_tensor=True)
+                    task_phrase_cache[desc] = desc_emb
+                similarity_parts.append(float(util.cos_sim(task_emb, desc_emb).item()))
+
+            if notes:
+                # Manager notes often capture nuanced strengths/weaknesses that
+                # the original task title misses, so fold them into similarity.
+                notes_emb = task_phrase_cache.get(notes)
+                if notes_emb is None:
+                    notes_emb = model.encode(notes, convert_to_tensor=True)
+                    task_phrase_cache[notes] = notes_emb
+                similarity_parts.append(float(util.cos_sim(task_emb, notes_emb).item()))
+
+            if not similarity_parts:
+                continue
+
+            sim = sum(similarity_parts) / len(similarity_parts)
             scored.append(sim * rating_weight[rating])
         if not scored:
             return 0.0

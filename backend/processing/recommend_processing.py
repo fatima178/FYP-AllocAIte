@@ -8,6 +8,120 @@ from processing.recommendation_log_processing import (
     create_recommendation_task,
     log_recommendations,
 )
+from processing.task_data_access import fetch_employees_by_user
+
+
+SKILL_KEYWORDS = [
+    "python", "java", "javascript", "typescript", "react", "vue", "angular",
+    "node", "node.js", "express", "django", "flask", "fastapi", "spring",
+    "sql", "postgres", "mysql", "mongodb", "redis", "api", "rest", "graphql",
+    "frontend", "backend", "full stack", "fullstack", "ui", "ux", "figma",
+    "design", "testing", "qa", "automation", "devops", "docker", "kubernetes",
+    "terraform", "aws", "azure", "gcp", "data", "analytics", "etl", "bi",
+    "machine learning", "ml", "ai", "nlp", "tensorflow", "pytorch",
+    "ios", "android", "react native", "swift", "kotlin", "security",
+]
+
+ROLE_HINTS = {
+    "Frontend developer": {"react", "vue", "angular", "frontend", "ui", "ux", "figma", "design"},
+    "Backend developer": {"python", "java", "node", "node.js", "express", "django", "flask", "fastapi", "spring", "backend", "api", "rest", "graphql", "sql", "postgres", "mysql", "mongodb", "redis"},
+    "Full-stack developer": {"frontend", "backend", "react", "javascript", "typescript", "node", "api", "sql"},
+    "DevOps engineer": {"devops", "docker", "kubernetes", "terraform", "aws", "azure", "gcp"},
+    "Data specialist": {"data", "analytics", "etl", "bi", "sql", "python"},
+    "ML engineer": {"machine learning", "ml", "ai", "nlp", "tensorflow", "pytorch", "python"},
+    "QA engineer": {"testing", "qa", "automation"},
+    "Product designer": {"ui", "ux", "figma", "design"},
+    "Mobile developer": {"ios", "android", "react native", "swift", "kotlin"},
+    "Security engineer": {"security"},
+}
+
+
+def _extract_task_skill_hints(task_description: str):
+    text = str(task_description or "").lower()
+    found = []
+    for skill in sorted(SKILL_KEYWORDS, key=len, reverse=True):
+        if skill in text:
+            found.append(skill)
+
+    unique = []
+    seen = set()
+    for skill in found:
+        normalized = skill.replace(".js", "").strip()
+        if normalized not in seen:
+            unique.append(skill)
+            seen.add(normalized)
+    return unique
+
+
+def _suggest_hiring_roles(missing_skills):
+    if not missing_skills:
+        return []
+
+    missing = {str(skill).lower() for skill in missing_skills}
+    scored_roles = []
+    for role, role_skills in ROLE_HINTS.items():
+        overlap = len(missing & role_skills)
+        if overlap > 0:
+            scored_roles.append((overlap, role))
+
+    scored_roles.sort(key=lambda item: (-item[0], item[1]))
+    return [role for _, role in scored_roles[:3]]
+
+
+def _build_gap_analysis(task_description: str, user_id: int, recommendations):
+    employees = fetch_employees_by_user(user_id)
+    org_skills = set()
+    for employee in employees:
+        for skill in employee.get("skills") or []:
+            normalized = str(skill or "").strip().lower()
+            if normalized:
+                org_skills.add(normalized)
+        for skill in employee.get("soft_skills") or []:
+            normalized = str(skill or "").strip().lower()
+            if normalized:
+                org_skills.add(normalized)
+
+    task_skills = _extract_task_skill_hints(task_description)
+    missing_skills = [
+        skill for skill in task_skills
+        if skill.replace(".js", "").strip().lower() not in org_skills
+    ]
+
+    top_score = 0
+    strong_matches = 0
+    for rec in recommendations or []:
+        score = rec.get("score_percent")
+        if isinstance(score, (int, float)):
+            top_score = max(top_score, float(score))
+            if score >= 60:
+                strong_matches += 1
+
+    weak_internal_fit = (
+        not recommendations or
+        top_score < 55 or
+        strong_matches == 0 or
+        len(missing_skills) > 0
+    )
+    if not weak_internal_fit:
+        return None
+
+    suggested_roles = _suggest_hiring_roles(missing_skills)
+    severity = "high" if not recommendations or top_score < 45 or len(missing_skills) >= 2 else "medium"
+
+    if not recommendations:
+        message = "No internal employee was recommended for this task. Consider hiring or contracting for the missing capability."
+    elif missing_skills:
+        message = "Current internal coverage looks weak for this task. Some required skills are missing from the team."
+    else:
+        message = "Current recommendations are relatively weak for this task. You may need extra hiring or external support."
+
+    return {
+        "severity": severity,
+        "message": message,
+        "top_score": round(top_score),
+        "missing_skills": missing_skills[:5],
+        "suggested_roles": suggested_roles,
+    }
 
 
 # ----------------------------------------------------------
@@ -118,6 +232,7 @@ def generate_recommendations(
 
     # run the matching engine and return ranking results
     recommendations = match_employees(task_description, user_id, start_date, end_date)
+    gap_analysis = _build_gap_analysis(task_description, user_id, recommendations)
 
     # record the recommendation request + ranked results for evaluation
     try:
@@ -137,4 +252,5 @@ def generate_recommendations(
     return {
         "task_id": task_id,
         "recommendations": recommendations,
+        "gap_analysis": gap_analysis,
     }

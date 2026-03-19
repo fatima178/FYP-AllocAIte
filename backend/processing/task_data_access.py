@@ -309,7 +309,8 @@ def fetch_employee_feedback(user_id: int, employee_id: int, limit: int = 30) -> 
             """
             SELECT
                 rt.task_description,
-                rl.performance_rating
+                rl.performance_rating,
+                rl.feedback_notes
             FROM "RecommendationLog" rl
             JOIN "RecommendationTasks" rt ON rl.task_id = rt.task_id
             WHERE rt.user_id = %s
@@ -322,7 +323,11 @@ def fetch_employee_feedback(user_id: int, employee_id: int, limit: int = 30) -> 
             (user_id, employee_id, int(limit)),
         )
         return [
-            {"task_description": row[0], "performance_rating": row[1]}
+            {
+                "task_description": row[0],
+                "performance_rating": row[1],
+                "feedback_notes": row[2],
+            }
             for row in cur.fetchall()
         ]
     finally:

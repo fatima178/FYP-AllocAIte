@@ -43,6 +43,8 @@ function RecommendationsPage() {
     }
   }, []);
 
+  const gapAnalysis = taskContext?.gap_analysis || null;
+
   // general status messages (error, success, info)
   const [status, setStatus] = useState({ type: null, message: "" });
 
@@ -190,6 +192,30 @@ function RecommendationsPage() {
           <p className={`status-message ${status.type || ""}`}>
             {status.message}
           </p>
+        )}
+
+        {gapAnalysis && (
+          <div className={`gap-alert ${gapAnalysis.severity || "medium"}`}>
+            <div className="gap-alert-header">
+              <h3>Team Coverage Alert</h3>
+              {typeof gapAnalysis.top_score === "number" && (
+                <span className="gap-score">Top match {gapAnalysis.top_score}%</span>
+              )}
+            </div>
+            <p>{gapAnalysis.message}</p>
+            {Array.isArray(gapAnalysis.missing_skills) && gapAnalysis.missing_skills.length > 0 && (
+              <p>
+                <strong>Missing skills:</strong>{" "}
+                {gapAnalysis.missing_skills.map(capSkill).join(", ")}
+              </p>
+            )}
+            {Array.isArray(gapAnalysis.suggested_roles) && gapAnalysis.suggested_roles.length > 0 && (
+              <p>
+                <strong>Suggested hire profiles:</strong>{" "}
+                {gapAnalysis.suggested_roles.join(", ")}
+              </p>
+            )}
+          </div>
         )}
 
         <div className="recommendations-actions">

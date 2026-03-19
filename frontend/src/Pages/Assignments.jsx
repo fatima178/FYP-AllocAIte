@@ -77,6 +77,7 @@ function AssignmentsPage() {
           start_date: startDate,
           end_date: endDate,
           task_id: data?.task_id ?? null,
+          gap_analysis: data?.gap_analysis ?? null,
         })
       );
 
