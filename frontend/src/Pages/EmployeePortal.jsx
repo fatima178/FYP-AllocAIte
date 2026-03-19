@@ -82,6 +82,7 @@ function EmployeePortalPage() {
 
   const technicalSkills = useMemo(() => profile?.technical_skills || [], [profile]);
   const softSkills = useMemo(() => profile?.soft_skills || [], [profile]);
+  const pendingSkillRequests = useMemo(() => profile?.pending_skill_requests || [], [profile]);
 
   const existingSkillIndex = useMemo(() => {
     const index = new Map();
@@ -150,7 +151,7 @@ function EmployeePortalPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: Number(userId), skills: payload }),
       });
-      setSkillStatus({ type: 'success', message: 'Skills updated.' });
+      setSkillStatus({ type: 'success', message: 'Skills submitted for manager approval.' });
       setSelfSkills([{ skill_name: '', years_experience: '', skill_type: 'technical' }]);
       await refreshProfile();
     } catch (err) {
@@ -167,7 +168,7 @@ function EmployeePortalPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: Number(userId), skills: pendingSkills }),
       });
-      setSkillStatus({ type: 'success', message: 'Skills updated.' });
+      setSkillStatus({ type: 'success', message: 'Skills submitted for manager approval.' });
       setSelfSkills([{ skill_name: '', years_experience: '', skill_type: 'technical' }]);
       setPendingSkills(null);
       await refreshProfile();
@@ -307,7 +308,7 @@ function EmployeePortalPage() {
           <div className="employee-grid">
             <section className="panel panel-intro">
               <h2>Recorded Skills</h2>
-              <p className="muted">Technical and soft skills recorded in your profile.</p>
+              <p className="muted">Only manager-approved skills appear here and are used in recommendations.</p>
               <div className="tags">
                 <div className="tag-group">
                   <p className="tag-title">Technical</p>
@@ -379,7 +380,7 @@ function EmployeePortalPage() {
 
             <section className="panel">
               <h2>Your Current Skills</h2>
-              <p className="muted">Add or update skills you want reflected in recommendations.</p>
+              <p className="muted">Submit skills for manager approval before they affect recommendations.</p>
               <form onSubmit={submitSkills}>
                 {skillWarning && (
                   <div className="inline-warning">
@@ -458,6 +459,21 @@ function EmployeePortalPage() {
                   <p className={`status ${skillStatus.type || ''}`}>{skillStatus.message}</p>
                 )}
               </form>
+
+              <div className="pending-skills-block">
+                <p className="tag-title">Pending approval</p>
+                {pendingSkillRequests.length > 0 ? (
+                  <div className="tags">
+                    {pendingSkillRequests.map((skill) => (
+                      <span key={skill.request_id} className="tag pending-tag">
+                        {capSkill(skill.skill_name)} ({skill.years_experience}y, {skill.skill_type})
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="empty">No pending skill requests.</p>
+                )}
+              </div>
             </section>
 
             <section className="panel panel-wide">

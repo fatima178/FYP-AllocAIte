@@ -217,7 +217,8 @@ def init_db():
             weight_role FLOAT,
             weight_availability FLOAT,
             weight_fairness FLOAT,
-            weight_preferences FLOAT
+            weight_preferences FLOAT,
+            weight_feedback FLOAT
         );
     """)
 
@@ -246,6 +247,28 @@ def init_db():
     cur.execute('UPDATE "EmployeeSkills" SET skill_type = COALESCE(skill_type, \'technical\');')
     cur.execute('ALTER TABLE "EmployeeLearningGoals" ADD COLUMN IF NOT EXISTS notes TEXT;')
     cur.execute('ALTER TABLE "EmployeePreferences" ADD COLUMN IF NOT EXISTS growth_text TEXT;')
+    cur.execute('ALTER TABLE "EmployeeSelfSkills" ADD COLUMN IF NOT EXISTS skill_type VARCHAR(20) DEFAULT \'technical\';')
+    cur.execute('ALTER TABLE "EmployeeSelfSkills" ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT \'pending\';')
+    cur.execute('ALTER TABLE "EmployeeSelfSkills" ADD COLUMN IF NOT EXISTS approved_by_user_id INT REFERENCES "Users"(user_id) ON DELETE SET NULL;')
+    cur.execute('ALTER TABLE "EmployeeSelfSkills" ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP;')
+    cur.execute('ALTER TABLE "EmployeeSelfSkills" ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMP;')
+    cur.execute('UPDATE "EmployeeSelfSkills" SET skill_type = COALESCE(skill_type, \'technical\');')
+    cur.execute('UPDATE "EmployeeSelfSkills" SET status = COALESCE(status, \'pending\');')
+    cur.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conname = 'employee_self_skills_status_check'
+            ) THEN
+                ALTER TABLE "EmployeeSelfSkills"
+                ADD CONSTRAINT employee_self_skills_status_check
+                CHECK (status IN ('pending', 'approved', 'rejected'));
+            END IF;
+        END
+        $$;
+    """)
     cur.execute('ALTER TABLE "EmployeeCalendarEntries" ADD COLUMN IF NOT EXISTS label TEXT;')
     cur.execute('ALTER TABLE "EmployeeCalendarEntries" ADD COLUMN IF NOT EXISTS start_date DATE;')
     cur.execute('ALTER TABLE "EmployeeCalendarEntries" ADD COLUMN IF NOT EXISTS end_date DATE;')
@@ -260,6 +283,7 @@ def init_db():
     cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_availability FLOAT;')
     cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_fairness FLOAT;')
     cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_preferences FLOAT;')
+    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_feedback FLOAT;')
     cur.execute('UPDATE "Users" SET account_type = COALESCE(account_type, \'manager\');')
     cur.execute('ALTER TABLE "RecommendationTasks" ADD COLUMN IF NOT EXISTS assignment_id INT REFERENCES "Assignments"(assignment_id) ON DELETE SET NULL;')
     # indexes to speed up availability calculations and dashboard queries
@@ -274,6 +298,7 @@ def init_db():
     cur.execute('CREATE INDEX IF NOT EXISTS idx_skill_type ON "EmployeeSkills"(skill_type);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_self_skill_employee ON "EmployeeSelfSkills"(employee_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_self_skill_name ON "EmployeeSelfSkills"(skill_name);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_self_skill_status ON "EmployeeSelfSkills"(status);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_goal_employee ON "EmployeeLearningGoals"(employee_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_goal_skill ON "EmployeeLearningGoals"(skill_name);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_pref_employee ON "EmployeePreferences"(employee_id);')

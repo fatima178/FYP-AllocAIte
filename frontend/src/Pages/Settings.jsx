@@ -6,6 +6,36 @@ import { apiFetch, API_BASE_URL } from "../api";
 // default values for UI appearance
 const DEFAULT_THEME = "light";
 const DEFAULT_FONT_SIZE = "medium";
+const FIXED_SEMANTIC_WEIGHT = 0.35;
+const DEFAULT_MANAGER_WEIGHTS = {
+  skills_fit: 0.25,
+  experience_role: 0.23,
+  availability_balance: 0.12,
+  growth_potential: 0.05,
+  past_feedback: 0.03,
+};
+const GROUP_TO_DETAIL_SHARES = {
+  skills_fit: {
+    skill: 0.88,
+    possible_skill: 0.02,
+    soft_skill: 0.08,
+    possible_soft_skill: 0.02,
+  },
+  experience_role: {
+    experience: 0.652174,
+    role: 0.347826,
+  },
+  availability_balance: {
+    availability: 0.833333,
+    fairness: 0.166667,
+  },
+  growth_potential: {
+    preferences: 1.0,
+  },
+  past_feedback: {
+    feedback: 1.0,
+  },
+};
 
 // toggles a CSS class on <body> to switch between light/dark mode
 const applyThemeClass = (value) => {
@@ -119,18 +149,8 @@ function SettingsPage() {
   const [fontSize, setFontSize] = useState(() =>
     readPreference("fontSize", DEFAULT_FONT_SIZE)
   );
-  const FIXED_SEMANTIC_WEIGHT = 0.35;
   const [weights, setWeights] = useState({
-    semantic: FIXED_SEMANTIC_WEIGHT,
-    skill: 0.22,
-    possible_skill: 0.005,
-    soft_skill: 0.02,
-    possible_soft_skill: 0.005,
-    experience: 0.15,
-    role: 0.08,
-    availability: 0.10,
-    fairness: 0.02,
-    preferences: 0.05,
+    ...DEFAULT_MANAGER_WEIGHTS,
   });
 
   // fetch account + appearance settings when page loads
@@ -163,19 +183,21 @@ function SettingsPage() {
           writePreference("fontSize", data.font_size);
         }
         if (data.weights) {
-          setWeights((prev) => ({
-            semantic: FIXED_SEMANTIC_WEIGHT,
-            skill: data.weights.skill ?? prev.skill,
-            possible_skill: data.weights.possible_skill ?? prev.possible_skill,
-            soft_skill: data.weights.soft_skill ?? prev.soft_skill,
-            possible_soft_skill:
-              data.weights.possible_soft_skill ?? prev.possible_soft_skill,
-            experience: data.weights.experience ?? prev.experience,
-            role: data.weights.role ?? prev.role,
-            availability: data.weights.availability ?? prev.availability,
-            fairness: data.weights.fairness ?? prev.fairness,
-            preferences: data.weights.preferences ?? prev.preferences,
-          }));
+          setWeights({
+            skills_fit:
+              (data.weights.skill ?? 0) +
+              (data.weights.possible_skill ?? 0) +
+              (data.weights.soft_skill ?? 0) +
+              (data.weights.possible_soft_skill ?? 0),
+            experience_role:
+              (data.weights.experience ?? 0) +
+              (data.weights.role ?? 0),
+            availability_balance:
+              (data.weights.availability ?? 0) +
+              (data.weights.fairness ?? 0),
+            growth_potential: data.weights.preferences ?? DEFAULT_MANAGER_WEIGHTS.growth_potential,
+            past_feedback: data.weights.feedback ?? DEFAULT_MANAGER_WEIGHTS.past_feedback,
+          });
         }
       } catch (err) {
         setError(err.message || "Unable to load settings.");
@@ -248,14 +270,10 @@ function SettingsPage() {
   const formatWeight = (key, value) => {
     const num = Number(value);
     if (Number.isNaN(num)) return value;
-    if (key === "possible_skill" || key === "possible_soft_skill") {
-      return num.toFixed(3);
-    }
     return num.toFixed(2);
   };
 
   const updateWeight = (key, value) => {
-    if (key === "semantic") return;
     setWeights((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -274,10 +292,20 @@ function SettingsPage() {
     if (total <= 0) {
       return "Total weight must be greater than 0.";
     }
-    if (Math.abs(total - 1) > 0.05) {
-      return `Total weight should be close to 1.00 (current: ${total.toFixed(2)}).`;
-    }
     return "";
+  };
+
+  const expandGroupedWeights = (groupedWeights) => {
+    const detailed = { semantic: FIXED_SEMANTIC_WEIGHT };
+
+    Object.entries(GROUP_TO_DETAIL_SHARES).forEach(([groupKey, mapping]) => {
+      const groupValue = Number(groupedWeights[groupKey] || 0);
+      Object.entries(mapping).forEach(([detailKey, share]) => {
+        detailed[detailKey] = Number((groupValue * share).toFixed(6));
+      });
+    });
+
+    return detailed;
   };
 
   const saveWeights = () => {
@@ -287,24 +315,19 @@ function SettingsPage() {
       setTimeout(() => setStatus(""), 2500);
       return;
     }
-    updateSettings({ use_custom_weights: true, weights }, "Weightings saved.");
+    updateSettings(
+      { use_custom_weights: true, weights: expandGroupedWeights(weights) },
+      "Weightings saved."
+    );
   };
 
   const resetWeights = () => {
-    const defaults = {
-      semantic: FIXED_SEMANTIC_WEIGHT,
-      skill: 0.22,
-      possible_skill: 0.005,
-      soft_skill: 0.02,
-      possible_soft_skill: 0.005,
-      experience: 0.15,
-      role: 0.08,
-      availability: 0.10,
-      fairness: 0.02,
-      preferences: 0.05,
-    };
+    const defaults = { ...DEFAULT_MANAGER_WEIGHTS };
     setWeights(defaults);
-    updateSettings({ use_custom_weights: true, weights: defaults }, "Weightings reset.");
+    updateSettings(
+      { use_custom_weights: true, weights: expandGroupedWeights(defaults) },
+      "Weightings reset."
+    );
   };
 
   const exportAllData = async () => {
@@ -767,71 +790,26 @@ function SettingsPage() {
         {activeSection === "weights" && (
         <div className="settings-card">
           <h2>Ranking Weightings</h2>
-          <p className="muted">Customise how recommendations are ranked.</p>
+          <p className="muted">Customise recommendation priorities using a simpler manager view.</p>
 
           <div className="form-grid">
             <label>
-              Task Relevance (fixed)
-              <div className="readonly-weight">{weights.semantic.toFixed(2)}</div>
-            </label>
-            <label>
-              Technical Skill Match
+              Skills Fit
               <input
                 type="number"
                 step="0.01"
                 min="0"
-                value={formatWeight("skill", weights.skill)}
-                onChange={(e) => updateWeight("skill", e.target.value)}
+                value={formatWeight("skills_fit", weights.skills_fit)}
+                onChange={(e) => updateWeight("skills_fit", e.target.value)}
               />
             </label>
             <label>
-              Possible Technical Skill Match
+              Experience & Role
               <input
-                type="number"
-                step="0.001"
-                min="0"
-                value={formatWeight("possible_skill", weights.possible_skill)}
-                onChange={(e) => updateWeight("possible_skill", e.target.value)}
-              />
-            </label>
-            <label>
-              Soft Skill Match
-              <input
-                type="number"
                 step="0.01"
                 min="0"
-                value={formatWeight("soft_skill", weights.soft_skill)}
-                onChange={(e) => updateWeight("soft_skill", e.target.value)}
-              />
-            </label>
-            <label>
-              Possible Soft Skill Match
-              <input
-                type="number"
-                step="0.001"
-                min="0"
-                value={formatWeight("possible_soft_skill", weights.possible_soft_skill)}
-                onChange={(e) => updateWeight("possible_soft_skill", e.target.value)}
-              />
-            </label>
-            <label>
-              Experience
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formatWeight("experience", weights.experience)}
-                onChange={(e) => updateWeight("experience", e.target.value)}
-              />
-            </label>
-            <label>
-              Role Fit
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formatWeight("role", weights.role)}
-                onChange={(e) => updateWeight("role", e.target.value)}
+                value={formatWeight("experience_role", weights.experience_role)}
+                onChange={(e) => updateWeight("experience_role", e.target.value)}
               />
             </label>
             <label>
@@ -840,30 +818,57 @@ function SettingsPage() {
                 type="number"
                 step="0.01"
                 min="0"
-                value={formatWeight("availability", weights.availability)}
-                onChange={(e) => updateWeight("availability", e.target.value)}
+                value={formatWeight("availability_balance", weights.availability_balance)}
+                onChange={(e) => updateWeight("availability_balance", e.target.value)}
               />
             </label>
             <label>
-              Fairness
+              Growth Potential
               <input
                 type="number"
                 step="0.01"
                 min="0"
-                value={formatWeight("fairness", weights.fairness)}
-                onChange={(e) => updateWeight("fairness", e.target.value)}
+                value={formatWeight("growth_potential", weights.growth_potential)}
+                onChange={(e) => updateWeight("growth_potential", e.target.value)}
               />
             </label>
             <label>
-              Employee Preference
+              Past Feedback
               <input
                 type="number"
                 step="0.01"
                 min="0"
-                value={formatWeight("preferences", weights.preferences)}
-                onChange={(e) => updateWeight("preferences", e.target.value)}
+                value={formatWeight("past_feedback", weights.past_feedback)}
+                onChange={(e) => updateWeight("past_feedback", e.target.value)}
               />
             </label>
+          </div>
+
+          <p className="weighting-hint">
+            Increasing one weighting reduces all others proportionally. Semantic similarity remains fixed.
+          </p>
+
+          <div className="weighting-summary">
+            <div className="weighting-summary__item">
+              <strong>Skills Fit</strong>
+              <span>Technical, possible, and soft skill signals</span>
+            </div>
+            <div className="weighting-summary__item">
+              <strong>Experience & Role</strong>
+              <span>Relevant experience and role match</span>
+            </div>
+            <div className="weighting-summary__item">
+              <strong>Availability</strong>
+              <span>Availability and workload balance</span>
+            </div>
+            <div className="weighting-summary__item">
+              <strong>Growth Potential</strong>
+              <span>Preferences and learning goals</span>
+            </div>
+            <div className="weighting-summary__item">
+              <strong>Past Feedback</strong>
+              <span>Historical manager feedback on similar tasks</span>
+            </div>
           </div>
 
           <div className="button-row">

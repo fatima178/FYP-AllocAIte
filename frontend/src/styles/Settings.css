@@ -91,6 +91,39 @@
   font-size: 22px;
 }
 
+.weighting-hint {
+  margin: 16px 0 0;
+  font-size: 0.92rem;
+  color: var(--text);
+  opacity: 0.75;
+}
+
+.weighting-summary {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+
+.weighting-summary__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.weighting-summary__item strong {
+  font-size: 0.95rem;
+}
+
+.weighting-summary__item span {
+  font-size: 0.88rem;
+  color: var(--text);
+  opacity: 0.75;
+}
+
 .button-row {
   display: flex;
   gap: 12px;

@@ -74,6 +74,30 @@ def _fetch_employee_skills(cur, employee_id: int, skill_type: str) -> List[Dict[
     return [{"skill_name": s, "years_experience": y} for s, y in cur.fetchall()]
 
 
+def _fetch_pending_self_skills(cur, employee_id: int) -> List[Dict[str, Any]]:
+    cur.execute(
+        """
+        SELECT id, skill_name, years_experience, skill_type, status, updated_at
+        FROM "EmployeeSelfSkills"
+        WHERE employee_id = %s
+          AND status = 'pending'
+        ORDER BY updated_at DESC, skill_name ASC;
+        """,
+        (employee_id,),
+    )
+    return [
+        {
+            "request_id": row[0],
+            "skill_name": row[1],
+            "years_experience": row[2],
+            "skill_type": row[3],
+            "status": row[4],
+            "updated_at": row[5].isoformat() if row[5] else None,
+        }
+        for row in cur.fetchall()
+    ]
+
+
 def _fetch_learning_goals(cur, employee_id: int) -> List[Dict[str, Any]]:
     cur.execute(
         """
@@ -183,6 +207,7 @@ def get_employee_profile(user_id: int) -> Dict[str, Any]:
         record = _fetch_employee_record(cur, employee_id)
         technical_skills = _fetch_employee_skills(cur, employee_id, "technical")
         soft_skills = _fetch_employee_skills(cur, employee_id, "soft")
+        pending_skill_requests = _fetch_pending_self_skills(cur, employee_id)
         learning_goals = _fetch_learning_goals(cur, employee_id)
         preferences = _fetch_preferences(cur, employee_id)
         assignments = _fetch_assignments(cur, employee_id)
@@ -191,6 +216,7 @@ def get_employee_profile(user_id: int) -> Dict[str, Any]:
             **record,
             "technical_skills": technical_skills,
             "soft_skills": soft_skills,
+            "pending_skill_requests": pending_skill_requests,
             "learning_goals": learning_goals,
             "preferences": preferences,
             **assignments,
@@ -310,10 +336,11 @@ def update_employee_self_skills(user_id: int, skills_raw) -> Dict[str, Any]:
             cur.execute(
                 """
                 SELECT id
-                FROM "EmployeeSkills"
+                FROM "EmployeeSelfSkills"
                 WHERE employee_id = %s
                   AND LOWER(skill_name) = LOWER(%s)
-                  AND skill_type = %s;
+                  AND skill_type = %s
+                  AND status = 'pending';
                 """,
                 (employee_id, item["skill_name"], item["skill_type"]),
             )
@@ -321,8 +348,9 @@ def update_employee_self_skills(user_id: int, skills_raw) -> Dict[str, Any]:
             if row:
                 cur.execute(
                     """
-                    UPDATE "EmployeeSkills"
-                    SET years_experience = %s
+                    UPDATE "EmployeeSelfSkills"
+                    SET years_experience = %s,
+                        updated_at = CURRENT_TIMESTAMP
                     WHERE id = %s;
                     """,
                     (item["years_experience"], row[0]),
@@ -330,13 +358,19 @@ def update_employee_self_skills(user_id: int, skills_raw) -> Dict[str, Any]:
             else:
                 cur.execute(
                     """
-                    INSERT INTO "EmployeeSkills" (employee_id, skill_name, years_experience, skill_type)
-                    VALUES (%s, %s, %s, %s);
+                    INSERT INTO "EmployeeSelfSkills" (
+                        employee_id,
+                        skill_name,
+                        years_experience,
+                        skill_type,
+                        status
+                    )
+                    VALUES (%s, %s, %s, %s, 'pending');
                     """,
                     (employee_id, item["skill_name"], item["years_experience"], item["skill_type"]),
                 )
         conn.commit()
-        return {"employee_id": employee_id, "skill_count": len(skills)}
+        return {"employee_id": employee_id, "skill_count": len(skills), "status": "pending"}
     except EmployeeProfileError:
         conn.rollback()
         raise
@@ -372,6 +406,158 @@ def delete_employee_skill(user_id: int, skill_name: str, skill_type: str) -> Dic
         deleted = cur.rowcount or 0
         conn.commit()
         return {"employee_id": employee_id, "deleted": deleted}
+    except Exception as exc:
+        conn.rollback()
+        raise EmployeeProfileError(500, str(exc))
+    finally:
+        cur.close()
+        conn.close()
+
+
+def fetch_pending_skill_requests(manager_user_id: int) -> Dict[str, Any]:
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            'SELECT account_type FROM "Users" WHERE user_id = %s;',
+            (manager_user_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise EmployeeProfileError(404, "user not found")
+        if row[0] != "manager":
+            raise EmployeeProfileError(403, "user is not a manager account")
+
+        cur.execute(
+            """
+            SELECT
+                ess.id,
+                ess.skill_name,
+                ess.years_experience,
+                ess.skill_type,
+                ess.updated_at,
+                e.employee_id,
+                e.name
+            FROM "EmployeeSelfSkills" ess
+            JOIN "Employees" e ON e.employee_id = ess.employee_id
+            WHERE e.user_id = %s
+              AND ess.status = 'pending'
+            ORDER BY ess.updated_at DESC, e.name ASC;
+            """,
+            (manager_user_id,),
+        )
+        return {
+            "pending_skill_requests": [
+                {
+                    "request_id": row[0],
+                    "skill_name": row[1],
+                    "years_experience": row[2],
+                    "skill_type": row[3],
+                    "updated_at": row[4].isoformat() if row[4] else None,
+                    "employee_id": row[5],
+                    "employee_name": row[6],
+                }
+                for row in cur.fetchall()
+            ]
+        }
+    finally:
+        cur.close()
+        conn.close()
+
+
+def review_pending_skill_request(manager_user_id: int, request_id: int, approve: bool) -> Dict[str, Any]:
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            'SELECT account_type FROM "Users" WHERE user_id = %s;',
+            (manager_user_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise EmployeeProfileError(404, "user not found")
+        if row[0] != "manager":
+            raise EmployeeProfileError(403, "user is not a manager account")
+
+        cur.execute(
+            """
+            SELECT ess.employee_id, ess.skill_name, ess.years_experience, ess.skill_type, ess.status
+            FROM "EmployeeSelfSkills" ess
+            JOIN "Employees" e ON e.employee_id = ess.employee_id
+            WHERE ess.id = %s
+              AND e.user_id = %s;
+            """,
+            (request_id, manager_user_id),
+        )
+        request = cur.fetchone()
+        if not request:
+            raise EmployeeProfileError(404, "skill request not found")
+
+        employee_id, skill_name, years_experience, skill_type, status = request
+        if status != "pending":
+            raise EmployeeProfileError(400, "skill request has already been reviewed")
+
+        if approve:
+            cur.execute(
+                """
+                SELECT id
+                FROM "EmployeeSkills"
+                WHERE employee_id = %s
+                  AND LOWER(skill_name) = LOWER(%s)
+                  AND skill_type = %s;
+                """,
+                (employee_id, skill_name, skill_type),
+            )
+            existing = cur.fetchone()
+            if existing:
+                cur.execute(
+                    """
+                    UPDATE "EmployeeSkills"
+                    SET years_experience = %s
+                    WHERE id = %s;
+                    """,
+                    (years_experience, existing[0]),
+                )
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO "EmployeeSkills" (employee_id, skill_name, years_experience, skill_type)
+                    VALUES (%s, %s, %s, %s);
+                    """,
+                    (employee_id, skill_name, years_experience, skill_type),
+                )
+
+            cur.execute(
+                """
+                UPDATE "EmployeeSelfSkills"
+                SET status = 'approved',
+                    approved_by_user_id = %s,
+                    approved_at = CURRENT_TIMESTAMP,
+                    rejected_at = NULL
+                WHERE id = %s;
+                """,
+                (manager_user_id, request_id),
+            )
+            final_status = "approved"
+        else:
+            cur.execute(
+                """
+                UPDATE "EmployeeSelfSkills"
+                SET status = 'rejected',
+                    approved_by_user_id = %s,
+                    approved_at = NULL,
+                    rejected_at = CURRENT_TIMESTAMP
+                WHERE id = %s;
+                """,
+                (manager_user_id, request_id),
+            )
+            final_status = "rejected"
+
+        conn.commit()
+        return {"request_id": request_id, "status": final_status}
+    except EmployeeProfileError:
+        conn.rollback()
+        raise
     except Exception as exc:
         conn.rollback()
         raise EmployeeProfileError(500, str(exc))

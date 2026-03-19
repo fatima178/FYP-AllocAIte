@@ -33,7 +33,8 @@ def fetch_user_settings(user_id: int):
                    s.weight_role,
                    s.weight_availability,
                    s.weight_fairness,
-                   s.weight_preferences
+                   s.weight_preferences,
+                   s.weight_feedback
             FROM "Users" u
             LEFT JOIN "UserSettings" s ON u.user_id = s.user_id
             WHERE u.user_id = %s;
@@ -61,6 +62,7 @@ def fetch_user_settings(user_id: int):
                 "availability": row[13],
                 "fairness": row[14],
                 "preferences": row[15],
+                "feedback": row[16],
             },
         }
 
@@ -91,6 +93,7 @@ def _normalise_weights(weights: dict):
         "availability",
         "fairness",
         "preferences",
+        "feedback",
     ):
         value = weights.get(key)
         if value is None or value == "":
@@ -153,7 +156,8 @@ def persist_user_settings(
                 weight_role = COALESCE(%s, weight_role),
                 weight_availability = COALESCE(%s, weight_availability),
                 weight_fairness = COALESCE(%s, weight_fairness),
-                weight_preferences = COALESCE(%s, weight_preferences)
+                weight_preferences = COALESCE(%s, weight_preferences),
+                weight_feedback = COALESCE(%s, weight_feedback)
             WHERE user_id = %s;
         """, (
             theme,
@@ -169,6 +173,7 @@ def persist_user_settings(
             normalized.get("availability") if normalized else None,
             normalized.get("fairness") if normalized else None,
             normalized.get("preferences") if normalized else None,
+            normalized.get("feedback") if normalized else None,
             user_id,
         ))
 

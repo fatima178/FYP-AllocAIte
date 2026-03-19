@@ -109,6 +109,15 @@
   gap: 6px;
 }
 
+.pending-tag {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+}
+
+.pending-skills-block {
+  margin-top: 8px;
+}
+
 .tag-delete {
   border: none;
   background: rgba(31, 59, 179, 0.15);

@@ -106,6 +106,62 @@ body,
   --name-col-width: 180px;
 }
 
+.tasks-section-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  color: var(--text);
+  margin-bottom: 1.5rem;
+}
+
+.tasks-section-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.tasks-section-card__header h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.15rem;
+}
+
+.tasks-section-card__header p {
+  margin: 0;
+  color: var(--muted-text);
+}
+
+.approval-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.approval-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+
+.approval-card p {
+  margin: 0.35rem 0 0;
+  color: var(--muted-text);
+}
+
+.approval-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
 .tasks-calendar-nav {
   display: flex;
   justify-content: space-between;
@@ -402,6 +458,11 @@ body,
 
 @media (max-width: 720px) {
   .tasks-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .approval-card {
     flex-direction: column;
     align-items: flex-start;
   }

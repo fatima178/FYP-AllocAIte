@@ -8,6 +8,8 @@ from processing.employee_profile_processing import (
     get_employee_settings,
     update_employee_self_skills,
     delete_employee_skill,
+    fetch_pending_skill_requests,
+    review_pending_skill_request,
     update_learning_goals,
     update_preferences,
 )
@@ -58,6 +60,33 @@ def employee_delete_skill(user_id: int, skill_name: str, skill_type: str):
         raise HTTPException(400, "skill_type is required")
     try:
         return delete_employee_skill(int(user_id), skill_name, skill_type)
+    except EmployeeProfileError as exc:
+        raise HTTPException(exc.status_code, exc.message)
+
+
+@router.get("/employee/skills/pending")
+def employee_pending_skills(user_id: int):
+    if not user_id:
+        raise HTTPException(400, "user_id is required")
+    try:
+        return fetch_pending_skill_requests(int(user_id))
+    except EmployeeProfileError as exc:
+        raise HTTPException(exc.status_code, exc.message)
+
+
+@router.post("/employee/skills/review")
+def employee_review_skill(payload: dict):
+    user_id = payload.get("user_id")
+    request_id = payload.get("request_id")
+    approve = payload.get("approve")
+    if not user_id:
+        raise HTTPException(400, "user_id is required")
+    if not request_id:
+        raise HTTPException(400, "request_id is required")
+    if approve is None:
+        raise HTTPException(400, "approve is required")
+    try:
+        return review_pending_skill_request(int(user_id), int(request_id), bool(approve))
     except EmployeeProfileError as exc:
         raise HTTPException(exc.status_code, exc.message)
 

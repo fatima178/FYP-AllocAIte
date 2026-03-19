@@ -30,6 +30,93 @@
   margin-bottom: 2.5rem;
 }
 
+.approval-panel {
+  width: 100%;
+  max-width: 950px;
+  margin: 0 auto 1.5rem;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.approval-panel__header h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+}
+
+.approval-panel__header p {
+  margin: 0;
+  color: var(--text);
+  opacity: 0.75;
+}
+
+.approval-panel__message {
+  margin: 1rem 0 0;
+  color: var(--text);
+  opacity: 0.75;
+}
+
+.approval-panel__message.error {
+  color: #b91c1c;
+  opacity: 1;
+}
+
+.approval-list {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.approval-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.approval-card p {
+  margin: 0.35rem 0 0;
+  color: var(--text);
+  opacity: 0.75;
+}
+
+.approval-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.approval-btn {
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.approval-btn.primary {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.approval-btn.secondary {
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text);
+}
+
+.approval-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--card-border);
@@ -137,6 +224,18 @@
   margin-bottom: 0.5rem;
 }
 
+.skill-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0.65rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  background: var(--card);
+  color: var(--text);
+}
+
 .skills-filter-list {
   max-height: 180px;
   overflow-y: auto;
@@ -189,6 +288,11 @@
 
   .availability-range {
     grid-template-columns: 1fr;
+  }
+
+  .approval-card {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

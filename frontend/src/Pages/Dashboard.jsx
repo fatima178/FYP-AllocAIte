@@ -4,6 +4,7 @@ import '../styles/Dashboard.css';
 import { apiFetch } from '../api';
 
 function DashboardPage() {
+  const accountType = localStorage.getItem('account_type') || 'manager';
   // holds the user_id of the logged-in user
   // this value is required for all dashboard API calls
   const [userId, setUserId] = useState(null);
@@ -18,6 +19,7 @@ function DashboardPage() {
 
   // the currently selected skills to filter by
   const [selectedSkills, setSelectedSkills] = useState([]);
+  const [skillSearch, setSkillSearch] = useState('');
 
   // current availability filter (available/partial/busy)
   const [availability, setAvailability] = useState('');
@@ -35,6 +37,10 @@ function DashboardPage() {
 
   // dashboard-wide error message, e.g. backend offline
   const [error, setError] = useState(null);
+  const [pendingSkillRequests, setPendingSkillRequests] = useState([]);
+  const [pendingSkillLoading, setPendingSkillLoading] = useState(false);
+  const [pendingSkillError, setPendingSkillError] = useState('');
+  const [reviewingSkillId, setReviewingSkillId] = useState(null);
 
   const [skillsOpen, setSkillsOpen] = useState(false);
   const capSkill = (value) => {
@@ -152,6 +158,28 @@ function DashboardPage() {
     fetchSkills();
   }, [userId]);
 
+  useEffect(() => {
+    if (!userId || accountType !== 'manager') return;
+
+    const fetchPendingSkillRequests = async () => {
+      setPendingSkillLoading(true);
+      setPendingSkillError('');
+      try {
+        const payload = await apiFetch(`/employee/skills/pending?user_id=${userId}`);
+        setPendingSkillRequests(
+          Array.isArray(payload.pending_skill_requests) ? payload.pending_skill_requests : []
+        );
+      } catch (err) {
+        setPendingSkillError(err.message || 'Unable to load skill requests.');
+        setPendingSkillRequests([]);
+      } finally {
+        setPendingSkillLoading(false);
+      }
+    };
+
+    fetchPendingSkillRequests();
+  }, [userId, accountType]);
+
   // handler for multi-select skill selection
   const handleSkillChange = (event) => {
     const { value, checked } = event.target;
@@ -181,6 +209,31 @@ function DashboardPage() {
     setAppliedRange({ start: '', end: '' });
   };
 
+  const reviewSkillRequest = async (requestId, approve) => {
+    if (!userId || !requestId) return;
+    setReviewingSkillId(requestId);
+    setPendingSkillError('');
+    try {
+      await apiFetch('/employee/skills/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: Number(userId),
+          request_id: Number(requestId),
+          approve,
+        }),
+      });
+
+      setPendingSkillRequests((prev) =>
+        prev.filter((item) => item.request_id !== requestId)
+      );
+    } catch (err) {
+      setPendingSkillError(err.message || 'Unable to review skill request.');
+    } finally {
+      setReviewingSkillId(null);
+    }
+  };
+
   const availabilityLabel = appliedRange.start && appliedRange.end
     ? `Availability (${appliedRange.start} → ${appliedRange.end})`
     : 'Weekly Availability';
@@ -200,6 +253,10 @@ function DashboardPage() {
   const selectedRangeLabel = appliedRange.start && appliedRange.end
     ? `${appliedRange.start} → ${appliedRange.end}`
     : 'Filter by date range';
+
+  const filteredAvailableSkills = availableSkills.filter((skill) =>
+    String(skill || "").toLowerCase().includes(skillSearch.trim().toLowerCase())
+  );
 
   return (
     <>
@@ -234,6 +291,55 @@ function DashboardPage() {
                 </div>
               </div>
 
+              {accountType === 'manager' && (pendingSkillLoading || pendingSkillError || pendingSkillRequests.length > 0) && (
+                <div className="approval-panel">
+                  <div className="approval-panel__header">
+                    <div>
+                      <h2>Skill Approval</h2>
+                      <p>Review self reported employee skills before they affect recommendations.</p>
+                    </div>
+                  </div>
+
+                  {pendingSkillLoading && (
+                    <p className="approval-panel__message">Loading skill requests...</p>
+                  )}
+                  {pendingSkillError && (
+                    <p className="approval-panel__message error">{pendingSkillError}</p>
+                  )}
+
+                  {!pendingSkillLoading && pendingSkillRequests.length > 0 && (
+                    <div className="approval-list">
+                      {pendingSkillRequests.map((item) => (
+                        <div key={item.request_id} className="approval-card">
+                          <div>
+                            <strong>{capSkill(item.skill_name)}</strong>
+                            <p>{item.employee_name} • {item.skill_type} • {item.years_experience} years</p>
+                          </div>
+                          <div className="approval-actions">
+                            <button
+                              type="button"
+                              className="approval-btn secondary"
+                              disabled={reviewingSkillId === item.request_id}
+                              onClick={() => reviewSkillRequest(item.request_id, false)}
+                            >
+                              Reject
+                            </button>
+                            <button
+                              type="button"
+                              className="approval-btn primary"
+                              disabled={reviewingSkillId === item.request_id}
+                              onClick={() => reviewSkillRequest(item.request_id, true)}
+                            >
+                              {reviewingSkillId === item.request_id ? 'Saving...' : 'Approve'}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* search bar and filters */}
               <div className="dashboard-filters">
                 {/* text search for name or role */}
@@ -257,11 +363,20 @@ function DashboardPage() {
                   {skillsOpen && (
                     <div className="filter-panel" role="listbox" aria-label="Filter by skills">
                       <div className="filter-panel-header">Filter by skills</div>
+                      <input
+                        type="text"
+                        className="skill-search-input"
+                        placeholder="Search skills..."
+                        value={skillSearch}
+                        onChange={(e) => setSkillSearch(e.target.value)}
+                      />
                       {availableSkills.length === 0 ? (
                         <div className="skills-empty">No skills available</div>
+                      ) : filteredAvailableSkills.length === 0 ? (
+                        <div className="skills-empty">No skills match your search</div>
                       ) : (
                         <div className="skills-filter-list">
-                          {availableSkills.map((skill) => (
+                          {filteredAvailableSkills.map((skill) => (
                             <label key={skill} className="skill-option">
                               <input
                                 type="checkbox"
