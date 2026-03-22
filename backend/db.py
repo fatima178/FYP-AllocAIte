@@ -184,6 +184,7 @@ def init_db():
             manager_selected BOOLEAN DEFAULT FALSE,
             performance_rating VARCHAR(20),
             feedback_notes TEXT,
+            outcome_tags TEXT,
             feedback_at TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             CHECK (performance_rating IS NULL OR performance_rating IN ('Excellent', 'Good', 'Average', 'Poor'))
@@ -286,6 +287,7 @@ def init_db():
     cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_feedback FLOAT;')
     cur.execute('UPDATE "Users" SET account_type = COALESCE(account_type, \'manager\');')
     cur.execute('ALTER TABLE "RecommendationTasks" ADD COLUMN IF NOT EXISTS assignment_id INT REFERENCES "Assignments"(assignment_id) ON DELETE SET NULL;')
+    cur.execute('ALTER TABLE "RecommendationLog" ADD COLUMN IF NOT EXISTS outcome_tags TEXT;')
     # indexes to speed up availability calculations and dashboard queries
     cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_employee ON "Assignments"(employee_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_dates ON "Assignments"(start_date, end_date);')

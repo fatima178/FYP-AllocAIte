@@ -53,6 +53,14 @@ const TIMELINE_MIN_HEIGHT = 70;
 const LANE_HEIGHT = 44;
 const LANE_GAP = 8;
 const LANE_BASE_OFFSET = 10;
+const OUTCOME_TAG_OPTIONS = [
+  'Delivered on time',
+  'High quality',
+  'Needed support',
+  'Exceeded expectations',
+  'Communication issues',
+  'Scope changed',
+];
 
 function TasksPage() {
   const userId = localStorage.getItem('user_id');
@@ -108,6 +116,7 @@ function TasksPage() {
   const [feedbackTarget, setFeedbackTarget] = useState(null);
   const [feedbackRating, setFeedbackRating] = useState('');
   const [feedbackNotes, setFeedbackNotes] = useState('');
+  const [feedbackOutcomeTags, setFeedbackOutcomeTags] = useState([]);
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [feedbackPanelOpen, setFeedbackPanelOpen] = useState(false);
 
@@ -256,6 +265,7 @@ function TasksPage() {
     setFeedbackTarget(task);
     setFeedbackRating(task?.performance_rating || '');
     setFeedbackNotes(task?.feedback_notes || '');
+    setFeedbackOutcomeTags(Array.isArray(task?.outcome_tags) ? task.outcome_tags : []);
     setFeedbackPanelOpen(false);
     setFeedbackOpen(true);
   };
@@ -275,6 +285,7 @@ function TasksPage() {
         employee_id: Number(feedbackTarget.employee_id),
         performance_rating: feedbackRating,
         feedback_notes: feedbackNotes.trim() || null,
+        outcome_tags: feedbackOutcomeTags,
       };
       await apiFetch('/recommend/feedback', {
         method: 'POST',
@@ -771,6 +782,27 @@ function TasksPage() {
                   disabled={feedbackSubmitting}
                 />
               </label>
+              <div className="outcome-tags-group">
+                <p className="outcome-tags-title">Outcome tags</p>
+                <div className="outcome-tags-options">
+                  {OUTCOME_TAG_OPTIONS.map((tag) => (
+                    <label key={tag} className="outcome-tag-option">
+                      <input
+                        type="checkbox"
+                        checked={feedbackOutcomeTags.includes(tag)}
+                        onChange={(e) => {
+                          setFeedbackOutcomeTags((prev) => {
+                            if (e.target.checked) return [...prev, tag];
+                            return prev.filter((item) => item !== tag);
+                          });
+                        }}
+                        disabled={feedbackSubmitting}
+                      />
+                      <span>{tag}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
               <div className="modal-actions">
                 <button
                   type="button"
@@ -825,6 +857,15 @@ function TasksPage() {
                     <p className="completed-meta">
                       {task.employee_name} • {task.start_date} – {task.end_date}
                     </p>
+                    {Array.isArray(task.outcome_tags) && task.outcome_tags.length > 0 && (
+                      <div className="outcome-tag-list">
+                        {task.outcome_tags.map((tag) => (
+                          <span key={`${task.task_id}-${tag}`} className="outcome-tag-pill">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="completed-actions">
                     {task.performance_rating ? (

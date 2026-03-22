@@ -13,6 +13,10 @@ from processing.settings_processing import (
     verify_user_password,
 )
 from processing.export_processing import export_manager_data
+from processing.recommendation_log_processing import (
+    RecommendationLogError,
+    fetch_recommendation_history,
+)
 
 router = APIRouter()
 
@@ -102,3 +106,11 @@ def export_settings(user_id: int):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename=\"{filename}\"'},
     )
+
+
+@router.get("/settings/recommendation-history")
+def get_recommendation_history(user_id: int, limit: int = 10, offset: int = 0):
+    try:
+        return fetch_recommendation_history(user_id, limit, offset)
+    except RecommendationLogError as exc:
+        raise HTTPException(exc.status_code, exc.message)

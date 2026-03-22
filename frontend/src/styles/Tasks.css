@@ -397,6 +397,51 @@ body,
   margin: 0;
 }
 
+.outcome-tags-group {
+  margin-top: 0.25rem;
+}
+
+.outcome-tags-title {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.outcome-tags-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.outcome-tag-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  font-size: 0.88rem;
+}
+
+.outcome-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+}
+
+.outcome-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 .completed-list {
   display: grid;
   gap: 0.8rem;

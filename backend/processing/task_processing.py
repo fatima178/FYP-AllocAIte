@@ -246,7 +246,8 @@ def fetch_completed_tasks(user_id: int, limit: int = 20) -> dict:
                 fs.is_completed,
                 rt.task_id,
                 rl.performance_rating,
-                rl.feedback_notes
+                rl.feedback_notes,
+                rl.outcome_tags
             FROM feedback_source fs
             LEFT JOIN "RecommendationTasks" rt ON rt.assignment_id = fs.assignment_id
             LEFT JOIN "RecommendationLog" rl
@@ -272,6 +273,7 @@ def fetch_completed_tasks(user_id: int, limit: int = 20) -> dict:
                 "task_id": row[9],
                 "performance_rating": row[10],
                 "feedback_notes": row[11],
+                "outcome_tags": [part.strip() for part in str(row[12] or "").split("|") if part.strip()],
             })
 
         return {"completed": items}

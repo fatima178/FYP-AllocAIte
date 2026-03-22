@@ -14,6 +14,7 @@ const DEFAULT_MANAGER_WEIGHTS = {
   growth_potential: 0.05,
   past_feedback: 0.03,
 };
+const HISTORY_PAGE_SIZE = 5;
 const GROUP_TO_DETAIL_SHARES = {
   skills_fit: {
     skill: 0.88,
@@ -137,6 +138,17 @@ function SettingsPage() {
   const [inviteLink, setInviteLink] = useState("");
   const [inviteSaving, setInviteSaving] = useState(false);
   const [activeSection, setActiveSection] = useState("account");
+  const [historyItems, setHistoryItems] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
+
+  const buildHistoryTitle = (item) => {
+    const assignmentTitle = String(item?.assignment_title || "").trim();
+    if (assignmentTitle) return assignmentTitle;
+    return String(item?.task_description || "").trim();
+  };
 
   // display formatting for "member since"
   const formatMemberSince = (value) => {
@@ -230,6 +242,32 @@ function SettingsPage() {
   useEffect(() => {
     fetchEmployees();
   }, []);
+
+  useEffect(() => {
+    const userId = localStorage.getItem("user_id");
+    if (!userId || activeSection !== "history") return;
+
+    const fetchHistory = async () => {
+      setHistoryLoading(true);
+      setHistoryError("");
+      try {
+        const offset = (historyPage - 1) * HISTORY_PAGE_SIZE;
+        const data = await apiFetch(
+          `/settings/recommendation-history?user_id=${userId}&limit=${HISTORY_PAGE_SIZE}&offset=${offset}`
+        );
+        setHistoryItems(Array.isArray(data.history) ? data.history : []);
+        setHistoryTotal(Number(data.total) || 0);
+      } catch (err) {
+        setHistoryError(err.message || "Unable to load recommendation history.");
+        setHistoryItems([]);
+        setHistoryTotal(0);
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [activeSection, historyPage]);
 
   // apply theme + font size whenever they change
   useEffect(() => {
@@ -728,6 +766,10 @@ function SettingsPage() {
     }
   };
 
+  const historyTotalPages = Math.max(1, Math.ceil(historyTotal / HISTORY_PAGE_SIZE));
+  const historyStart = historyTotal === 0 ? 0 : (historyPage - 1) * HISTORY_PAGE_SIZE + 1;
+  const historyEnd = Math.min(historyPage * HISTORY_PAGE_SIZE, historyTotal);
+
   return (
     <div className="settings-page">
       {/* top navigation bar */}
@@ -763,6 +805,16 @@ function SettingsPage() {
             onClick={() => setActiveSection("team")}
           >
             Team
+          </button>
+          <button
+            type="button"
+            className={activeSection === "history" ? "active" : ""}
+            onClick={() => {
+              setHistoryPage(1);
+              setActiveSection("history");
+            }}
+          >
+            History
           </button>
           <button
             type="button"
@@ -935,6 +987,114 @@ function SettingsPage() {
               Reset to Default
             </button>
           </div>
+        </div>
+        )}
+
+        {activeSection === "history" && (
+        <div className="settings-card">
+          <h2>Recommendation History</h2>
+          <p className="muted">Revisit previous recommendation requests, selections, and follow-up feedback.</p>
+
+          {historyLoading && <p className="muted">Loading recommendation history...</p>}
+          {historyError && <p className="status-message error">{historyError}</p>}
+
+          {!historyLoading && !historyError && historyItems.length === 0 && (
+            <p className="muted">No recommendation history yet.</p>
+          )}
+
+          {!historyLoading && historyItems.length > 0 && (
+            <>
+              <div className="history-pagination">
+                <p className="muted">
+                  Showing {historyStart}-{historyEnd} of {historyTotal} requests
+                </p>
+                <div className="history-pagination__actions">
+                  <button
+                    type="button"
+                    onClick={() => setHistoryPage((prev) => Math.max(1, prev - 1))}
+                    disabled={historyLoading || historyPage === 1}
+                  >
+                    Previous
+                  </button>
+                  <span className="history-page-indicator">
+                    Page {historyPage} of {historyTotalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryPage((prev) => Math.min(historyTotalPages, prev + 1))}
+                    disabled={historyLoading || historyPage >= historyTotalPages}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+
+              <div className="history-list">
+                {historyItems.map((item) => (
+                  <div key={item.task_id} className="history-card">
+                    <div className="history-card__header">
+                      <div>
+                        <h3>{buildHistoryTitle(item)}</h3>
+                        <p className="history-meta">
+                          {item.start_date} – {item.end_date}
+                        </p>
+                      </div>
+                      <span className="history-badge">Request #{item.task_id}</span>
+                    </div>
+
+                    {item.assignment_title && item.assignment_title.trim() !== item.task_description?.trim() && (
+                      <p className="history-description">{item.task_description}</p>
+                    )}
+
+                    <div className="history-grid">
+                      <div>
+                        <strong>Chosen employee</strong>
+                        <p>{item.selected_employee_name || "Not assigned from recommendations"}</p>
+                      </div>
+                      <div>
+                        <strong>Rating</strong>
+                        <p>{item.performance_rating || "No rating yet"}</p>
+                      </div>
+                      <div>
+                        <strong>Feedback date</strong>
+                        <p>{item.feedback_at ? new Date(item.feedback_at).toLocaleString() : "No feedback yet"}</p>
+                      </div>
+                    </div>
+
+                    {Array.isArray(item.outcome_tags) && item.outcome_tags.length > 0 && (
+                      <div className="history-tags">
+                        {item.outcome_tags.map((tag) => (
+                          <span key={`${item.task_id}-${tag}`} className="history-tag">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {item.feedback_notes && (
+                      <div className="history-notes">
+                        <strong>Notes</strong>
+                        <p>{item.feedback_notes}</p>
+                      </div>
+                    )}
+
+                    {Array.isArray(item.top_candidates) && item.top_candidates.length > 0 && (
+                      <div className="history-candidates">
+                        <strong>Top recommendations</strong>
+                        <div className="history-candidate-list">
+                          {item.top_candidates.map((candidate) => (
+                            <span key={`${item.task_id}-${candidate.rank}-${candidate.employee_id}`} className="history-candidate">
+                              #{candidate.rank} {candidate.employee_name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
         )}
 

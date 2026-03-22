@@ -142,6 +142,7 @@ def submit_feedback(data: dict):
     employee_id = data.get("employee_id")
     rating = data.get("performance_rating")
     notes = data.get("feedback_notes")
+    outcome_tags = data.get("outcome_tags")
 
     if not user_id or not task_id or not employee_id:
         raise HTTPException(400, "user_id, task_id, and employee_id are required")
@@ -155,6 +156,7 @@ def submit_feedback(data: dict):
             int(employee_id),
             str(rating),
             str(notes).strip() if notes is not None else None,
+            outcome_tags if isinstance(outcome_tags, list) else None,
         )
         return {"message": "Feedback submitted successfully."}
     except RecommendationLogError as exc:
