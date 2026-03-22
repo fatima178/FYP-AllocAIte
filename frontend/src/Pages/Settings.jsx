@@ -117,9 +117,15 @@ function SettingsPage() {
   const [employeeSkills, setEmployeeSkills] = useState([
     { skill_name: "", years_experience: "", skill_type: "technical" },
   ]);
+  const [existingEmployeeId, setExistingEmployeeId] = useState("");
+  const [existingEmployeeSkills, setExistingEmployeeSkills] = useState([
+    { skill_name: "", years_experience: "", skill_type: "technical" },
+  ]);
   const [skillError, setSkillError] = useState(null);
   const [employeeStatus, setEmployeeStatus] = useState(null);
   const [employeeSaving, setEmployeeSaving] = useState(false);
+  const [existingSkillStatus, setExistingSkillStatus] = useState(null);
+  const [existingSkillSaving, setExistingSkillSaving] = useState(false);
 
   // employee invite form
   const [employeeOptions, setEmployeeOptions] = useState([]);
@@ -209,20 +215,19 @@ function SettingsPage() {
     fetchSettings();
   }, []);
 
-  // fetch employee list for login creation
-  useEffect(() => {
+  const fetchEmployees = async () => {
     const userId = localStorage.getItem("user_id");
     if (!userId) return;
+    try {
+      const data = await apiFetch(`/employees?user_id=${userId}`);
+      setEmployeeOptions(data.employees || []);
+    } catch (err) {
+      setEmployeeOptions([]);
+    }
+  };
 
-    const fetchEmployees = async () => {
-      try {
-        const data = await apiFetch(`/employees?user_id=${userId}`);
-        setEmployeeOptions(data.employees || []);
-      } catch (err) {
-        setEmployeeOptions([]);
-      }
-    };
-
+  // fetch employee list for login creation
+  useEffect(() => {
     fetchEmployees();
   }, []);
 
@@ -508,10 +513,61 @@ function SettingsPage() {
         department: "",
       });
       setEmployeeSkills([{ skill_name: "", years_experience: "", skill_type: "technical" }]);
+      await fetchEmployees();
     } catch (err) {
       setEmployeeStatus({ type: "error", message: err.message || "Unable to add employee." });
     } finally {
       setEmployeeSaving(false);
+    }
+  };
+
+  const submitExistingEmployeeSkills = async (event) => {
+    event.preventDefault();
+    setExistingSkillStatus(null);
+    setSkillError(null);
+
+    const userId = localStorage.getItem("user_id");
+    if (!userId) {
+      setExistingSkillStatus({ type: "error", message: "Please log in again." });
+      return;
+    }
+    if (!existingEmployeeId) {
+      setExistingSkillStatus({ type: "error", message: "Please choose an employee." });
+      return;
+    }
+
+    setExistingSkillSaving(true);
+    try {
+      const skillsPayload = existingEmployeeSkills
+        .filter((skill) =>
+          String(skill.skill_name || "").trim() ||
+          String(skill.years_experience || "").trim()
+        )
+        .map((skill) => ({
+          skill_name: skill.skill_name,
+          years_experience: skill.years_experience,
+          skill_type: skill.skill_type || "technical",
+        }));
+
+      await apiFetch(`/employees/${Number(existingEmployeeId)}/skills`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: Number(userId),
+          skills: skillsPayload,
+        }),
+      });
+
+      setExistingSkillStatus({ type: "success", message: "Skills added for existing employee." });
+      setExistingEmployeeSkills([{ skill_name: "", years_experience: "", skill_type: "technical" }]);
+      await fetchEmployees();
+    } catch (err) {
+      setExistingSkillStatus({
+        type: "error",
+        message: err.message || "Unable to update employee skills.",
+      });
+    } finally {
+      setExistingSkillSaving(false);
     }
   };
 
@@ -897,6 +953,133 @@ function SettingsPage() {
 
         {/* EMPLOYEE MANAGEMENT SECTION */}
         {activeSection === "team" && (
+        <>
+        <div className="settings-card">
+          <h2>Add Skills To Existing Employee</h2>
+          <p className="muted">Select an existing employee and add or update their technical or soft skills.</p>
+
+          <form className="settings-form" onSubmit={submitExistingEmployeeSkills}>
+            <div className="form-grid">
+              <label>
+                Employee
+                <select
+                  value={existingEmployeeId}
+                  onChange={(e) => setExistingEmployeeId(e.target.value)}
+                >
+                  <option value="">Select employee</option>
+                  {employeeOptions.map((emp) => (
+                    <option key={emp.employee_id} value={emp.employee_id}>
+                      {emp.name} (ID {emp.employee_id})
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="skill-rows">
+                {existingEmployeeSkills.map((skill, index) => (
+                  <div key={index} className="form-grid skill-row">
+                    <label>
+                      Skill Type
+                      <select
+                        value={skill.skill_type || "technical"}
+                        onChange={(e) => {
+                          const updated = [...existingEmployeeSkills];
+                          updated[index] = {
+                            ...updated[index],
+                            skill_type: e.target.value,
+                          };
+                          setExistingEmployeeSkills(updated);
+                        }}
+                      >
+                        <option value="technical">Technical</option>
+                        <option value="soft">Soft</option>
+                      </select>
+                    </label>
+
+                    <label>
+                      Skill Name
+                      <input
+                        type="text"
+                        value={skill.skill_name}
+                        onChange={(e) => {
+                          const updated = [...existingEmployeeSkills];
+                          updated[index] = {
+                            ...updated[index],
+                            skill_name: e.target.value,
+                          };
+                          setExistingEmployeeSkills(updated);
+                        }}
+                        placeholder="Skill"
+                      />
+                    </label>
+
+                    <label>
+                      Skill Experience (Years)
+                      <input
+                        type="number"
+                        value={skill.years_experience}
+                        onChange={(e) => {
+                          const updated = [...existingEmployeeSkills];
+                          updated[index] = {
+                            ...updated[index],
+                            years_experience: e.target.value,
+                          };
+                          setExistingEmployeeSkills(updated);
+                        }}
+                        placeholder="Years"
+                        min="0"
+                        step="0.1"
+                      />
+                    </label>
+
+                    {existingEmployeeSkills.length > 1 && (
+                      <label>
+                        &nbsp;
+                        <button
+                          type="button"
+                          className="ghost-btn"
+                          onClick={() => {
+                            const updated = existingEmployeeSkills.filter((_, i) => i !== index);
+                            setExistingEmployeeSkills(updated);
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </label>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="button-row">
+              <button
+                type="button"
+                onClick={() =>
+                  setExistingEmployeeSkills((prev) => [
+                    ...prev,
+                    { skill_name: "", years_experience: "", skill_type: "technical" },
+                  ])
+                }
+              >
+                Add Skill
+              </button>
+            </div>
+
+            {existingSkillStatus && (
+              <p className={`status-message ${existingSkillStatus.type || ""}`}>
+                {existingSkillStatus.message}
+              </p>
+            )}
+
+            <div className="button-row">
+              <button className="primary" type="submit" disabled={existingSkillSaving}>
+                {existingSkillSaving ? "Saving..." : "Save Skills"}
+              </button>
+            </div>
+          </form>
+        </div>
+
         <div className="settings-card">
           <h2>Add Employee</h2>
           <p className="muted">Create employees directly in the system without Excel.</p>
@@ -1043,6 +1226,7 @@ function SettingsPage() {
             )}
           </form>
         </div>
+        </>
         )}
 
         {/* EMPLOYEE INVITE SECTION */}

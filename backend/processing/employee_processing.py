@@ -51,11 +51,16 @@ def _parse_skills(raw) -> List[Dict[str, Any]]:
     for item in raw:
         if not isinstance(item, dict):
             continue
+        skill_type = str(item.get("skill_type") or "technical").strip().lower()
+        if skill_type not in ("technical", "soft"):
+            raise EmployeeProcessingError(400, "skill_type must be technical or soft")
+        normalized = normalize_skill_entry(
+            item.get("skill_name"),
+            item.get("years_experience"),
+        )
+        normalized["skill_type"] = skill_type
         skills.append(
-            normalize_skill_entry(
-                item.get("skill_name"),
-                item.get("years_experience"),
-            )
+            normalized
         )
     return skills
 
@@ -162,11 +167,76 @@ def create_employee_entry(user_id: int, payload: Dict[str, Any]):
                 INSERT INTO "EmployeeSkills" (employee_id, skill_name, years_experience, skill_type)
                 VALUES (%s, %s, %s, %s);
                 """,
-                (employee_id, item["skill_name"], item["years_experience"], "technical"),
+                (employee_id, item["skill_name"], item["years_experience"], item["skill_type"]),
             )
         conn.commit()
         return {"employee_id": employee_id}
 
+    except EmployeeProcessingError:
+        conn.rollback()
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise EmployeeProcessingError(500, str(exc))
+    finally:
+        cur.close()
+        conn.close()
+
+
+def add_skills_to_employee(user_id: int, employee_id: int, raw_skills) -> Dict[str, Any]:
+    skills = _parse_skills(raw_skills)
+    if not skills:
+        raise EmployeeProcessingError(400, "at least one skill is required")
+
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            SELECT 1
+            FROM "Employees"
+            WHERE employee_id = %s
+              AND user_id = %s;
+            """,
+            (employee_id, user_id),
+        )
+        if not cur.fetchone():
+            raise EmployeeProcessingError(404, "employee not found for this user")
+
+        upserted = 0
+        for item in skills:
+            cur.execute(
+                """
+                SELECT id
+                FROM "EmployeeSkills"
+                WHERE employee_id = %s
+                  AND LOWER(skill_name) = LOWER(%s)
+                  AND skill_type = %s;
+                """,
+                (employee_id, item["skill_name"], item["skill_type"]),
+            )
+            row = cur.fetchone()
+            if row:
+                cur.execute(
+                    """
+                    UPDATE "EmployeeSkills"
+                    SET years_experience = %s
+                    WHERE id = %s;
+                    """,
+                    (item["years_experience"], row[0]),
+                )
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO "EmployeeSkills" (employee_id, skill_name, years_experience, skill_type)
+                    VALUES (%s, %s, %s, %s);
+                    """,
+                    (employee_id, item["skill_name"], item["years_experience"], item["skill_type"]),
+                )
+            upserted += 1
+
+        conn.commit()
+        return {"employee_id": employee_id, "skill_count": upserted}
     except EmployeeProcessingError:
         conn.rollback()
         raise
