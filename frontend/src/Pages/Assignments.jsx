@@ -3,6 +3,12 @@ import Menu from "./Menu";
 import "../styles/Assignments.css";
 import { apiFetch } from "../api";
 
+const quickPrompts = [
+  "Develop an internal dashboard that combines React, Python APIs, and reporting workflows.",
+  "Create a machine learning prototype for predicting support ticket urgency using historical data.",
+  "Design and launch a mobile-friendly employee self-service portal with secure login and profile updates.",
+];
+
 function AssignmentsPage() {
   // stores what the user types as the task description
   const [taskDescription, setTaskDescription] = useState("");
@@ -16,6 +22,8 @@ function AssignmentsPage() {
 
   // holds validation errors or server-side errors
   const [error, setError] = useState("");
+
+  const taskLength = taskDescription.trim().length;
 
   // main function that sends the recommendation request to the backend
   const generateRecommendations = async () => {
@@ -97,49 +105,113 @@ function AssignmentsPage() {
       <Menu />
 
       <div className="assignments-container">
+        <section className="assignments-layout">
+          <div className="assignments-sidecard">
+            <div className="assignments-sidecard__header">
+              <p className="assignments-sidecard__eyebrow">Quick starts</p>
+              <h2>Use a sample brief</h2>
+              <p>Tap one to preload the description box, then adjust it to fit your real assignment.</p>
+            </div>
 
-        {/* page title */}
-        <h2 className="page-title">Generate Recommendations</h2>
+            <div className="assignments-prompt-list">
+              {quickPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  className="assignments-prompt"
+                  onClick={() => setTaskDescription(prompt)}
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
 
-        <div className="form-box">
+            <div className="assignments-sidecard__tips">
+              <h3>Brief writing tips</h3>
+              <ul>
+                <li>Include the product area or business context.</li>
+                <li>Mention technical skills and the type of deliverable.</li>
+                <li>Avoid vague descriptions like “help with project work”.</li>
+              </ul>
+            </div>
+          </div>
 
-          {/* textarea for the task description */}
-          <label>Task Description</label>
-          <textarea
-            placeholder="Describe the task in detail..."
-            value={taskDescription}
-            onChange={(e) => setTaskDescription(e.target.value)}
-          />
+          <div className="form-box">
+            <div className="form-box__header">
+              <div className="form-box__titleblock">
+                <p className="form-box__eyebrow">Assignment setup</p>
+                <h2 className="page-title">Generate Recommendations</h2>
+                <p className="form-box__subtitle">
+                  Describe the assignment and set the project window to get ranked employee matches.
+                </p>
+              </div>
+            </div>
 
-          {/* start date selector */}
-          <label>Start Date</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
+            <div className="form-box__statusbar">
+              <div className="form-box__meter">
+                <span>Brief detail</span>
+                <strong>{taskLength === 0 ? "Empty" : taskLength < 80 ? "Light" : "Strong"}</strong>
+              </div>
+              <div className="form-box__hint">
+                Strong briefs usually mention the stack, deliverable, and business context.
+              </div>
+            </div>
 
-          {/* end date selector */}
-          <label>End Date</label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
+            <div className="form-section">
+              <div className="form-label-row">
+                <label htmlFor="task-description">Task Description</label>
+                <span>{taskLength} characters</span>
+              </div>
+              <textarea
+                id="task-description"
+                placeholder="Describe the assignment, expected outcome, skills needed, and any delivery context..."
+                value={taskDescription}
+                onChange={(e) => setTaskDescription(e.target.value)}
+              />
+            </div>
 
-          {/* button to trigger recommendation generation */}
-          <button
-            type="button"
-            disabled={loading}
-            onClick={generateRecommendations}
-          >
-            {loading ? "Loading..." : "Generate Recommendations"}
-          </button>
+            <div className="form-section form-section--dates">
+              <div className="form-section__header">
+                <h3>Schedule</h3>
+                <p>Select the window for this assignment.</p>
+              </div>
 
-          {/* display any user or backend errors */}
-          {error && <p className="error">{error}</p>}
+              <div className="form-date-grid">
+                <div className="form-field form-field--date">
+                  <label htmlFor="start-date">Start Date</label>
+                  <input
+                    id="start-date"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
 
-        </div>
+                <div className="form-field form-field--date">
+                  <label htmlFor="end-date">End Date</label>
+                  <input
+                    id="end-date"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="form-footer">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={generateRecommendations}
+              >
+                {loading ? "Generating..." : "Generate Recommendations"}
+              </button>
+            </div>
+
+            {error && <p className="error">{error}</p>}
+          </div>
+        </section>
       </div>
     </>
   );

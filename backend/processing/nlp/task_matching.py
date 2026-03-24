@@ -196,7 +196,9 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
     custom_weights = settings.get("weights") or {}
     use_custom_weights = bool(settings.get("use_custom_weights"))
 
-    # compute relevant experience per employee based on matched skills
+    # compute relevant matched-skill experience per employee.
+    # use the strongest matched skill instead of adding or averaging years
+    # across separate skills, which can imply more total experience than is real.
     def _relevant_experience(scored, matched_labels):
         labels = {str(l).lower() for l in matched_labels}
         years = []
@@ -214,7 +216,7 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
                 continue
         if not years:
             return 0.0
-        return sum(years) / len(years)
+        return max(years)
 
     skill_scored_cache = []
     relevant_exp_cache = []

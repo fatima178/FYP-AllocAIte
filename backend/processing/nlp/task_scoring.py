@@ -182,9 +182,9 @@ def _build_reason(
     # experience summary
     exp_text = _format_experience(experience)
     if experience >= 5:
-        explanation.append(f"Strong experience ({exp_text} years)")
+        explanation.append(f"Strong matched-skill experience (up to {exp_text} years)")
     else:
-        explanation.append(f"{exp_text} years of experience")
+        explanation.append(f"Matched-skill experience up to {exp_text} years")
 
     # availability summary
     if availability_percent >= 70:
