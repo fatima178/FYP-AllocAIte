@@ -6,7 +6,7 @@ import { apiFetch } from "../api";
 const quickPrompts = [
   "Develop an internal dashboard that combines React, Python APIs, and reporting workflows.",
   "Create a machine learning prototype for predicting support ticket urgency using historical data.",
-  "Design and launch a mobile-friendly employee self-service portal with secure login and profile updates.",
+  "Design and launch an employee portal that works well on mobile with secure login and profile updates.",
 ];
 
 function AssignmentsPage() {

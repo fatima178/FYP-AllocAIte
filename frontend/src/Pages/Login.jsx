@@ -209,7 +209,7 @@ function LoginPage() {
               <h3>Intelligent Insights</h3>
               <p>
                 See team capacity clearly, find missing skills, and make quick,
-                data-based staffing choices.
+                data driven staffing choices.
               </p>
             </div>
           </div>

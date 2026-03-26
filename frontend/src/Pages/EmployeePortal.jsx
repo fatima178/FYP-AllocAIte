@@ -8,13 +8,13 @@ function EmployeePortalPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [profile, setProfile] = useState(null);
+  const [activeTab, setActiveTab] = useState('profile');
 
   const [selfSkills, setSelfSkills] = useState([
     { skill_name: '', years_experience: '', skill_type: 'technical' },
   ]);
   const [growthText, setGrowthText] = useState('');
   const [savedGrowthText, setSavedGrowthText] = useState('');
-  const [showSavedModal, setShowSavedModal] = useState(false);
 
   const [skillStatus, setSkillStatus] = useState(null);
   const [growthStatus, setGrowthStatus] = useState(null);
@@ -23,16 +23,18 @@ function EmployeePortalPage() {
   const [skillWarning, setSkillWarning] = useState(null);
   const [pendingSkills, setPendingSkills] = useState(null);
   const [deleteStatus, setDeleteStatus] = useState(null);
-  const capSkill = (value) => {
-    const text = String(value || "");
-    return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
-  };
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [showReasonPreview, setShowReasonPreview] = useState(false);
   const [reasonForm, setReasonForm] = useState({
     task_description: '',
     start_date: '',
     end_date: '',
   });
+
+  const capSkill = (value) => {
+    const text = String(value || '');
+    return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+  };
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user_id');
@@ -83,6 +85,10 @@ function EmployeePortalPage() {
   const technicalSkills = useMemo(() => profile?.technical_skills || [], [profile]);
   const softSkills = useMemo(() => profile?.soft_skills || [], [profile]);
   const pendingSkillRequests = useMemo(() => profile?.pending_skill_requests || [], [profile]);
+  const currentAssignments = useMemo(() => profile?.current_assignments || [], [profile]);
+  const pastAssignments = useMemo(() => profile?.past_assignments || [], [profile]);
+  const assignmentHistory = useMemo(() => profile?.history || [], [profile]);
+  const approvedSkillCount = technicalSkills.length + softSkills.length;
 
   const existingSkillIndex = useMemo(() => {
     const index = new Map();
@@ -286,337 +292,483 @@ function EmployeePortalPage() {
     }
   };
 
+  const insertGrowthPrompt = (prompt) => {
+    setGrowthText((prev) => (prev ? `${prev.trim()}\n${prompt}` : prompt));
+  };
+
   return (
     <>
       <Menu />
       <div className="employee-portal">
         <header className="employee-hero">
-          <div>
+          <div className="employee-hero__copy">
             <p className="eyebrow">Employee Portal</p>
             <h1>{profile?.name || 'Your Profile'}</h1>
             <p className="sub">
-              {profile?.role ? `${profile.role} · ${profile.department || 'Department'}` : 'Manage your growth signals'}
+              {profile?.role
+                ? `${profile.role} · ${profile.department || 'Department'}`
+                : 'Manage your profile, growth, and work in one place'}
             </p>
+            <div className="employee-summary">
+              <div className="summary-pill">
+                <strong>{approvedSkillCount}</strong>
+                <span>approved skills</span>
+              </div>
+              <div className="summary-pill">
+                <strong>{pendingSkillRequests.length}</strong>
+                <span>pending approvals</span>
+              </div>
+              <div className="summary-pill">
+                <strong>{currentAssignments.length}</strong>
+                <span>active assignments</span>
+              </div>
+            </div>
           </div>
-          <div className="employee-chip">ID #{profile?.employee_id || '-'}</div>
+          <div className="employee-hero__aside">
+            <div className="employee-chip">ID #{profile?.employee_id || '-'}</div>
+          </div>
         </header>
 
         {loading && <p className="status">Loading profile…</p>}
         {error && <p className="status error">{error}</p>}
 
         {!loading && !error && (
-          <div className="employee-grid">
-            <section className="panel panel-intro">
-              <h2>Recorded Skills</h2>
-              <p className="muted">Only manager-approved skills appear here and are used in recommendations.</p>
-              <div className="tags">
-                <div className="tag-group">
-                  <p className="tag-title">Technical</p>
-                  {technicalSkills.length > 0 ? (
-                    technicalSkills.map((skill, index) => (
-                      <span key={`tech-${index}`} className="tag">
-                        {capSkill(skill.skill_name)} ({skill.years_experience}y)
-                        <button
-                          type="button"
-                          className="tag-delete"
-                          onClick={() => requestDeleteSkill({ ...skill, skill_type: 'technical' })}
-                          aria-label={`Delete ${skill.skill_name}`}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))
-                  ) : (
-                    <p className="empty">No technical skills uploaded yet.</p>
-                  )}
-                </div>
-                <div className="tag-group">
-                  <p className="tag-title">Soft Skills</p>
-                  {softSkills.length > 0 ? (
-                    softSkills.map((skill, index) => (
-                      <span key={`soft-${index}`} className="tag">
-                        {capSkill(skill.skill_name)} ({skill.years_experience}y)
-                        <button
-                          type="button"
-                          className="tag-delete"
-                          onClick={() => requestDeleteSkill({ ...skill, skill_type: 'soft' })}
-                          aria-label={`Delete ${skill.skill_name}`}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))
-                  ) : (
-                    <p className="empty">No soft skills uploaded yet.</p>
-                  )}
-                </div>
-              </div>
-              {pendingDelete && (
-                <div className="inline-warning">
-                  <div>
-                    <p className="warning-title">Delete skill?</p>
-                    <p className="warning-text">
-                      {pendingDelete.skill_name} ({pendingDelete.skill_type})
-                    </p>
+          <>
+            <div className="employee-tabs" role="tablist" aria-label="Employee portal sections">
+              <button
+                type="button"
+                className={`employee-tab ${activeTab === 'profile' ? 'active' : ''}`}
+                onClick={() => setActiveTab('profile')}
+              >
+                Skills
+              </button>
+              <button
+                type="button"
+                className={`employee-tab ${activeTab === 'growth' ? 'active' : ''}`}
+                onClick={() => setActiveTab('growth')}
+              >
+                Growth
+              </button>
+              <button
+                type="button"
+                className={`employee-tab ${activeTab === 'work' ? 'active' : ''}`}
+                onClick={() => setActiveTab('work')}
+              >
+                My Work
+              </button>
+            </div>
+
+            {activeTab === 'profile' && (
+              <div className="employee-grid">
+                <section className="panel panel-wide">
+                  <p className="section-label">Skills</p>
+                  <h2>Approved and pending skill signals</h2>
+                  <p className="muted">
+                    Approved skills are used in recommendations. New skill submissions stay pending until your manager reviews them.
+                  </p>
+
+                  <div className="skill-columns">
+                    <div className="skill-column">
+                      <p className="tag-title">Approved</p>
+                      <div className="tags">
+                        <div className="tag-group">
+                          <p className="tag-title">Technical</p>
+                          {technicalSkills.length > 0 ? (
+                            technicalSkills.map((skill, index) => (
+                              <span key={`tech-${index}`} className="tag">
+                                {capSkill(skill.skill_name)} ({skill.years_experience}y)
+                                <button
+                                  type="button"
+                                  className="tag-delete"
+                                  onClick={() => requestDeleteSkill({ ...skill, skill_type: 'technical' })}
+                                  aria-label={`Delete ${skill.skill_name}`}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))
+                          ) : (
+                            <p className="empty">No technical skills uploaded yet.</p>
+                          )}
+                        </div>
+                        <div className="tag-group">
+                          <p className="tag-title">Soft skills</p>
+                          {softSkills.length > 0 ? (
+                            softSkills.map((skill, index) => (
+                              <span key={`soft-${index}`} className="tag">
+                                {capSkill(skill.skill_name)} ({skill.years_experience}y)
+                                <button
+                                  type="button"
+                                  className="tag-delete"
+                                  onClick={() => requestDeleteSkill({ ...skill, skill_type: 'soft' })}
+                                  aria-label={`Delete ${skill.skill_name}`}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))
+                          ) : (
+                            <p className="empty">No soft skills uploaded yet.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="skill-column skill-column--pending">
+                      <p className="tag-title">Pending approval</p>
+                      {pendingSkillRequests.length > 0 ? (
+                        <div className="tags">
+                          {pendingSkillRequests.map((skill) => (
+                            <span key={skill.request_id} className="tag pending-tag">
+                              {capSkill(skill.skill_name)} ({skill.years_experience}y, {skill.skill_type})
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="empty">No pending skill requests.</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="warning-actions">
-                    <button type="button" className="ghost" onClick={cancelDeleteSkill}>
-                      Cancel
+
+                  {pendingDelete && (
+                    <div className="inline-warning">
+                      <div>
+                        <p className="warning-title">Delete skill?</p>
+                        <p className="warning-text">
+                          {pendingDelete.skill_name} ({pendingDelete.skill_type})
+                        </p>
+                      </div>
+                      <div className="warning-actions">
+                        <button type="button" className="ghost" onClick={cancelDeleteSkill}>
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className="primary danger"
+                          onClick={() => handleDeleteSkill(pendingDelete)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {deleteStatus && (
+                    <p className={`status ${deleteStatus.type || ''}`}>{deleteStatus.message}</p>
+                  )}
+
+                  <div className="skill-entry-panel">
+                    <div>
+                      <p className="section-label">Add skill</p>
+                      <h3>Submit something new</h3>
+                      <p className="muted">
+                        Add skills that are missing or update experience levels. Duplicate matches will be flagged before submission.
+                      </p>
+                    </div>
+
+                    <form onSubmit={submitSkills}>
+                      {skillWarning && (
+                        <div className="inline-warning">
+                          <div>
+                            <p className="warning-title">Skill already exists</p>
+                            <ul className="warning-list">
+                              {skillWarning.duplicates.map((dup, idx) => (
+                                <li key={`${dup.name}-${idx}`}>
+                                  {dup.name} ({dup.type}) {dup.from ?? '?'}y → {dup.to}y
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div className="warning-actions">
+                            <button type="button" className="ghost" onClick={cancelSkillUpdate}>
+                              Cancel
+                            </button>
+                            <button type="button" className="primary" onClick={confirmSkillUpdate}>
+                              Update anyway
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {selfSkills.map((skill, index) => (
+                        <div key={index} className="row">
+                          <select
+                            value={skill.skill_type}
+                            onChange={(e) => updateSkill(index, 'skill_type', e.target.value)}
+                          >
+                            <option value="technical">Technical</option>
+                            <option value="soft">Soft</option>
+                          </select>
+                          <input
+                            type="text"
+                            placeholder="Skill name"
+                            value={skill.skill_name}
+                            onChange={(e) => updateSkill(index, 'skill_name', e.target.value)}
+                          />
+                          <input
+                            type="number"
+                            placeholder="Years"
+                            min="0"
+                            step="0.1"
+                            value={skill.years_experience}
+                            onChange={(e) => updateSkill(index, 'years_experience', e.target.value)}
+                          />
+                          {selfSkills.length > 1 && (
+                            <button
+                              type="button"
+                              className="ghost"
+                              onClick={() => setSelfSkills((prev) => prev.filter((_, i) => i !== index))}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      ))}
+
+                      <div className="actions">
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() =>
+                            setSelfSkills((prev) => [
+                              ...prev,
+                              { skill_name: '', years_experience: '', skill_type: 'technical' },
+                            ])
+                          }
+                        >
+                          Add another
+                        </button>
+                        <button className="primary" type="submit">Submit for approval</button>
+                      </div>
+
+                      {skillStatus && (
+                        <p className={`status ${skillStatus.type || ''}`}>{skillStatus.message}</p>
+                      )}
+                    </form>
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {activeTab === 'growth' && (
+              <div className="employee-grid">
+                <section className="panel panel-wide">
+                  <p className="section-label">Growth</p>
+                  <h2>Where you want to grow next</h2>
+                  <p className="muted">
+                    Give the system clearer signals about the work you enjoy, the skills you want to build, and the kinds of projects you want to move toward.
+                  </p>
+
+                  <div className="prompt-row">
+                    <button type="button" className="prompt-chip" onClick={() => insertGrowthPrompt('I want to develop: ')}>
+                      What skills do you want to develop?
                     </button>
+                    <button type="button" className="prompt-chip" onClick={() => insertGrowthPrompt('I enjoy work that involves: ')}>
+                      What type of work do you enjoy?
+                    </button>
+                    <button type="button" className="prompt-chip" onClick={() => insertGrowthPrompt('Projects I am interested in: ')}>
+                      What projects interest you?
+                    </button>
+                  </div>
+
+                  <div className="growth-layout">
+                    <form onSubmit={submitGrowth} className="growth-form">
+                      <label>
+                        Growth goals
+                        <textarea
+                          className="growth-textarea"
+                          rows="8"
+                          placeholder={'What skills do you want to develop?\nWhat type of work do you enjoy?\nWhat projects interest you?'}
+                          value={growthText}
+                          onChange={(e) => setGrowthText(e.target.value)}
+                        />
+                      </label>
+
+                      <div className="actions">
+                        <button className="primary" type="submit">Save goals</button>
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => setGrowthText(savedGrowthText || '')}
+                          disabled={!savedGrowthText}
+                        >
+                          Load saved
+                        </button>
+                      </div>
+
+                      {growthStatus && (
+                        <p className={`status ${growthStatus.type || ''}`}>{growthStatus.message}</p>
+                      )}
+                    </form>
+
+                    <aside className="saved-growth-card">
+                      <p className="section-label">Saved direction</p>
+                      <h3>Current profile signal</h3>
+                      {savedGrowthText ? (
+                        <p className="muted saved-growth-text">{savedGrowthText}</p>
+                      ) : (
+                        <p className="empty">No preferences or learning goals saved yet.</p>
+                      )}
+                      <div className="actions">
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => setGrowthText(savedGrowthText || '')}
+                          disabled={!savedGrowthText}
+                        >
+                          Edit saved text
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={handleDeleteGrowth}
+                          disabled={!savedGrowthText}
+                        >
+                          Clear saved
+                        </button>
+                      </div>
+                    </aside>
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {activeTab === 'work' && (
+              <div className="employee-grid">
+                <section className="panel">
+                  <p className="section-label">My work</p>
+                  <h2>What you are doing now</h2>
+                  <p className="muted">
+                    Use this area to track active assignments and jump into your calendar when your availability changes.
+                  </p>
+                  <div className="detail-list">
+                    <div className="detail-item">
+                      <span>Active assignments</span>
+                      <strong>{currentAssignments.length}</strong>
+                    </div>
+                    <div className="detail-item">
+                      <span>Completed assignments</span>
+                      <strong>{pastAssignments.length + assignmentHistory.length}</strong>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="panel">
+                  <p className="section-label">Availability</p>
+                  <h2>Manage your calendar</h2>
+                  <p className="muted">
+                    Personal time off and assignment windows live in your calendar. Keep that page updated so workload decisions stay accurate.
+                  </p>
+                  <div className="actions">
                     <button
                       type="button"
-                      className="primary danger"
-                      onClick={() => handleDeleteSkill(pendingDelete)}
+                      className="primary"
+                      onClick={() => { window.location.href = '/employee-calendar'; }}
                     >
-                      Delete
+                      Open my calendar
                     </button>
                   </div>
-                </div>
-              )}
-              {deleteStatus && (
-                <p className={`status ${deleteStatus.type || ''}`}>{deleteStatus.message}</p>
-              )}
-            </section>
+                </section>
 
-            <section className="panel">
-              <h2>Your Current Skills</h2>
-              <p className="muted">Submit skills for manager approval before they affect recommendations.</p>
-              <form onSubmit={submitSkills}>
-                {skillWarning && (
-                  <div className="inline-warning">
+                <section className="panel panel-wide">
+                  <p className="section-label">Assignments</p>
+                  <h2>Current assignments</h2>
+                  {currentAssignments.length > 0 ? (
+                    <div className="assignment-list">
+                      {currentAssignments.map((assignment) => (
+                        <article key={assignment.assignment_id} className="assignment-card">
+                          <div>
+                            <h3>{assignment.title}</h3>
+                            <p className="muted">
+                              {assignment.start_date} to {assignment.end_date}
+                            </p>
+                          </div>
+                          <div className="assignment-meta">
+                            <span>{assignment.total_hours ?? 0}h total</span>
+                            <span>{assignment.remaining_hours ?? 0}h remaining</span>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="empty">No active assignments right now.</p>
+                  )}
+                </section>
+
+                <section className="panel panel-wide">
+                  <div className="advanced-header">
                     <div>
-                      <p className="warning-title">Skill already exists</p>
-                      <ul className="warning-list">
-                        {skillWarning.duplicates.map((dup, idx) => (
-                          <li key={`${dup.name}-${idx}`}>
-                            {dup.name} ({dup.type}) {dup.from ?? '?'}y → {dup.to}y
-                          </li>
-                        ))}
-                      </ul>
+                      <p className="section-label">Advanced</p>
+                      <h2>Preview how you match a task</h2>
+                      <p className="muted">
+                        This is optional and kept out of the main flow on purpose.
+                      </p>
                     </div>
-                    <div className="warning-actions">
-                      <button type="button" className="ghost" onClick={cancelSkillUpdate}>
-                        Cancel
-                      </button>
-                      <button type="button" className="primary" onClick={confirmSkillUpdate}>
-                        Update anyway
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {selfSkills.map((skill, index) => (
-                  <div key={index} className="row">
-                    <select
-                      value={skill.skill_type}
-                      onChange={(e) => updateSkill(index, 'skill_type', e.target.value)}
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => setShowReasonPreview((prev) => !prev)}
                     >
-                      <option value="technical">Technical</option>
-                      <option value="soft">Soft</option>
-                    </select>
-                    <input
-                      type="text"
-                      placeholder="Skill name"
-                      value={skill.skill_name}
-                      onChange={(e) => updateSkill(index, 'skill_name', e.target.value)}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Years"
-                      min="0"
-                      step="0.1"
-                      value={skill.years_experience}
-                      onChange={(e) => updateSkill(index, 'years_experience', e.target.value)}
-                    />
-                    {selfSkills.length > 1 && (
-                      <button
-                        type="button"
-                        className="ghost"
-                        onClick={() => setSelfSkills((prev) => prev.filter((_, i) => i !== index))}
-                      >
-                        Remove
-                      </button>
-                    )}
+                      {showReasonPreview ? 'Hide preview' : 'Show preview'}
+                    </button>
                   </div>
-                ))}
 
-                <div className="actions">
-                  <button
-                    type="button"
-                    className="ghost"
-                    onClick={() =>
-                      setSelfSkills((prev) => [
-                        ...prev,
-                        { skill_name: '', years_experience: '', skill_type: 'technical' },
-                      ])
-                    }
-                  >
-                    Add skill
-                  </button>
-                  <button className="primary" type="submit">Save skills</button>
-                </div>
+                  {showReasonPreview && (
+                    <form onSubmit={submitReasonCheck} className="form-grid">
+                      <label>
+                        Task description
+                        <input
+                          type="text"
+                          value={reasonForm.task_description}
+                          onChange={(e) =>
+                            setReasonForm((prev) => ({ ...prev, task_description: e.target.value }))
+                          }
+                        />
+                      </label>
+                      <label>
+                        Start date
+                        <input
+                          type="date"
+                          value={reasonForm.start_date}
+                          onChange={(e) =>
+                            setReasonForm((prev) => ({ ...prev, start_date: e.target.value }))
+                          }
+                        />
+                      </label>
+                      <label>
+                        End date
+                        <input
+                          type="date"
+                          value={reasonForm.end_date}
+                          onChange={(e) =>
+                            setReasonForm((prev) => ({ ...prev, end_date: e.target.value }))
+                          }
+                        />
+                      </label>
 
-                {skillStatus && (
-                  <p className={`status ${skillStatus.type || ''}`}>{skillStatus.message}</p>
-                )}
-              </form>
+                      <div className="actions full">
+                        <button className="primary" type="submit">Preview task match</button>
+                      </div>
 
-              <div className="pending-skills-block">
-                <p className="tag-title">Pending approval</p>
-                {pendingSkillRequests.length > 0 ? (
-                  <div className="tags">
-                    {pendingSkillRequests.map((skill) => (
-                      <span key={skill.request_id} className="tag pending-tag">
-                        {capSkill(skill.skill_name)} ({skill.years_experience}y, {skill.skill_type})
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="empty">No pending skill requests.</p>
-                )}
+                      {reasonStatus && (
+                        <p className={`status ${reasonStatus.type || ''}`}>{reasonStatus.message}</p>
+                      )}
+
+                      {reasonResult && (
+                        <div className="reason-card">
+                          <p><strong>Score:</strong> {reasonResult.score_percent}%</p>
+                          <p><strong>Availability:</strong> {reasonResult.availability_percent}%</p>
+                          <p><strong>Reason:</strong> {reasonResult.reason}</p>
+                        </div>
+                      )}
+                    </form>
+                  )}
+                </section>
               </div>
-            </section>
-
-            <section className="panel panel-wide">
-              <h2>Preferences & Learning Goals</h2>
-              <p className="muted">
-                Describe the work you want, the skills you want to build, and any growth goals.
-                This text is used for semantic matching.
-              </p>
-              <div className="actions">
-                <button
-                  type="button"
-                  className="ghost"
-                  onClick={() => setShowSavedModal(true)}
-                >
-                  View saved
-                </button>
-              </div>
-              <form onSubmit={submitGrowth} className="form-grid">
-                <label className="full">
-                  Growth Notes
-                  <textarea
-                    rows="6"
-                    placeholder="Examples: Interested in data engineering projects, want to grow in Python and ML, prefer cross-functional work..."
-                    value={growthText}
-                    onChange={(e) => setGrowthText(e.target.value)}
-                  />
-                </label>
-
-                <div className="actions full">
-                  <button className="primary" type="submit">Save</button>
-                </div>
-
-                {growthStatus && (
-                  <p className={`status ${growthStatus.type || ''}`}>{growthStatus.message}</p>
-                )}
-              </form>
-            </section>
-
-            <section className="panel panel-wide">
-              <h2>Recommendation Reason</h2>
-              <p className="muted">Check why you might be recommended for a task.</p>
-              <form onSubmit={submitReasonCheck} className="form-grid">
-                <label>
-                  Task Description
-                  <input
-                    type="text"
-                    value={reasonForm.task_description}
-                    onChange={(e) =>
-                      setReasonForm((prev) => ({ ...prev, task_description: e.target.value }))
-                    }
-                  />
-                </label>
-                <label>
-                  Start Date
-                  <input
-                    type="date"
-                    value={reasonForm.start_date}
-                    onChange={(e) =>
-                      setReasonForm((prev) => ({ ...prev, start_date: e.target.value }))
-                    }
-                  />
-                </label>
-                <label>
-                  End Date
-                  <input
-                    type="date"
-                    value={reasonForm.end_date}
-                    onChange={(e) =>
-                      setReasonForm((prev) => ({ ...prev, end_date: e.target.value }))
-                    }
-                  />
-                </label>
-
-                <div className="actions full">
-                  <button className="primary" type="submit">Check fit</button>
-                </div>
-
-                {reasonStatus && (
-                  <p className={`status ${reasonStatus.type || ''}`}>{reasonStatus.message}</p>
-                )}
-
-                {reasonResult && (
-                  <div className="reason-card">
-                    <p><strong>Score:</strong> {reasonResult.score_percent}%</p>
-                    <p><strong>Availability:</strong> {reasonResult.availability_percent}%</p>
-                    <p><strong>Reason:</strong> {reasonResult.reason}</p>
-                  </div>
-                )}
-              </form>
-            </section>
-
-          </div>
+            )}
+          </>
         )}
       </div>
-
-      {showSavedModal && (
-        <div className="employee-modal" onClick={() => setShowSavedModal(false)}>
-          <div className="employee-modal__content" onClick={(event) => event.stopPropagation()}>
-            <div className="employee-modal__header">
-              <h3>Current Saved Notes</h3>
-              <button type="button" onClick={() => setShowSavedModal(false)} aria-label="Close">
-                ×
-              </button>
-            </div>
-            {savedGrowthText ? (
-              <p className="muted">{savedGrowthText}</p>
-            ) : (
-              <p className="empty">No preferences or learning goals saved yet.</p>
-            )}
-            <div className="employee-modal__actions">
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => {
-                  setGrowthText(savedGrowthText || '');
-                  setShowSavedModal(false);
-                }}
-                disabled={!savedGrowthText}
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => {
-                  handleDeleteGrowth();
-                  setShowSavedModal(false);
-                }}
-                disabled={!savedGrowthText}
-              >
-                Delete
-              </button>
-              <button
-                type="button"
-                className="primary"
-                onClick={() => setShowSavedModal(false)}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

@@ -993,7 +993,7 @@ function SettingsPage() {
         {activeSection === "history" && (
         <div className="settings-card">
           <h2>Recommendation History</h2>
-          <p className="muted">Revisit previous recommendation requests, selections, and follow-up feedback.</p>
+          <p className="muted">Revisit previous recommendation requests, selections, and later feedback.</p>
 
           {historyLoading && <p className="muted">Loading recommendation history...</p>}
           {historyError && <p className="status-message error">{historyError}</p>}

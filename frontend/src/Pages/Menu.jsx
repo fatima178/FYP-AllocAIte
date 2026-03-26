@@ -8,7 +8,7 @@ function Menu() {
   // list of navigation links shown in the menu bar
   const links = accountType === 'employee'
     ? [
-        { label: 'My Profile', path: '/employee' },
+        { label: 'Home', path: '/employee' },
         { label: 'My Calendar', path: '/employee-calendar' },
         { label: 'Settings', path: '/employee-settings' },
       ]
