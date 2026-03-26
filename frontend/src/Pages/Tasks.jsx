@@ -302,6 +302,29 @@ function TasksPage() {
     }
   };
 
+  const clearFeedback = async () => {
+    if (!feedbackTarget?.task_id || !feedbackTarget?.employee_id || feedbackSubmitting) return;
+
+    setFeedbackSubmitting(true);
+    setCompletedError('');
+    try {
+      await apiFetch(
+        `/recommend/feedback?user_id=${Number(userId)}&task_id=${Number(feedbackTarget.task_id)}&employee_id=${Number(feedbackTarget.employee_id)}`,
+        { method: 'DELETE' }
+      );
+      setFeedbackRating('');
+      setFeedbackNotes('');
+      setFeedbackOutcomeTags([]);
+      setFeedbackOpen(false);
+      setFeedbackTarget(null);
+      await fetchCompletedTasks();
+    } catch (err) {
+      setCompletedError(err.message || 'Unable to clear feedback.');
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  };
+
   // open edit modal for a task
   const openEditModal = (task) => {
     setEditTaskId(task.assignment_id);
@@ -751,7 +774,7 @@ function TasksPage() {
 
       {feedbackOpen && feedbackTarget && (
         <div className="task-modal">
-          <div className="task-modal__content">
+          <div className="task-modal__content task-modal__content--feedback">
             <div className="task-modal__header">
               <h2>Assignment Feedback</h2>
               <button type="button" onClick={() => setFeedbackOpen(false)} aria-label="Close">
@@ -804,6 +827,16 @@ function TasksPage() {
                 </div>
               </div>
               <div className="modal-actions">
+                {feedbackTarget.performance_rating && (
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    onClick={clearFeedback}
+                    disabled={feedbackSubmitting}
+                  >
+                    Clear Feedback
+                  </button>
+                )}
                 <button
                   type="button"
                   className="ghost-btn"
@@ -828,7 +861,7 @@ function TasksPage() {
 
       {feedbackPanelOpen && (
         <div className="task-modal">
-          <div className="task-modal__content">
+          <div className="task-modal__content task-modal__content--feedback-list">
             <div className="task-modal__header">
               <h2>Completed Tasks Feedback</h2>
               <button type="button" onClick={() => setFeedbackPanelOpen(false)} aria-label="Close">
@@ -868,22 +901,26 @@ function TasksPage() {
                     )}
                   </div>
                   <div className="completed-actions">
-                    {task.performance_rating ? (
-                      <button
-                        type="button"
-                        className="ghost-btn"
-                        onClick={() => openFeedbackModal(task)}
-                      >
-                        Edit Feedback ({task.performance_rating})
-                      </button>
+                    {(task.source_type === 'current' || task.is_completed) ? (
+                      task.performance_rating ? (
+                        <button
+                          type="button"
+                          className="ghost-btn"
+                          onClick={() => openFeedbackModal(task)}
+                        >
+                          Edit Feedback ({task.performance_rating})
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="primary-btn"
+                          onClick={() => openFeedbackModal(task)}
+                        >
+                          Add Feedback
+                        </button>
+                      )
                     ) : (
-                      <button
-                        type="button"
-                        className="primary-btn"
-                        onClick={() => openFeedbackModal(task)}
-                      >
-                        Add Feedback
-                      </button>
+                      <span className="muted">No feedback for removed tasks</span>
                     )}
                   </div>
                 </div>

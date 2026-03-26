@@ -243,6 +243,54 @@ def submit_recommendation_feedback(
         conn.close()
 
 
+def clear_recommendation_feedback(
+    user_id: int,
+    task_id: int,
+    employee_id: int,
+) -> None:
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            SELECT 1
+            FROM "RecommendationTasks"
+            WHERE task_id = %s AND user_id = %s;
+            """,
+            (task_id, user_id),
+        )
+        if not cur.fetchone():
+            raise RecommendationLogError(404, "recommendation task not found for this user")
+
+        cur.execute(
+            """
+            UPDATE "RecommendationLog"
+            SET performance_rating = NULL,
+                feedback_notes = NULL,
+                outcome_tags = NULL,
+                feedback_at = NULL
+            WHERE task_id = %s
+              AND employee_id = %s
+              AND manager_selected = TRUE;
+            """,
+            (task_id, employee_id),
+        )
+
+        if cur.rowcount == 0:
+            raise RecommendationLogError(404, "selected recommendation not found for this task")
+
+        conn.commit()
+    except RecommendationLogError:
+        conn.rollback()
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise RecommendationLogError(500, str(exc))
+    finally:
+        cur.close()
+        conn.close()
+
+
 def fetch_recommendation_history(user_id: int, limit: int = 10, offset: int = 0):
     safe_limit = max(1, min(int(limit), 50))
     safe_offset = max(0, int(offset))

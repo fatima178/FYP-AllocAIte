@@ -9,6 +9,7 @@ from processing.recommend_assignment import assign_recommended_task
 from processing.recommendation_log_processing import (
     RecommendationLogError,
     attach_assignment_to_task,
+    clear_recommendation_feedback,
     mark_manager_selected,
     submit_recommendation_feedback,
 )
@@ -159,5 +160,17 @@ def submit_feedback(data: dict):
             outcome_tags if isinstance(outcome_tags, list) else None,
         )
         return {"message": "Feedback submitted successfully."}
+    except RecommendationLogError as exc:
+        raise HTTPException(exc.status_code, exc.message)
+
+
+@router.delete("/recommend/feedback")
+def clear_feedback(user_id: int, task_id: int, employee_id: int):
+    if not user_id or not task_id or not employee_id:
+        raise HTTPException(400, "user_id, task_id, and employee_id are required")
+
+    try:
+        clear_recommendation_feedback(int(user_id), int(task_id), int(employee_id))
+        return {"message": "Feedback cleared successfully."}
     except RecommendationLogError as exc:
         raise HTTPException(exc.status_code, exc.message)

@@ -344,6 +344,14 @@ body,
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
 }
 
+.task-modal__content--feedback {
+  max-width: 680px;
+}
+
+.task-modal__content--feedback-list {
+  max-width: 820px;
+}
+
 .task-modal__header {
   display: flex;
   justify-content: space-between;

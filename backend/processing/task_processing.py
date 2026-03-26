@@ -213,7 +213,8 @@ def fetch_completed_tasks(user_id: int, limit: int = 20) -> dict:
                     h.start_date,
                     h.end_date,
                     h.archived_at,
-                    TRUE AS is_completed
+                    CASE WHEN h.end_date < CURRENT_DATE THEN TRUE ELSE FALSE END AS is_completed,
+                    'history'::text AS source_type
                 FROM "AssignmentHistory" h
                 LEFT JOIN "Employees" e ON h.employee_id = e.employee_id
                 WHERE h.user_id = %s
@@ -229,7 +230,8 @@ def fetch_completed_tasks(user_id: int, limit: int = 20) -> dict:
                     a.start_date,
                     a.end_date,
                     NULL::timestamp AS archived_at,
-                    FALSE AS is_completed
+                    FALSE AS is_completed,
+                    'current'::text AS source_type
                 FROM "Assignments" a
                 LEFT JOIN "Employees" e ON a.employee_id = e.employee_id
                 WHERE a.user_id = %s
@@ -244,6 +246,7 @@ def fetch_completed_tasks(user_id: int, limit: int = 20) -> dict:
                 fs.end_date,
                 fs.archived_at,
                 fs.is_completed,
+                fs.source_type,
                 rt.task_id,
                 rl.performance_rating,
                 rl.feedback_notes,
@@ -270,10 +273,11 @@ def fetch_completed_tasks(user_id: int, limit: int = 20) -> dict:
                 "end_date": str(row[6]) if row[6] else None,
                 "archived_at": row[7].isoformat() if row[7] else None,
                 "is_completed": bool(row[8]),
-                "task_id": row[9],
-                "performance_rating": row[10],
-                "feedback_notes": row[11],
-                "outcome_tags": [part.strip() for part in str(row[12] or "").split("|") if part.strip()],
+                "source_type": row[9],
+                "task_id": row[10],
+                "performance_rating": row[11],
+                "feedback_notes": row[12],
+                "outcome_tags": [part.strip() for part in str(row[13] or "").split("|") if part.strip()],
             })
 
         return {"completed": items}
