@@ -37,6 +37,7 @@ const GROUP_TO_DETAIL_SHARES = {
     feedback: 1.0,
   },
 };
+const ADJUSTABLE_WEIGHT_BUDGET = 1 - FIXED_SEMANTIC_WEIGHT;
 
 // toggles a CSS class on <body> to switch between light/dark mode
 const applyThemeClass = (value) => {
@@ -170,6 +171,9 @@ function SettingsPage() {
   const [weights, setWeights] = useState({
     ...DEFAULT_MANAGER_WEIGHTS,
   });
+  const [savedWeightBaseline, setSavedWeightBaseline] = useState({
+    ...DEFAULT_MANAGER_WEIGHTS,
+  });
 
   // fetch account + appearance settings when page loads
   useEffect(() => {
@@ -201,7 +205,7 @@ function SettingsPage() {
           writePreference("fontSize", data.font_size);
         }
         if (data.weights) {
-          setWeights({
+          const groupedWeights = {
             skills_fit:
               (data.weights.skill ?? 0) +
               (data.weights.possible_skill ?? 0) +
@@ -215,7 +219,9 @@ function SettingsPage() {
               (data.weights.fairness ?? 0),
             growth_potential: data.weights.preferences ?? DEFAULT_MANAGER_WEIGHTS.growth_potential,
             past_feedback: data.weights.feedback ?? DEFAULT_MANAGER_WEIGHTS.past_feedback,
-          });
+          };
+          setWeights(groupedWeights);
+          setSavedWeightBaseline(groupedWeights);
         }
       } catch (err) {
         setError(err.message || "Unable to load settings.");
@@ -351,6 +357,28 @@ function SettingsPage() {
     return detailed;
   };
 
+  const buildTradeoffPreview = (groupedWeights) => {
+    const numericWeights = Object.keys(DEFAULT_MANAGER_WEIGHTS).reduce((acc, key) => {
+      const parsed = Number(groupedWeights[key]);
+      acc[key] = Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
+      return acc;
+    }, {});
+
+    const total = Object.values(numericWeights).reduce((sum, value) => sum + value, 0);
+
+    return Object.keys(DEFAULT_MANAGER_WEIGHTS).reduce((acc, key) => {
+      const adjustableShare = total > 0 ? numericWeights[key] / total : 0;
+      acc[key] = {
+        raw: numericWeights[key],
+        finalShare: adjustableShare * ADJUSTABLE_WEIGHT_BUDGET,
+      };
+      return acc;
+    }, {});
+  };
+
+  const tradeoffPreview = buildTradeoffPreview(weights);
+  const baselineTradeoffPreview = buildTradeoffPreview(savedWeightBaseline);
+
   const saveWeights = () => {
     const errorMessage = validateWeights(weights);
     if (errorMessage) {
@@ -362,11 +390,13 @@ function SettingsPage() {
       { use_custom_weights: true, weights: expandGroupedWeights(weights) },
       "Weightings saved."
     );
+    setSavedWeightBaseline({ ...weights });
   };
 
   const resetWeights = () => {
     const defaults = { ...DEFAULT_MANAGER_WEIGHTS };
     setWeights(defaults);
+    setSavedWeightBaseline(defaults);
     updateSettings(
       { use_custom_weights: true, weights: expandGroupedWeights(defaults) },
       "Weightings reset."
@@ -910,6 +940,16 @@ function SettingsPage() {
                 value={formatWeight("skills_fit", weights.skills_fit)}
                 onChange={(e) => updateWeight("skills_fit", e.target.value)}
               />
+              <span className="weight-inline-hint">
+                Now {(tradeoffPreview.skills_fit.finalShare * 100).toFixed(1)}% of manager pool
+              </span>
+              {Math.abs(
+                tradeoffPreview.skills_fit.finalShare - baselineTradeoffPreview.skills_fit.finalShare
+              ) > 0.0001 && (
+                <span className="weight-inline-hint weight-inline-hint--secondary">
+                  Was {(baselineTradeoffPreview.skills_fit.finalShare * 100).toFixed(1)}%
+                </span>
+              )}
             </label>
             <label>
               Experience & Role
@@ -919,6 +959,17 @@ function SettingsPage() {
                 value={formatWeight("experience_role", weights.experience_role)}
                 onChange={(e) => updateWeight("experience_role", e.target.value)}
               />
+              <span className="weight-inline-hint">
+                Now {(tradeoffPreview.experience_role.finalShare * 100).toFixed(1)}% of manager pool
+              </span>
+              {Math.abs(
+                tradeoffPreview.experience_role.finalShare -
+                  baselineTradeoffPreview.experience_role.finalShare
+              ) > 0.0001 && (
+                <span className="weight-inline-hint weight-inline-hint--secondary">
+                  Was {(baselineTradeoffPreview.experience_role.finalShare * 100).toFixed(1)}%
+                </span>
+              )}
             </label>
             <label>
               Availability
@@ -929,6 +980,17 @@ function SettingsPage() {
                 value={formatWeight("availability_balance", weights.availability_balance)}
                 onChange={(e) => updateWeight("availability_balance", e.target.value)}
               />
+              <span className="weight-inline-hint">
+                Now {(tradeoffPreview.availability_balance.finalShare * 100).toFixed(1)}% of manager pool
+              </span>
+              {Math.abs(
+                tradeoffPreview.availability_balance.finalShare -
+                  baselineTradeoffPreview.availability_balance.finalShare
+              ) > 0.0001 && (
+                <span className="weight-inline-hint weight-inline-hint--secondary">
+                  Was {(baselineTradeoffPreview.availability_balance.finalShare * 100).toFixed(1)}%
+                </span>
+              )}
             </label>
             <label>
               Growth Potential
@@ -939,6 +1001,17 @@ function SettingsPage() {
                 value={formatWeight("growth_potential", weights.growth_potential)}
                 onChange={(e) => updateWeight("growth_potential", e.target.value)}
               />
+              <span className="weight-inline-hint">
+                Now {(tradeoffPreview.growth_potential.finalShare * 100).toFixed(1)}% of manager pool
+              </span>
+              {Math.abs(
+                tradeoffPreview.growth_potential.finalShare -
+                  baselineTradeoffPreview.growth_potential.finalShare
+              ) > 0.0001 && (
+                <span className="weight-inline-hint weight-inline-hint--secondary">
+                  Was {(baselineTradeoffPreview.growth_potential.finalShare * 100).toFixed(1)}%
+                </span>
+              )}
             </label>
             <label>
               Past Feedback
@@ -949,11 +1022,22 @@ function SettingsPage() {
                 value={formatWeight("past_feedback", weights.past_feedback)}
                 onChange={(e) => updateWeight("past_feedback", e.target.value)}
               />
+              <span className="weight-inline-hint">
+                Now {(tradeoffPreview.past_feedback.finalShare * 100).toFixed(1)}% of manager pool
+              </span>
+              {Math.abs(
+                tradeoffPreview.past_feedback.finalShare -
+                  baselineTradeoffPreview.past_feedback.finalShare
+              ) > 0.0001 && (
+                <span className="weight-inline-hint weight-inline-hint--secondary">
+                  Was {(baselineTradeoffPreview.past_feedback.finalShare * 100).toFixed(1)}%
+                </span>
+              )}
             </label>
           </div>
 
           <p className="weighting-hint">
-            Increasing one weighting reduces all others proportionally. Semantic similarity remains fixed.
+            Semantic similarity stays fixed. The remaining {Math.round(ADJUSTABLE_WEIGHT_BUDGET * 100)}% is shared across these five priorities, so when one goes up the others must come down.
           </p>
 
           <div className="weighting-summary">

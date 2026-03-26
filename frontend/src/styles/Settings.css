@@ -124,6 +124,19 @@
   opacity: 0.75;
 }
 
+.weight-inline-hint {
+  margin-top: 6px;
+  font-size: 0.82rem;
+  color: var(--muted-text);
+  line-height: 1.35;
+}
+
+.weight-inline-hint--secondary {
+  margin-top: 2px;
+  font-size: 0.78rem;
+  opacity: 0.8;
+}
+
 .button-row {
   display: flex;
   gap: 12px;
