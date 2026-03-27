@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import Menu from "./Menu";
 import "../styles/Chatbot.css";
 import { apiFetch } from "../api";
+import { getSessionItem } from "../session";
 
 function ChatbotPage() {
   // stores all messages shown in the chat (both user + bot)
@@ -27,7 +28,7 @@ function ChatbotPage() {
     if (!input.trim()) return;
 
     // check if the user is logged in
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId) {
       // add message telling user to log in
       setMessages(prev => [

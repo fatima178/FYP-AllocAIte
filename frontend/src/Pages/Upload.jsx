@@ -3,6 +3,7 @@ import Menu from './Menu';
 import '../styles/Upload.css';
 import uploadIcon from '../images/upload.png';
 import { apiFetch } from '../api';
+import { getSessionItem } from '../session';
 
 /*
   Required columns for a valid dataset.
@@ -40,7 +41,7 @@ function UploadPage() {
 
   // redirect users who aren’t logged in
   useEffect(() => {
-    const storedUser = localStorage.getItem('user_id');
+    const storedUser = getSessionItem('user_id');
     if (!storedUser) window.location.href = '/';
   }, []);
 
@@ -103,7 +104,7 @@ function UploadPage() {
       return;
     }
 
-    const userId = localStorage.getItem('user_id');
+    const userId = getSessionItem('user_id');
     if (!userId) {
       setStatus({ type: 'error', message: 'You need to be logged in before uploading.' });
       return;

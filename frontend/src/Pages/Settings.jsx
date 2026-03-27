@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Menu from "./Menu";
 import "../styles/Settings.css";
 import { apiFetch, API_BASE_URL } from "../api";
+import { getSessionItem, setSessionItem } from "../session";
 
 // default values for UI appearance
 const DEFAULT_THEME = "light";
@@ -52,7 +53,7 @@ const applyFontSize = (value) => {
 
 // attaches user_id to localStorage keys so preferences are per-user
 const getPreferenceKey = (base) => {
-  const userId = localStorage.getItem("user_id");
+  const userId = getSessionItem("user_id");
   return userId ? `${base}_${userId}` : null;
 };
 
@@ -84,9 +85,9 @@ function SettingsPage() {
 
   // stores the user's account details from backend
   const [account, setAccount] = useState({
-    name: localStorage.getItem("name") || "Unknown User",
-    email: localStorage.getItem("email") || "unknown",
-    member_since: localStorage.getItem("member_since") || "-",
+    name: getSessionItem("name") || "Unknown User",
+    email: getSessionItem("email") || "unknown",
+    member_since: getSessionItem("member_since") || "-",
   });
 
   // modal open/close states
@@ -177,7 +178,7 @@ function SettingsPage() {
 
   // fetch account + appearance settings when page loads
   useEffect(() => {
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId) {
       setError("Please log in to view settings.");
       setLoading(false);
@@ -234,7 +235,7 @@ function SettingsPage() {
   }, []);
 
   const fetchEmployees = async () => {
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId) return;
     try {
       const data = await apiFetch(`/employees?user_id=${userId}`);
@@ -250,7 +251,7 @@ function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId || activeSection !== "history") return;
 
     const fetchHistory = async () => {
@@ -283,7 +284,7 @@ function SettingsPage() {
 
   // sends updated UI preferences to the backend
   const updateSettings = async (payload, successMessage = "Settings updated") => {
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId) return;
 
     try {
@@ -404,7 +405,7 @@ function SettingsPage() {
   };
 
   const exportAllData = async () => {
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId) {
       setExportStatus("Please log in to export data.");
       return;
@@ -486,7 +487,7 @@ function SettingsPage() {
   const submitDetails = async (event) => {
     event.preventDefault();
     setDetailsStatus(null);
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
 
     if (!userId) {
       setDetailsStatus({ type: "error", message: "Please log in again." });
@@ -516,11 +517,11 @@ function SettingsPage() {
         email: data.email,
         member_since: data.member_since,
       });
-      localStorage.setItem("name", data.name);
-      localStorage.setItem("email", data.email);
+      setSessionItem("name", data.name);
+      setSessionItem("email", data.email);
 
       if (data.member_since) {
-        localStorage.setItem("member_since", data.member_since);
+        setSessionItem("member_since", data.member_since);
       }
 
       setDetailsStatus({ type: "success", message: data.message || "Account updated." });
@@ -543,7 +544,7 @@ function SettingsPage() {
     setEmployeeStatus(null);
     setSkillError(null);
 
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId) {
       setEmployeeStatus({ type: "error", message: "Please log in again." });
       return;
@@ -594,7 +595,7 @@ function SettingsPage() {
     setExistingSkillStatus(null);
     setSkillError(null);
 
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId) {
       setExistingSkillStatus({ type: "error", message: "Please log in again." });
       return;
@@ -659,7 +660,7 @@ function SettingsPage() {
     setInviteStatus(null);
     setInviteLink("");
 
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId) {
       setInviteStatus({ type: "error", message: "Please log in again." });
       return;
@@ -703,7 +704,7 @@ function SettingsPage() {
     event.preventDefault();
     setVerifyStatus(null);
 
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId) {
       setVerifyStatus({ type: "error", message: "Please log in again." });
       return;
@@ -744,7 +745,7 @@ function SettingsPage() {
     event.preventDefault();
     setPasswordStatus(null);
 
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId) {
       setPasswordStatus({ type: "error", message: "Please log in again." });
       return;

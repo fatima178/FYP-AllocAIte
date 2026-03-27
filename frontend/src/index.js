@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { getSessionItem } from './session';
 
 const resolveFontSizeValue = (size) =>
   size === 'small' ? '14px' : size === 'large' ? '18px' : '16px';
@@ -11,7 +12,7 @@ const applyInitialPreferences = () => {
   if (typeof document === 'undefined') {
     return;
   }
-  const userId = localStorage.getItem('user_id');
+  const userId = getSessionItem('user_id');
   if (!userId) {
     document.body.classList.remove('dark-theme');
     document.documentElement.style.fontSize = resolveFontSizeValue('medium');

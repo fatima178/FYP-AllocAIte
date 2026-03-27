@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Menu from './Menu';
 import '../styles/Tasks.css';
 import { apiFetch } from '../api';
+import { getSessionItem } from '../session';
 
 /* 
   Finds Monday of the week for any given date.
@@ -63,7 +64,7 @@ const OUTCOME_TAG_OPTIONS = [
 ];
 
 function TasksPage() {
-  const userId = localStorage.getItem('user_id');
+  const userId = getSessionItem('user_id');
 
   // starting Monday of currently selected week
   const [weekStart, setWeekStart] = useState(initialWeekStart);

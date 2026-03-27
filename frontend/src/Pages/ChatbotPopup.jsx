@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import "../styles/Chatbot.css";
 import { apiFetch } from "../api";
+import { getSessionItem } from "../session";
 
 export default function ChatbotPopup() {
   // controls whether the chatbot popup is visible
@@ -28,7 +29,7 @@ export default function ChatbotPopup() {
     if (!input.trim()) return;
 
     // check if user is logged in
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId) {
       // push a warning message from the bot
       setMessages(prev => [

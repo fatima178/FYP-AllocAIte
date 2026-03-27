@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import '../styles/Register.css';
 import { apiFetch, APIError } from '../api';
+import { setSessionItem } from '../session';
 
 function Register() {
   // stores the values typed in the form fields
@@ -73,8 +74,8 @@ function Register() {
 
       // if backend returns a user_id, registration succeeded
       if (body.user_id && payload.email) {
-        localStorage.setItem('user_id', body.user_id);
-        localStorage.setItem('email', payload.email);
+        setSessionItem('user_id', body.user_id);
+        setSessionItem('email', payload.email);
 
         // after register, user goes to upload page
         window.location.href = '/upload';

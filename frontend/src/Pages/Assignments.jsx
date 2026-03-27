@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import Menu from "./Menu";
 import "../styles/Assignments.css";
 import { apiFetch } from "../api";
+import { getSessionItem } from "../session";
 
 const quickPrompts = [
   "Develop an internal dashboard that combines React, Python APIs, and reporting workflows.",
@@ -31,7 +32,7 @@ function AssignmentsPage() {
     setError("");
 
     // get logged in user id from local storage
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId) {
       setError("Please log in before requesting recommendations.");
       setLoading(false);

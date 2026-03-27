@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import Menu from "./Menu";
 import "../styles/Recommendations.css";
 import { apiFetch } from "../api";
+import { getSessionItem } from "../session";
 
 function RecommendationsPage() {
   // load saved recommendations from localStorage (generated on previous page)
@@ -77,7 +78,7 @@ function RecommendationsPage() {
     }
 
     // require login to assign tasks
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId) {
       setStatus({
         type: "error",
@@ -116,7 +117,7 @@ function RecommendationsPage() {
       return;
     }
 
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId) {
       setStatus({
         type: "error",

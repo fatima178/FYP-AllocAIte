@@ -1,9 +1,10 @@
 import '../styles/Menu.css';
+import { clearSession, getSessionItem } from '../session';
 
 function Menu() {
   // track the current URL so we can highlight the active page
   const currentPath = window.location.pathname;
-  const accountType = localStorage.getItem('account_type') || 'manager';
+  const accountType = getSessionItem('account_type') || 'manager';
 
   // list of navigation links shown in the menu bar
   const links = accountType === 'employee'
@@ -31,10 +32,7 @@ function Menu() {
 
   // logout removes user session and returns to home page
   const handleLogout = () => {
-    localStorage.removeItem('user_id');
-    localStorage.removeItem('email');
-    localStorage.removeItem('account_type');
-    localStorage.removeItem('employee_id');
+    clearSession();
     window.location.href = '/';
   };
 

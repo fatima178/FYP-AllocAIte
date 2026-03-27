@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import Menu from './Menu';
 import '../styles/Dashboard.css';
 import { apiFetch } from '../api';
+import { getSessionItem } from '../session';
 
 function DashboardPage() {
-  const accountType = localStorage.getItem('account_type') || 'manager';
+  const accountType = getSessionItem('account_type') || 'manager';
   // holds the user_id of the logged-in user
   // this value is required for all dashboard API calls
   const [userId, setUserId] = useState(null);
@@ -54,7 +55,7 @@ function DashboardPage() {
   // on mount, verify that a user is logged in
   // if not, instantly redirect them back to login page
   useEffect(() => {
-    const storedUser = localStorage.getItem('user_id');
+    const storedUser = getSessionItem('user_id');
     if (!storedUser) {
       window.location.href = '/';
       return;

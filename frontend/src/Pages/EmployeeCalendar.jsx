@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Menu from './Menu';
 import '../styles/Tasks.css';
 import { apiFetch } from '../api';
+import { getSessionItem } from '../session';
 
 const getWeekStart = (inputDate) => {
   const date = new Date(inputDate);
@@ -39,7 +40,7 @@ const LANE_GAP = 8;
 const LANE_BASE_OFFSET = 10;
 
 function EmployeeCalendarPage() {
-  const userId = localStorage.getItem('user_id');
+  const userId = getSessionItem('user_id');
 
   const [weekStart, setWeekStart] = useState(initialWeekStart);
   const [calendarData, setCalendarData] = useState({ employee: null, items: [] });

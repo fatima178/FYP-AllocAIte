@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Menu from './Menu';
 import '../styles/EmployeePortal.css';
 import { apiFetch } from '../api';
+import { getSessionItem } from '../session';
 
 function EmployeePortalPage() {
   const [userId, setUserId] = useState(null);
@@ -37,7 +38,7 @@ function EmployeePortalPage() {
   };
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user_id');
+    const storedUser = getSessionItem('user_id');
     if (!storedUser) {
       window.location.href = '/';
       return;

@@ -15,6 +15,7 @@ import EmployeePortalPage from './Pages/EmployeePortal';
 import EmployeeCalendarPage from './Pages/EmployeeCalendar';
 import EmployeeSettingsPage from './Pages/EmployeeSettings';
 import InvitePage from './Pages/Invite';
+import { getSessionItem } from './session';
 
 function App() {
   // apply user theme + font preferences on initial load
@@ -23,7 +24,7 @@ function App() {
     const resolveFontSizeValue = (size) =>
       size === 'small' ? '16px' : size === 'large' ? '20px' : '18px';
 
-    const userId = localStorage.getItem('user_id');
+    const userId = getSessionItem('user_id');
 
     // if no user logged in, reset display preferences
     if (!userId) {
@@ -49,8 +50,8 @@ function App() {
   }
 
   // detect whether user is logged in
-  const hasUser = Boolean(localStorage.getItem('user_id'));
-  const accountType = localStorage.getItem('account_type') || 'manager';
+  const hasUser = Boolean(getSessionItem('user_id'));
+  const accountType = getSessionItem('account_type') || 'manager';
 
   // if user is not authenticated, always send them to login
   if (!hasUser) {

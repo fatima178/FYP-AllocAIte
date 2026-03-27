@@ -2,6 +2,7 @@ import { useState } from 'react';
 import '../styles/Login.css';
 import groupChat from '../images/group-chat.png';
 import { apiFetch, APIError } from '../api';
+import { removeSessionItem, setSessionItem } from '../session';
 
 // both login + register form fields stored together
 // only one "mode" is active at any time
@@ -113,20 +114,20 @@ function LoginPage() {
           body.name || (mode === 'register' ? payload.name : null) || '';
 
         // store user session in local storage
-        localStorage.setItem('user_id', body.user_id);
-        localStorage.setItem('account_type', body.account_type || 'manager');
+        setSessionItem('user_id', body.user_id);
+        setSessionItem('account_type', body.account_type || 'manager');
         if (body.employee_id) {
-          localStorage.setItem('employee_id', body.employee_id);
+          setSessionItem('employee_id', body.employee_id);
         } else {
-          localStorage.removeItem('employee_id');
+          removeSessionItem('employee_id');
         }
 
-        if (resolvedEmail) localStorage.setItem('email', resolvedEmail);
-        if (resolvedName) localStorage.setItem('name', resolvedName);
-        if (body.created_at) localStorage.setItem('member_since', body.created_at);
+        if (resolvedEmail) setSessionItem('email', resolvedEmail);
+        if (resolvedName) setSessionItem('name', resolvedName);
+        if (body.created_at) setSessionItem('member_since', body.created_at);
 
-        localStorage.removeItem('active_upload_id');
-        localStorage.removeItem('login_role');
+        removeSessionItem('active_upload_id');
+        removeSessionItem('login_role');
 
         // redirect user depending on whether they already uploaded a file
         const redirectPath =

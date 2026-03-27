@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import '../styles/Invite.css';
 import { apiFetch } from '../api';
+import { removeSessionItem, setSessionItem } from '../session';
 
 function InvitePage() {
   const [token, setToken] = useState('');
@@ -77,10 +78,10 @@ function InvitePage() {
       });
 
       if (data.user_id) {
-        localStorage.removeItem('user_id');
-        localStorage.removeItem('account_type');
-        localStorage.removeItem('employee_id');
-        localStorage.setItem('login_role', 'employee');
+        removeSessionItem('user_id');
+        removeSessionItem('account_type');
+        removeSessionItem('employee_id');
+        setSessionItem('login_role', 'employee');
         setStatus({ type: 'success', message: 'Account created. Redirecting to login…' });
         setTimeout(() => {
           window.location.href = '/';

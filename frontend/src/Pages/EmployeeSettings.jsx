@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import Menu from "./Menu";
 import "../styles/Settings.css";
 import { apiFetch } from "../api";
+import { getSessionItem } from "../session";
 
 const DEFAULT_THEME = "light";
 const DEFAULT_FONT_SIZE = "medium";
@@ -16,7 +17,7 @@ const applyFontSize = (value) => {
 };
 
 const getPreferenceKey = (base) => {
-  const userId = localStorage.getItem("user_id");
+  const userId = getSessionItem("user_id");
   return userId ? `${base}_${userId}` : null;
 };
 
@@ -37,9 +38,9 @@ function EmployeeSettingsPage() {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [account, setAccount] = useState({
-    name: localStorage.getItem("name") || "Unknown User",
-    email: localStorage.getItem("email") || "unknown",
-    member_since: localStorage.getItem("member_since") || "-",
+    name: getSessionItem("name") || "Unknown User",
+    email: getSessionItem("email") || "unknown",
+    member_since: getSessionItem("member_since") || "-",
     manager_name: "-",
     manager_email: "-",
   });
@@ -61,7 +62,7 @@ function EmployeeSettingsPage() {
   };
 
   useEffect(() => {
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId) {
       setError("Please log in to view settings.");
       setLoading(false);
@@ -103,7 +104,7 @@ function EmployeeSettingsPage() {
   }, [theme, fontSize]);
 
   const updateSettings = async (payload) => {
-    const userId = localStorage.getItem("user_id");
+    const userId = getSessionItem("user_id");
     if (!userId) return;
 
     try {
