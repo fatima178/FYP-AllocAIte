@@ -107,38 +107,8 @@ function AssignmentsPage() {
 
       <div className="assignments-container">
         <section className="assignments-layout">
-          <div className="assignments-sidecard">
-            <div className="assignments-sidecard__header">
-              <p className="assignments-sidecard__eyebrow">Quick starts</p>
-              <h2>Use a sample brief</h2>
-              <p>Tap one to preload the description box, then adjust it to fit your real assignment.</p>
-            </div>
-
-            <div className="assignments-prompt-list">
-              {quickPrompts.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  className="assignments-prompt"
-                  onClick={() => setTaskDescription(prompt)}
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-
-            <div className="assignments-sidecard__tips">
-              <h3>Brief writing tips</h3>
-              <ul>
-                <li>Include the product area or business context.</li>
-                <li>Mention technical skills and the type of deliverable.</li>
-                <li>Avoid vague descriptions like “help with project work”.</li>
-              </ul>
-            </div>
-          </div>
-
           <div className="form-box">
-            <div className="form-box__header">
+            <div className="form-box__header form-box__header--split">
               <div className="form-box__titleblock">
                 <p className="form-box__eyebrow">Assignment setup</p>
                 <h2 className="page-title">Generate Recommendations</h2>
@@ -146,15 +116,49 @@ function AssignmentsPage() {
                   Describe the assignment and set the project window to get ranked employee matches.
                 </p>
               </div>
+              <div className="assignment-help">
+                <button
+                  type="button"
+                  className="assignment-help__trigger"
+                  aria-label="Show assignment help"
+                >
+                  Help
+                </button>
+                <div className="assignment-help__panel">
+                  <div className="assignment-help__section">
+                    <p className="assignments-sidecard__eyebrow">Quick starts</p>
+                    <h3>Use a sample brief</h3>
+                    <p>Tap one to preload the description box, then adjust it to fit your real assignment.</p>
+                    <div className="assignments-prompt-list">
+                      {quickPrompts.map((prompt) => (
+                        <button
+                          key={prompt}
+                          type="button"
+                          className="assignments-prompt"
+                          onClick={() => setTaskDescription(prompt)}
+                        >
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="assignment-help__section assignment-help__section--tips">
+                    <h3>Brief writing tips</h3>
+                    <ul>
+                      <li>Include the product area or business context.</li>
+                      <li>Mention technical skills and the type of deliverable.</li>
+                      <li>Avoid vague descriptions like "help with project work".</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="form-box__statusbar">
               <div className="form-box__meter">
                 <span>Brief detail</span>
                 <strong>{taskLength === 0 ? "Empty" : taskLength < 80 ? "Light" : "Strong"}</strong>
-              </div>
-              <div className="form-box__hint">
-                Strong briefs usually mention the stack, deliverable, and business context.
               </div>
             </div>
 
@@ -165,7 +169,7 @@ function AssignmentsPage() {
               </div>
               <textarea
                 id="task-description"
-                placeholder="Describe the assignment, expected outcome, skills needed, and any delivery context..."
+                placeholder="Describe the assignment, expected outcome, skills needed and any delivery context..."
                 value={taskDescription}
                 onChange={(e) => setTaskDescription(e.target.value)}
               />

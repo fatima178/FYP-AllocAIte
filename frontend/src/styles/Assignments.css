@@ -38,10 +38,8 @@
 }
 
 .assignments-layout {
-  display: grid;
-  grid-template-columns: minmax(280px, 0.78fr) minmax(0, 1.22fr);
-  gap: 24px;
-  margin-top: 12px;
+  max-width: 980px;
+  margin: 12px auto 0;
 }
 
 .assignments-sidecard,
@@ -117,6 +115,13 @@
   margin-bottom: 16px;
 }
 
+.form-box__header--split {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
 .form-box__titleblock {
   max-width: 700px;
 }
@@ -127,9 +132,79 @@
   line-height: 1.6;
 }
 
+.assignment-help {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.assignment-help__trigger {
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-soft);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.assignment-help__panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(420px, calc(100vw - 72px));
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+  z-index: 20;
+}
+
+.assignment-help:hover .assignment-help__panel,
+.assignment-help:focus-within .assignment-help__panel {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.assignment-help__section h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.assignment-help__section p,
+.assignment-help__section li {
+  margin: 0;
+  color: var(--muted-text);
+  line-height: 1.55;
+}
+
+.assignment-help__section--tips {
+  padding-top: 16px;
+  border-top: 1px solid var(--card-border);
+}
+
+.assignment-help__section--tips ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.assignment-help__section--tips li + li {
+  margin-top: 8px;
+}
+
 .form-box__statusbar {
   display: flex;
   align-items: stretch;
+  justify-content: flex-end;
   gap: 12px;
   margin-bottom: 24px;
 }
@@ -334,6 +409,16 @@
   .form-box__header,
   .form-footer {
     flex-direction: column;
+  }
+
+  .form-box__header--split {
+    align-items: stretch;
+  }
+
+  .assignment-help__panel {
+    right: auto;
+    left: 0;
+    width: min(100%, calc(100vw - 48px));
   }
 
   .form-box__statusbar,

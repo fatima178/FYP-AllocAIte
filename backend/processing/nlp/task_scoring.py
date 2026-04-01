@@ -57,7 +57,7 @@ def compute_role_match(task_description, role):
 # if no skills matched: semantic + experience dominate
 def _default_weights(skill_score):
     # fixed distribution for both cases
-    return 0.35, 0.22, 0.005, 0.02, 0.005, 0.15, 0.08, 0.10, 0.02, 0.05, 0.03
+    return 0.35, 0.22, 0.005, 0.02, 0.005, 0.130435, 0.069565, 0.083333, 0.016667, 0.05, 0.05
 
 
 def _determine_weights(skill_score, custom_weights=None, use_custom_weights=False):

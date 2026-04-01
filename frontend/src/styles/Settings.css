@@ -91,6 +91,76 @@
   font-size: 22px;
 }
 
+.settings-card__header--with-info {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.settings-card__header--with-info h2 {
+  margin-bottom: 0;
+}
+
+.info-popover {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.info-popover__trigger {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: help;
+}
+
+.info-popover__panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(320px, calc(100vw - 72px));
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+  z-index: 20;
+}
+
+.info-popover__item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.info-popover__item strong {
+  font-size: 0.95rem;
+}
+
+.info-popover__item span {
+  font-size: 0.88rem;
+  color: var(--text);
+  opacity: 0.75;
+}
+
+.info-popover:hover .info-popover__panel,
+.info-popover:focus-within .info-popover__panel {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
 .weighting-hint {
   margin: 16px 0 0;
   font-size: 0.92rem;
@@ -98,30 +168,91 @@
   opacity: 0.75;
 }
 
-.weighting-summary {
+.weight-budget-summary {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
   margin-top: 16px;
+}
+
+.weight-budget-summary__item {
+  padding: 14px 16px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: var(--surface-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.weight-budget-summary__item span {
+  color: var(--muted-text);
+  font-size: 0.88rem;
+}
+
+.weight-budget-summary__item strong {
+  font-size: 1.2rem;
+}
+
+.weight-budget-summary__item--pending {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(185, 28, 28, 0.35);
+}
+
+.weight-budget-summary__item--pending strong {
+  color: #b91c1c;
+}
+
+.weight-budget-summary__item--complete {
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(4, 120, 87, 0.35);
+}
+
+.weight-budget-summary__item--complete strong {
+  color: #047857;
+}
+
+.weight-slider-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.weight-slider-card {
   padding: 14px;
   border: 1px solid var(--card-border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--surface-muted);
 }
 
-.weighting-summary__item {
+.weight-slider-card__header {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
-.weighting-summary__item strong {
-  font-size: 0.95rem;
+.weight-slider-card__header h3 {
+  margin: 0;
+  font-size: 0.96rem;
 }
 
-.weighting-summary__item span {
-  font-size: 0.88rem;
-  color: var(--text);
-  opacity: 0.75;
+.weight-slider-card__header strong {
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.weight-slider-card input[type="range"] {
+  width: 100%;
+  accent-color: var(--button-bg);
+}
+
+@media (max-width: 820px) {
+  .weight-slider-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 .weight-inline-hint {
@@ -177,6 +308,14 @@
   border-color: var(--button-hover-bg);
 }
 
+.button-row button:disabled,
+.modal-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 @media (max-width: 960px) {
   .settings-layout {
     grid-template-columns: 1fr;
@@ -192,6 +331,14 @@
   .settings-sidebar button {
     flex: 1 1 140px;
     text-align: center;
+  }
+
+  .settings-card__header--with-info {
+    align-items: center;
+  }
+
+  .info-popover__panel {
+    right: -6px;
   }
 }
 

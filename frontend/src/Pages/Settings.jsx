@@ -8,13 +8,41 @@ import { getSessionItem, setSessionItem } from "../session";
 const DEFAULT_THEME = "light";
 const DEFAULT_FONT_SIZE = "medium";
 const FIXED_SEMANTIC_WEIGHT = 0.35;
+const MANAGER_WEIGHT_TOTAL = 0.65;
 const DEFAULT_MANAGER_WEIGHTS = {
   skills_fit: 0.25,
-  experience_role: 0.23,
-  availability_balance: 0.12,
+  experience_role: 0.2,
+  availability_balance: 0.1,
   growth_potential: 0.05,
-  past_feedback: 0.03,
+  past_feedback: 0.05,
 };
+const WEIGHTING_FIELDS = [
+  {
+    key: "skills_fit",
+    label: "Skills Fit",
+    description: "Technical, possible, and soft skill signals",
+  },
+  {
+    key: "experience_role",
+    label: "Experience & Role",
+    description: "Relevant experience and role match",
+  },
+  {
+    key: "availability_balance",
+    label: "Availability",
+    description: "Availability and workload balance",
+  },
+  {
+    key: "growth_potential",
+    label: "Growth Potential",
+    description: "Preferences and learning goals",
+  },
+  {
+    key: "past_feedback",
+    label: "Past Feedback",
+    description: "Historical manager feedback on similar tasks",
+  },
+];
 const HISTORY_PAGE_SIZE = 5;
 const GROUP_TO_DETAIL_SHARES = {
   skills_fit: {
@@ -38,8 +66,7 @@ const GROUP_TO_DETAIL_SHARES = {
     feedback: 1.0,
   },
 };
-const ADJUSTABLE_WEIGHT_BUDGET = 1 - FIXED_SEMANTIC_WEIGHT;
-
+const ADJUSTABLE_WEIGHT_BUDGET = MANAGER_WEIGHT_TOTAL;
 // toggles a CSS class on <body> to switch between light/dark mode
 const applyThemeClass = (value) => {
   document.body.classList.toggle("dark-theme", value === "dark");
@@ -196,9 +223,6 @@ function SettingsPage() {
   const [weights, setWeights] = useState({
     ...DEFAULT_MANAGER_WEIGHTS,
   });
-  const [savedWeightBaseline, setSavedWeightBaseline] = useState({
-    ...DEFAULT_MANAGER_WEIGHTS,
-  });
 
   // fetch account + appearance settings when page loads
   useEffect(() => {
@@ -245,8 +269,10 @@ function SettingsPage() {
             growth_potential: data.weights.preferences ?? DEFAULT_MANAGER_WEIGHTS.growth_potential,
             past_feedback: data.weights.feedback ?? DEFAULT_MANAGER_WEIGHTS.past_feedback,
           };
-          setWeights(groupedWeights);
-          setSavedWeightBaseline(groupedWeights);
+          const roundedGroupedWeights = Object.fromEntries(
+            Object.entries(groupedWeights).map(([key, value]) => [key, Number(value.toFixed(2))])
+          );
+          setWeights(roundedGroupedWeights);
         }
       } catch (err) {
         setError(err.message || "Unable to load settings.");
@@ -341,14 +367,34 @@ function SettingsPage() {
     updateSettings({ font_size: value });
   };
 
-  const formatWeight = (key, value) => {
-    const num = Number(value);
-    if (Number.isNaN(num)) return value;
-    return num.toFixed(2);
-  };
+  const getWeightPoints = (value) => Math.round(Number(value || 0) * 100);
 
-  const updateWeight = (key, value) => {
-    setWeights((prev) => ({ ...prev, [key]: value }));
+  const totalAllocatedPoints = Object.values(weights).reduce(
+    (sum, value) => sum + getWeightPoints(value),
+    0
+  );
+  const remainingWeightPoints = Math.max(
+    0,
+    Math.round(ADJUSTABLE_WEIGHT_BUDGET * 100) - totalAllocatedPoints
+  );
+
+  const updateWeightAllocation = (key, nextPoints) => {
+    const safePoints = Math.max(0, Number(nextPoints) || 0);
+    setWeights((prev) => {
+      const otherPoints = Object.entries(prev).reduce((sum, [groupKey, value]) => {
+        if (groupKey === key) return sum;
+        return sum + getWeightPoints(value);
+      }, 0);
+      const maxAllowedPoints = Math.max(
+        0,
+        Math.round(ADJUSTABLE_WEIGHT_BUDGET * 100) - otherPoints
+      );
+      const clampedPoints = Math.min(safePoints, maxAllowedPoints);
+      return {
+        ...prev,
+        [key]: Number((clampedPoints / 100).toFixed(2)),
+      };
+    });
   };
 
   const validateWeights = (nextWeights) => {
@@ -363,8 +409,8 @@ function SettingsPage() {
       }
     }
     const total = entries.reduce((sum, [, value]) => sum + Number(value), 0);
-    if (total <= 0) {
-      return "Total weight must be greater than 0.";
+    if (Math.abs(total - MANAGER_WEIGHT_TOTAL) > 0.0001) {
+      return "Weights must add up to 0.65 (65%).";
     }
     return "";
   };
@@ -382,28 +428,6 @@ function SettingsPage() {
     return detailed;
   };
 
-  const buildTradeoffPreview = (groupedWeights) => {
-    const numericWeights = Object.keys(DEFAULT_MANAGER_WEIGHTS).reduce((acc, key) => {
-      const parsed = Number(groupedWeights[key]);
-      acc[key] = Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
-      return acc;
-    }, {});
-
-    const total = Object.values(numericWeights).reduce((sum, value) => sum + value, 0);
-
-    return Object.keys(DEFAULT_MANAGER_WEIGHTS).reduce((acc, key) => {
-      const adjustableShare = total > 0 ? numericWeights[key] / total : 0;
-      acc[key] = {
-        raw: numericWeights[key],
-        finalShare: adjustableShare * ADJUSTABLE_WEIGHT_BUDGET,
-      };
-      return acc;
-    }, {});
-  };
-
-  const tradeoffPreview = buildTradeoffPreview(weights);
-  const baselineTradeoffPreview = buildTradeoffPreview(savedWeightBaseline);
-
   const saveWeights = () => {
     const errorMessage = validateWeights(weights);
     if (errorMessage) {
@@ -415,13 +439,11 @@ function SettingsPage() {
       { use_custom_weights: true, weights: expandGroupedWeights(weights) },
       "Weightings saved."
     );
-    setSavedWeightBaseline({ ...weights });
   };
 
   const resetWeights = () => {
     const defaults = { ...DEFAULT_MANAGER_WEIGHTS };
     setWeights(defaults);
-    setSavedWeightBaseline(defaults);
     updateSettings(
       { use_custom_weights: true, weights: expandGroupedWeights(defaults) },
       "Weightings reset."
@@ -952,144 +974,75 @@ function SettingsPage() {
 
         {activeSection === "weights" && (
         <div className="settings-card">
-          <h2>Ranking Weightings</h2>
-          <p className="muted">Customise recommendation priorities using a simpler manager view.</p>
-
-          <div className="form-grid">
-            <label>
-              Skills Fit
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formatWeight("skills_fit", weights.skills_fit)}
-                onChange={(e) => updateWeight("skills_fit", e.target.value)}
-              />
-              <span className="weight-inline-hint">
-                Now {(tradeoffPreview.skills_fit.finalShare * 100).toFixed(1)}% of manager pool
-              </span>
-              {Math.abs(
-                tradeoffPreview.skills_fit.finalShare - baselineTradeoffPreview.skills_fit.finalShare
-              ) > 0.0001 && (
-                <span className="weight-inline-hint weight-inline-hint--secondary">
-                  Was {(baselineTradeoffPreview.skills_fit.finalShare * 100).toFixed(1)}%
-                </span>
-              )}
-            </label>
-            <label>
-              Experience & Role
-              <input
-                step="0.01"
-                min="0"
-                value={formatWeight("experience_role", weights.experience_role)}
-                onChange={(e) => updateWeight("experience_role", e.target.value)}
-              />
-              <span className="weight-inline-hint">
-                Now {(tradeoffPreview.experience_role.finalShare * 100).toFixed(1)}% of manager pool
-              </span>
-              {Math.abs(
-                tradeoffPreview.experience_role.finalShare -
-                  baselineTradeoffPreview.experience_role.finalShare
-              ) > 0.0001 && (
-                <span className="weight-inline-hint weight-inline-hint--secondary">
-                  Was {(baselineTradeoffPreview.experience_role.finalShare * 100).toFixed(1)}%
-                </span>
-              )}
-            </label>
-            <label>
-              Availability
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formatWeight("availability_balance", weights.availability_balance)}
-                onChange={(e) => updateWeight("availability_balance", e.target.value)}
-              />
-              <span className="weight-inline-hint">
-                Now {(tradeoffPreview.availability_balance.finalShare * 100).toFixed(1)}% of manager pool
-              </span>
-              {Math.abs(
-                tradeoffPreview.availability_balance.finalShare -
-                  baselineTradeoffPreview.availability_balance.finalShare
-              ) > 0.0001 && (
-                <span className="weight-inline-hint weight-inline-hint--secondary">
-                  Was {(baselineTradeoffPreview.availability_balance.finalShare * 100).toFixed(1)}%
-                </span>
-              )}
-            </label>
-            <label>
-              Growth Potential
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formatWeight("growth_potential", weights.growth_potential)}
-                onChange={(e) => updateWeight("growth_potential", e.target.value)}
-              />
-              <span className="weight-inline-hint">
-                Now {(tradeoffPreview.growth_potential.finalShare * 100).toFixed(1)}% of manager pool
-              </span>
-              {Math.abs(
-                tradeoffPreview.growth_potential.finalShare -
-                  baselineTradeoffPreview.growth_potential.finalShare
-              ) > 0.0001 && (
-                <span className="weight-inline-hint weight-inline-hint--secondary">
-                  Was {(baselineTradeoffPreview.growth_potential.finalShare * 100).toFixed(1)}%
-                </span>
-              )}
-            </label>
-            <label>
-              Past Feedback
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formatWeight("past_feedback", weights.past_feedback)}
-                onChange={(e) => updateWeight("past_feedback", e.target.value)}
-              />
-              <span className="weight-inline-hint">
-                Now {(tradeoffPreview.past_feedback.finalShare * 100).toFixed(1)}% of manager pool
-              </span>
-              {Math.abs(
-                tradeoffPreview.past_feedback.finalShare -
-                  baselineTradeoffPreview.past_feedback.finalShare
-              ) > 0.0001 && (
-                <span className="weight-inline-hint weight-inline-hint--secondary">
-                  Was {(baselineTradeoffPreview.past_feedback.finalShare * 100).toFixed(1)}%
-                </span>
-              )}
-            </label>
+          <div className="settings-card__header settings-card__header--with-info">
+            <h2>Ranking Weightings</h2>
+            <div className="info-popover">
+              <button
+                type="button"
+                className="info-popover__trigger"
+                aria-label="Show weighting category descriptions"
+              >
+                ?
+              </button>
+              <div className="info-popover__panel" role="tooltip">
+                {WEIGHTING_FIELDS.map((item) => (
+                  <div className="info-popover__item" key={item.key}>
+                    <strong>{item.label}</strong>
+                    <span>{item.description}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-
-          <p className="weighting-hint">
-            Semantic similarity stays fixed. The remaining {Math.round(ADJUSTABLE_WEIGHT_BUDGET * 100)}% is shared across these five priorities, so when one goes up the others must come down.
-          </p>
-
-          <div className="weighting-summary">
-            <div className="weighting-summary__item">
-              <strong>Skills Fit</strong>
-              <span>Technical, possible, and soft skill signals</span>
+          <div className="weight-budget-summary">
+            <div className="weight-budget-summary__item">
+              <span>Semantic similarity</span>
+              <strong>{Math.round(FIXED_SEMANTIC_WEIGHT * 100)}%</strong>
             </div>
-            <div className="weighting-summary__item">
-              <strong>Experience & Role</strong>
-              <span>Relevant experience and role match</span>
+            <div className="weight-budget-summary__item">
+              <span>Allocated</span>
+              <strong>{totalAllocatedPoints}%</strong>
             </div>
-            <div className="weighting-summary__item">
-              <strong>Availability</strong>
-              <span>Availability and workload balance</span>
-            </div>
-            <div className="weighting-summary__item">
-              <strong>Growth Potential</strong>
-              <span>Preferences and learning goals</span>
-            </div>
-            <div className="weighting-summary__item">
-              <strong>Past Feedback</strong>
-              <span>Historical manager feedback on similar tasks</span>
+            <div
+              className={
+                remainingWeightPoints === 0
+                  ? "weight-budget-summary__item weight-budget-summary__item--complete"
+                  : "weight-budget-summary__item weight-budget-summary__item--pending"
+              }
+            >
+              <span>Remaining to allocate</span>
+              <strong>{remainingWeightPoints}%</strong>
             </div>
           </div>
 
+          <div className="weight-slider-list">
+            {WEIGHTING_FIELDS.map((field) => {
+              const currentPoints = getWeightPoints(weights[field.key]);
+
+              return (
+                <div className="weight-slider-card" key={field.key}>
+                  <div className="weight-slider-card__header">
+                    <h3>{field.label}</h3>
+                    <strong>{currentPoints} / {Math.round(ADJUSTABLE_WEIGHT_BUDGET * 100)}</strong>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max={Math.round(ADJUSTABLE_WEIGHT_BUDGET * 100)}
+                    step="1"
+                    value={currentPoints}
+                    onChange={(e) => updateWeightAllocation(field.key, e.target.value)}
+                  />
+                </div>
+              );
+            })}
+          </div>
           <div className="button-row">
-            <button className="primary" onClick={saveWeights}>
+            <button
+              className="primary"
+              onClick={saveWeights}
+              disabled={remainingWeightPoints !== 0}
+            >
               Save Weightings
             </button>
             <button onClick={resetWeights}>
