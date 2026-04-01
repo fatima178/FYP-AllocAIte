@@ -138,7 +138,12 @@ def fetch_employee_calendar(user_id: int, week_start: Optional[date]) -> dict:
         conn.close()
 
 
-def create_personal_calendar_entry(user_id: int, label: str, start_date: date, end_date: date) -> dict:
+def create_personal_calendar_entry(
+    user_id: int,
+    label: str,
+    start_date: date,
+    end_date: date,
+) -> dict:
     employee_id = _resolve_employee_id(user_id)
     clean_label = str(label or "").strip()
     if not clean_label:

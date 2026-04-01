@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Menu from "../Menu";
 import "../../styles/Assignments.css";
 import { apiFetch } from "../../api";
@@ -25,8 +25,25 @@ function AssignmentsPage() {
 
   // holds validation errors or server-side errors
   const [error, setError] = useState("");
+  const [hasEmployees, setHasEmployees] = useState(true);
 
   const taskLength = taskDescription.trim().length;
+
+  useEffect(() => {
+    const userId = getSessionItem("user_id");
+    if (!userId) return;
+
+    const checkEmployees = async () => {
+      try {
+        const data = await apiFetch(`/dashboard/summary?user_id=${userId}`);
+        setHasEmployees((data?.total_employees || 0) > 0);
+      } catch {
+        setHasEmployees(true);
+      }
+    };
+
+    checkEmployees();
+  }, []);
 
   // main function that sends the recommendation request to the backend
   const generateRecommendations = async () => {
@@ -51,6 +68,12 @@ function AssignmentsPage() {
     // both dates must be selected
     if (!startDate || !endDate) {
       setError("Please provide both start and end dates.");
+      setLoading(false);
+      return;
+    }
+
+    if (!hasEmployees) {
+      setError("Upload your Excel file first before generating recommendations.");
       setLoading(false);
       return;
     }
@@ -155,6 +178,9 @@ function AssignmentsPage() {
             </div>
 
             <div className="form-box__statusbar">
+              {!hasEmployees && (
+                <p className="error">Upload your Excel file first before generating recommendations.</p>
+              )}
               <div className="form-box__meter">
                 <span>Brief detail</span>
                 <strong>{taskLength === 0 ? "Empty" : taskLength < 80 ? "Light" : "Strong"}</strong>
@@ -206,7 +232,7 @@ function AssignmentsPage() {
             <div className="form-footer">
               <button
                 type="button"
-                disabled={loading}
+                disabled={loading || !hasEmployees}
                 onClick={generateRecommendations}
               >
                 {loading ? "Generating..." : "Generate Recommendations"}

@@ -1,5 +1,5 @@
 from sentence_transformers import SentenceTransformer, util
-from ..task_data_access import (
+from processing.tasks.task_data_access import (
     fetch_employees_by_user,
     calculate_assignment_availability,
     fetch_employee_feedback,

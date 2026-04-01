@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from db import get_connection
+from processing.availability_processing import calculate_availability_from_rows
 
 
 # ----------------------------------------------------------
@@ -399,51 +400,21 @@ def calculate_assignment_availability(employee_id: int, start, end) -> float:
 
     try:
         cur.execute("""
-            SELECT start_date, end_date, remaining_hours, total_hours
+            SELECT start_date, end_date, total_hours, remaining_hours
             FROM "Assignments"
             WHERE employee_id = %s
               AND start_date <= %s
               AND end_date >= %s
         """, (employee_id, end, start))
         rows = cur.fetchall()
+
     finally:
         cur.close()
         conn.close()
 
-    # no overlapping assignments → fully available
-    if not rows:
-        return 1.0
-
-    total_hours = 0.0
-    remaining_hours = 0.0
-
-    for start_date, end_date, remaining, total in rows:
-        try:
-            total = float(total or 0)
-        except:
-            total = 0
-        try:
-            remaining = float(remaining or 0)
-        except:
-            remaining = 0
-
-        assignment_days = (end_date - start_date).days + 1
-        window_days = (min(end_date, end) - max(start_date, start)).days + 1
-        if assignment_days <= 0 or window_days <= 0:
-            continue
-
-        base_hours = remaining if remaining > 0 else total
-        if base_hours <= 0:
-            base_hours = float(assignment_days * 8)
-
-        hours_per_day = base_hours / assignment_days
-        total_hours += base_hours
-        remaining_hours += hours_per_day * window_days
-
-    window_days = (end - start).days + 1
-    window_capacity = float(window_days) * 8
-    if window_capacity <= 0:
-        return 0.0
-
-    availability = 1 - (remaining_hours / window_capacity)
-    return max(0.0, min(1.0, availability))
+    availability = calculate_availability_from_rows(
+        [(None, row[0], row[1], row[2], row[3]) for row in rows],
+        start,
+        end,
+    )
+    return max(0.0, min(1.0, (availability["percent"] / 100.0)))

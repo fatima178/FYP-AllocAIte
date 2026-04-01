@@ -205,9 +205,12 @@ export function useDashboardState() {
     [appliedRange, selectedSkills.length]
   );
 
+  const isNewUser = (data?.total_employees || 0) === 0;
+
   return {
     accountType,
     data,
+    isNewUser,
     employees,
     error,
     searchTerm,

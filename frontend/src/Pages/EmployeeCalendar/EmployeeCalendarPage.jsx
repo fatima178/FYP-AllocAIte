@@ -152,7 +152,7 @@ function EmployeeCalendarPage() {
         <div className="tasks-header">
           <div>
             <h1>My Calendar</h1>
-            <p>See your assignments and add personal entries.</p>
+            <p>See your assignments and add calendar entries.</p>
           </div>
 
           <div className="tasks-header__actions">
@@ -241,7 +241,7 @@ function EmployeeCalendarPage() {
 
             {!loading && !error && !hasAnyItems && (
               <div className="calendar-message empty">
-                Nothing scheduled this week.
+                No assignments or calendar entries scheduled this week.
               </div>
             )}
           </div>
@@ -251,8 +251,8 @@ function EmployeeCalendarPage() {
       {showModal && (
         <div className="task-modal">
           <div className="task-modal__content">
-            <div className="task-modal__header">
-              <h2>Add entry</h2>
+              <div className="task-modal__header">
+              <h2>Add calendar entry</h2>
               <button type="button" onClick={closeModal} aria-label="Close">
                 ×
               </button>

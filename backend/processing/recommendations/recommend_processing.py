@@ -230,6 +230,13 @@ def generate_recommendations(
     if user_id is None:
         raise RecommendationError(400, "user_id is required")
 
+    employees = fetch_employees_by_user(user_id)
+    if not employees:
+        raise RecommendationError(
+            400,
+            "Upload your employee data first before generating recommendations.",
+        )
+
     # run the matching engine and return ranking results
     recommendations = match_employees(task_description, user_id, start_date, end_date)
     gap_analysis = _build_gap_analysis(task_description, user_id, recommendations)

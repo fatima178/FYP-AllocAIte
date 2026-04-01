@@ -327,7 +327,6 @@ def create_task_entry(
             )
             if not cur.fetchone():
                 raise TaskProcessingError(404, "employee not found for this user")
-
         # insert new assignment
         days = (end_date - start_date).days + 1
         total_hours = float(days * 8)

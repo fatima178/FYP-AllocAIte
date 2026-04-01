@@ -85,6 +85,7 @@ function TasksPage() {
   }, [rows, peopleSearch]);
 
   const hasAnyTasks = filteredRows.some((row) => row.tasks.length > 0);
+  const hasEmployees = (weekData.employee_options || []).length > 1;
 
   const fetchWeekData = useCallback(async () => {
     if (!userId) {
@@ -312,46 +313,54 @@ function TasksPage() {
             <p>manage and track all your team tasks</p>
           </div>
           <div className="tasks-header__actions">
-            <button type="button" className="ghost-btn" onClick={() => setFeedbackPanelOpen(true)}>Feedback</button>
-            <button type="button" className="primary-btn" onClick={openModal}>Add task</button>
+            <button type="button" className="ghost-btn" onClick={() => setFeedbackPanelOpen(true)} disabled={!hasEmployees}>Feedback</button>
+            <button type="button" className="primary-btn" onClick={openModal} disabled={!hasEmployees}>Add task</button>
           </div>
         </div>
 
-        <div className="tasks-filters">
-          <div className="filter-group">
-            <label htmlFor="task-view">View</label>
-            <select id="task-view" value={viewWeeks} onChange={(e) => setViewWeeks(Number(e.target.value))}>
-              <option value={1}>Weekly view</option>
-              <option value={2}>2 week view</option>
-              <option value={4}>4 week view</option>
-              <option value={6}>6 week view</option>
-            </select>
+        {!loading && !error && !hasEmployees ? (
+          <div className="calendar-message empty">
+            No employee data found. Upload your Excel file first before creating tasks or generating recommendations.
           </div>
+        ) : (
+          <>
+            <div className="tasks-filters">
+              <div className="filter-group">
+                <label htmlFor="task-view">View</label>
+                <select id="task-view" value={viewWeeks} onChange={(e) => setViewWeeks(Number(e.target.value))}>
+                  <option value={1}>Weekly view</option>
+                  <option value={2}>2 week view</option>
+                  <option value={4}>4 week view</option>
+                  <option value={6}>6 week view</option>
+                </select>
+              </div>
 
-          <div className="filter-group filter-search">
-            <label htmlFor="task-search">Search people</label>
-            <input
-              id="task-search"
-              type="text"
-              placeholder="Search by name..."
-              value={peopleSearch}
-              onChange={(e) => setPeopleSearch(e.target.value)}
+              <div className="filter-group filter-search">
+                <label htmlFor="task-search">Search people</label>
+                <input
+                  id="task-search"
+                  type="text"
+                  placeholder="Search by name..."
+                  value={peopleSearch}
+                  onChange={(e) => setPeopleSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <TasksCalendar
+              viewDays={viewDays}
+              weekStart={weekStart}
+              weekEnd={weekEnd}
+              weekDays={weekDays}
+              loading={loading}
+              error={error}
+              filteredRows={filteredRows}
+              hasAnyTasks={hasAnyTasks}
+              onChangeWeek={changeWeek}
+              onEditTask={openEditModal}
             />
-          </div>
-        </div>
-
-        <TasksCalendar
-          viewDays={viewDays}
-          weekStart={weekStart}
-          weekEnd={weekEnd}
-          weekDays={weekDays}
-          loading={loading}
-          error={error}
-          filteredRows={filteredRows}
-          hasAnyTasks={hasAnyTasks}
-          onChangeWeek={changeWeek}
-          onEditTask={openEditModal}
-        />
+          </>
+        )}
       </div>
 
       <TaskFormModal

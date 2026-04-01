@@ -3,6 +3,11 @@ from typing import Optional
 from fastapi import HTTPException
 
 from db import get_connection
+from processing.settings.weight_defaults import (
+    FIXED_SEMANTIC_WEIGHT,
+    NON_SEMANTIC_WEIGHT_KEYS,
+    resolve_effective_weight_map,
+)
 from utils.auth_utils import (
     PASSWORD_RULE_MESSAGE,
     hash_password,
@@ -48,6 +53,20 @@ def fetch_user_settings(user_id: int):
         if not row:
             raise HTTPException(404, "user not found")
 
+        effective_weights = resolve_effective_weight_map({
+            "semantic": row[6],
+            "skill": row[7],
+            "possible_skill": row[8],
+            "soft_skill": row[9],
+            "possible_soft_skill": row[10],
+            "experience": row[11],
+            "role": row[12],
+            "availability": row[13],
+            "fairness": row[14],
+            "preferences": row[15],
+            "feedback": row[16],
+        })
+
         return {
             "name": row[0],
             "email": row[1],
@@ -55,19 +74,7 @@ def fetch_user_settings(user_id: int):
             "theme": row[3],
             "font_size": row[4],
             "use_custom_weights": bool(row[5]),
-            "weights": {
-                "semantic": _FIXED_SEMANTIC_WEIGHT,
-                "skill": row[7],
-                "possible_skill": row[8],
-                "soft_skill": row[9],
-                "possible_soft_skill": row[10],
-                "experience": row[11],
-                "role": row[12],
-                "availability": row[13],
-                "fairness": row[14],
-                "preferences": row[15],
-                "feedback": row[16],
-            },
+            "weights": effective_weights,
         }
 
     finally:
@@ -75,30 +82,11 @@ def fetch_user_settings(user_id: int):
         conn.close()
 
 
-# ----------------------------------------------------------
-# update / insert user settings
-# ----------------------------------------------------------
-# ensures the row exists first (insert with do-nothing on conflict),
-# then updates only the fields provided.
-_FIXED_SEMANTIC_WEIGHT = 0.35
-
-
 def _normalise_weights(weights: dict):
     if not isinstance(weights, dict):
         return None
     clean = {}
-    for key in (
-        "skill",
-        "possible_skill",
-        "soft_skill",
-        "possible_soft_skill",
-        "experience",
-        "role",
-        "availability",
-        "fairness",
-        "preferences",
-        "feedback",
-    ):
+    for key in NON_SEMANTIC_WEIGHT_KEYS:
         value = weights.get(key)
         if value is None or value == "":
             if key in ("soft_skill", "possible_soft_skill"):
@@ -115,13 +103,13 @@ def _normalise_weights(weights: dict):
     total_other = sum(clean.values())
     if total_other <= 0:
         return None
-    if _FIXED_SEMANTIC_WEIGHT >= 1:
+    if FIXED_SEMANTIC_WEIGHT >= 1:
         return None
     scaled = {
-        key: round((clean[key] / total_other) * (1 - _FIXED_SEMANTIC_WEIGHT), 6)
+        key: round((clean[key] / total_other) * (1 - FIXED_SEMANTIC_WEIGHT), 6)
         for key in clean
     }
-    scaled["semantic"] = _FIXED_SEMANTIC_WEIGHT
+    scaled["semantic"] = FIXED_SEMANTIC_WEIGHT
     return scaled
 
 

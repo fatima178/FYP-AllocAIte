@@ -25,55 +25,64 @@ function DashboardPage() {
                 summaryAvailabilityLabel={dashboard.labels.summaryAvailabilityLabel}
               />
 
-              <SkillApprovalPanel
-                visible={
-                  dashboard.accountType === "manager" &&
-                  (
-                    dashboard.pendingSkillLoading ||
-                    dashboard.pendingSkillError ||
-                    dashboard.pendingSkillRequests.length > 0
-                  )
-                }
-                loading={dashboard.pendingSkillLoading}
-                error={dashboard.pendingSkillError}
-                requests={dashboard.pendingSkillRequests}
-                reviewingSkillId={dashboard.reviewingSkillId}
-                onReview={dashboard.reviewSkillRequest}
-              />
+              {dashboard.isNewUser ? (
+                <div className="empty-state">
+                  <h3>No employee data yet</h3>
+                  <p>Upload your Excel file first so the dashboard can show team information, availability, and recommendations.</p>
+                </div>
+              ) : (
+                <>
+                  <SkillApprovalPanel
+                    visible={
+                      dashboard.accountType === "manager" &&
+                      (
+                        dashboard.pendingSkillLoading ||
+                        dashboard.pendingSkillError ||
+                        dashboard.pendingSkillRequests.length > 0
+                      )
+                    }
+                    loading={dashboard.pendingSkillLoading}
+                    error={dashboard.pendingSkillError}
+                    requests={dashboard.pendingSkillRequests}
+                    reviewingSkillId={dashboard.reviewingSkillId}
+                    onReview={dashboard.reviewSkillRequest}
+                  />
 
-              <FiltersBar
-                searchTerm={dashboard.searchTerm}
-                setSearchTerm={dashboard.setSearchTerm}
-                skillsOpen={dashboard.skillsOpen}
-                setSkillsOpen={dashboard.setSkillsOpen}
-                selectedSkillsLabel={dashboard.labels.selectedSkillsLabel}
-                selectedSkills={dashboard.selectedSkills}
-                skillSearch={dashboard.skillSearch}
-                setSkillSearch={dashboard.setSkillSearch}
-                availableSkills={dashboard.availableSkills}
-                filteredAvailableSkills={dashboard.filteredAvailableSkills}
-                handleSkillChange={dashboard.handleSkillChange}
-                availability={dashboard.availability}
-                setAvailability={dashboard.setAvailability}
-                rangeOpen={dashboard.rangeOpen}
-                setRangeOpen={dashboard.setRangeOpen}
-                selectedRangeLabel={dashboard.labels.selectedRangeLabel}
-                rangeStartInput={dashboard.rangeStartInput}
-                setRangeStartInput={dashboard.setRangeStartInput}
-                rangeEndInput={dashboard.rangeEndInput}
-                setRangeEndInput={dashboard.setRangeEndInput}
-                applyDateRange={dashboard.applyDateRange}
-                clearDateRange={dashboard.clearDateRange}
-                appliedRange={dashboard.appliedRange}
-                skillsRef={dashboard.skillsRef}
-                rangeRef={dashboard.rangeRef}
-                removeSelectedSkill={dashboard.removeSelectedSkill}
-              />
+                  <FiltersBar
+                    searchTerm={dashboard.searchTerm}
+                    setSearchTerm={dashboard.setSearchTerm}
+                    skillsOpen={dashboard.skillsOpen}
+                    setSkillsOpen={dashboard.setSkillsOpen}
+                    selectedSkillsLabel={dashboard.labels.selectedSkillsLabel}
+                    selectedSkills={dashboard.selectedSkills}
+                    skillSearch={dashboard.skillSearch}
+                    setSkillSearch={dashboard.setSkillSearch}
+                    availableSkills={dashboard.availableSkills}
+                    filteredAvailableSkills={dashboard.filteredAvailableSkills}
+                    handleSkillChange={dashboard.handleSkillChange}
+                    availability={dashboard.availability}
+                    setAvailability={dashboard.setAvailability}
+                    rangeOpen={dashboard.rangeOpen}
+                    setRangeOpen={dashboard.setRangeOpen}
+                    selectedRangeLabel={dashboard.labels.selectedRangeLabel}
+                    rangeStartInput={dashboard.rangeStartInput}
+                    setRangeStartInput={dashboard.setRangeStartInput}
+                    rangeEndInput={dashboard.rangeEndInput}
+                    setRangeEndInput={dashboard.setRangeEndInput}
+                    applyDateRange={dashboard.applyDateRange}
+                    clearDateRange={dashboard.clearDateRange}
+                    appliedRange={dashboard.appliedRange}
+                    skillsRef={dashboard.skillsRef}
+                    rangeRef={dashboard.rangeRef}
+                    removeSelectedSkill={dashboard.removeSelectedSkill}
+                  />
 
-              <EmployeeGrid
-                employees={dashboard.employees}
-                availabilityLabel={dashboard.labels.availabilityLabel}
-              />
+                  <EmployeeGrid
+                    employees={dashboard.employees}
+                    availabilityLabel={dashboard.labels.availabilityLabel}
+                  />
+                </>
+              )}
             </>
           )
         )}

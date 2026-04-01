@@ -177,7 +177,6 @@ def get_employees_data(
         skill_map = {employee_id: [] for employee_id in employee_ids}
         soft_skill_map = {employee_id: [] for employee_id in employee_ids}
         assignment_map = {employee_id: [] for employee_id in employee_ids}
-
         if employee_ids:
             cur.execute(
                 """
@@ -222,6 +221,7 @@ def get_employees_data(
                 assignment_map.setdefault(employee_id, []).append(
                     (title, start_date, end_date, total_hours, remaining_hours)
                 )
+
 
         for employee_id, name, role, dept in rows:
             parsed_skills = skill_map.get(employee_id, [])

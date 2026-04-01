@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
 
 from db import get_connection
+from processing.settings.weight_defaults import default_weight_tuple
 from utils.auth_utils import (
     PASSWORD_RULE_MESSAGE,
     hash_password,
@@ -65,6 +66,51 @@ def register_user(payload: RegisterRequest):
         """, (payload.name, payload.email, password_hash))
 
         user_id, created_at = cur.fetchone()
+        default_weights = default_weight_tuple()
+
+        cur.execute(
+            """
+            INSERT INTO "UserSettings" (
+                user_id,
+                theme,
+                font_size,
+                use_custom_weights,
+                weight_semantic,
+                weight_skill,
+                weight_possible_skill,
+                weight_soft_skill,
+                weight_possible_soft_skill,
+                weight_experience,
+                weight_role,
+                weight_availability,
+                weight_fairness,
+                weight_preferences,
+                weight_feedback
+            )
+            VALUES (
+                %s, 'light', 'medium', FALSE,
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s
+            )
+            ON CONFLICT (user_id) DO UPDATE
+            SET
+                theme = COALESCE("UserSettings".theme, EXCLUDED.theme),
+                font_size = COALESCE("UserSettings".font_size, EXCLUDED.font_size),
+                use_custom_weights = COALESCE("UserSettings".use_custom_weights, EXCLUDED.use_custom_weights),
+                weight_semantic = COALESCE("UserSettings".weight_semantic, EXCLUDED.weight_semantic),
+                weight_skill = COALESCE("UserSettings".weight_skill, EXCLUDED.weight_skill),
+                weight_possible_skill = COALESCE("UserSettings".weight_possible_skill, EXCLUDED.weight_possible_skill),
+                weight_soft_skill = COALESCE("UserSettings".weight_soft_skill, EXCLUDED.weight_soft_skill),
+                weight_possible_soft_skill = COALESCE("UserSettings".weight_possible_soft_skill, EXCLUDED.weight_possible_soft_skill),
+                weight_experience = COALESCE("UserSettings".weight_experience, EXCLUDED.weight_experience),
+                weight_role = COALESCE("UserSettings".weight_role, EXCLUDED.weight_role),
+                weight_availability = COALESCE("UserSettings".weight_availability, EXCLUDED.weight_availability),
+                weight_fairness = COALESCE("UserSettings".weight_fairness, EXCLUDED.weight_fairness),
+                weight_preferences = COALESCE("UserSettings".weight_preferences, EXCLUDED.weight_preferences),
+                weight_feedback = COALESCE("UserSettings".weight_feedback, EXCLUDED.weight_feedback);
+            """,
+            (user_id, *default_weights),
+        )
         conn.commit()
 
         return {
