@@ -16,6 +16,7 @@ code {
    THEME VARIABLES
 --------------------------------------------------- */
 :root {
+  --app-scale: 0.75;
   --bg: #f8f9fc;
   --text: #1a1a1a;
   --card: #ffffff;
@@ -67,4 +68,21 @@ body,
   background-color: var(--bg) !important;
   color: var(--text) !important;
   transition: background 0.3s ease, color 0.3s ease;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+#root {
+  zoom: var(--app-scale);
+}
+
+@supports not (zoom: 1) {
+  #root {
+    width: calc(100% / var(--app-scale));
+    min-height: calc(100vh / var(--app-scale));
+    transform: scale(var(--app-scale));
+    transform-origin: top left;
+  }
 }
