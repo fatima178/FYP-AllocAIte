@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Dict
 
 from db import get_connection
+from utils.auth_utils import hash_password, validate_password_complexity
 
 
 class InviteProcessingError(Exception):
@@ -84,10 +85,10 @@ def create_invite(manager_user_id: int, employee_id: int) -> Dict[str, str]:
 def _validate_password(password: str):
     if not password:
         raise InviteProcessingError(400, "password is required")
-    if not any(c.isupper() for c in password):
-        raise InviteProcessingError(400, "password must include an uppercase letter")
-    if password.isalnum():
-        raise InviteProcessingError(400, "password must include a special character")
+    try:
+        validate_password_complexity(password)
+    except ValueError as exc:
+        raise InviteProcessingError(400, str(exc))
 
 
 def accept_invite(token: str, email: str, password: str) -> Dict[str, str]:
@@ -147,7 +148,7 @@ def accept_invite(token: str, email: str, password: str) -> Dict[str, str]:
             raise InviteProcessingError(404, "employee not found")
         employee_name = emp_row[0] or "Employee"
 
-        password_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
+        password_hash = hash_password(password)
 
         cur.execute(
             """

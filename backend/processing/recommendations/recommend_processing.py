@@ -4,11 +4,11 @@ from db import get_connection
 from datetime import date
 
 from processing.nlp.task_matching import match_employees
-from processing.recommendation_log_processing import (
+from processing.recommendations.recommendation_log_processing import (
     create_recommendation_task,
     log_recommendations,
 )
-from processing.task_data_access import fetch_employees_by_user
+from processing.tasks.task_data_access import fetch_employees_by_user
 
 
 SKILL_KEYWORDS = [

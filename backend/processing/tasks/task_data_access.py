@@ -1,6 +1,6 @@
 """database access helpers for recommendation related processing."""
 
-from datetime import date, datetime
+from datetime import datetime
 from typing import Any, Dict, List
 
 from db import get_connection
@@ -178,6 +178,120 @@ def _fetch_recent_workload_hours(cur, employee_id: int, window_days: int = 90) -
 #   - role
 #   - experience years (defaults to 0 if null)
 #   - parsed skills list
+def _build_employee_records(rows) -> List[Dict[str, Any]]:
+    employees: List[Dict[str, Any]] = []
+    employee_ids = [employee_id for employee_id, _, _ in rows]
+    if not employee_ids:
+        return employees
+
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        technical_map = {employee_id: [] for employee_id in employee_ids}
+        soft_map = {employee_id: [] for employee_id in employee_ids}
+        goal_map = {employee_id: [] for employee_id in employee_ids}
+        growth_map = {employee_id: None for employee_id in employee_ids}
+        workload_map = {employee_id: 0.0 for employee_id in employee_ids}
+
+        cur.execute(
+            """
+            SELECT employee_id, skill_name, years_experience, skill_type
+            FROM "EmployeeSkills"
+            WHERE employee_id = ANY(%s)
+            ORDER BY employee_id ASC, skill_name ASC;
+            """,
+            (employee_ids,),
+        )
+        for employee_id, skill_name, years_experience, skill_type in cur.fetchall():
+            target = technical_map if skill_type == "technical" else soft_map
+            target.setdefault(employee_id, []).append(
+                {"skill_name": skill_name, "years_experience": years_experience}
+            )
+
+        cur.execute(
+            """
+            SELECT employee_id, skill_name, priority
+            FROM "EmployeeLearningGoals"
+            WHERE employee_id = ANY(%s)
+            ORDER BY employee_id ASC, priority DESC, skill_name ASC;
+            """,
+            (employee_ids,),
+        )
+        for employee_id, skill_name, priority in cur.fetchall():
+            goal_map.setdefault(employee_id, []).append(
+                {"skill_name": skill_name, "priority": priority}
+            )
+
+        cur.execute(
+            """
+            SELECT employee_id, growth_text
+            FROM "EmployeePreferences"
+            WHERE employee_id = ANY(%s);
+            """,
+            (employee_ids,),
+        )
+        for employee_id, growth_text in cur.fetchall():
+            growth_map[employee_id] = growth_text
+
+        cur.execute(
+            """
+            SELECT employee_id, COALESCE(SUM(COALESCE(total_hours, 0)), 0)
+            FROM "Assignments"
+            WHERE employee_id = ANY(%s)
+              AND end_date >= CURRENT_DATE - 90
+            GROUP BY employee_id;
+            """,
+            (employee_ids,),
+        )
+        for employee_id, total_hours in cur.fetchall():
+            workload_map[employee_id] = workload_map.get(employee_id, 0.0) + float(total_hours or 0)
+
+        cur.execute(
+            """
+            SELECT employee_id, COALESCE(SUM(COALESCE(total_hours, 0)), 0)
+            FROM "AssignmentHistory"
+            WHERE employee_id = ANY(%s)
+              AND end_date >= CURRENT_DATE - 90
+            GROUP BY employee_id;
+            """,
+            (employee_ids,),
+        )
+        for employee_id, total_hours in cur.fetchall():
+            workload_map[employee_id] = workload_map.get(employee_id, 0.0) + float(total_hours or 0)
+    finally:
+        cur.close()
+        conn.close()
+
+    for employee_id, name, role in rows:
+        skills = _merge_skills(technical_map.get(employee_id, []))
+        soft_skills = _merge_skills(soft_map.get(employee_id, []))
+
+        derived = _derive_role_tags(role)
+        skill_names = {s["skill_name"].lower() for s in skills}
+        for tag in derived:
+            if tag.lower() not in skill_names:
+                skills.append({"skill_name": tag, "years_experience": None, "derived": True})
+                skill_names.add(tag.lower())
+
+        years = [s["years_experience"] for s in skills if s.get("years_experience") is not None]
+        goals = goal_map.get(employee_id, [])
+        employees.append({
+            "employee_id": employee_id,
+            "name": name,
+            "role": role,
+            "experience": max(years) if years else 0,
+            "skills": [s["skill_name"] for s in skills],
+            "skills_detail": skills,
+            "soft_skills": [s["skill_name"] for s in soft_skills],
+            "soft_skills_detail": soft_skills,
+            "learning_goals": [g["skill_name"] for g in goals],
+            "growth_text": growth_map.get(employee_id),
+            "recent_workload_hours": workload_map.get(employee_id, 0.0),
+        })
+
+    return employees
+
+
 def fetch_employees_by_upload(upload_id: int) -> List[Dict[str, Any]]:
     conn = get_connection()
     cur = conn.cursor()
@@ -193,44 +307,7 @@ def fetch_employees_by_upload(upload_id: int) -> List[Dict[str, Any]]:
         cur.close()
         conn.close()
 
-    employees: List[Dict[str, Any]] = []
-
-    for employee_id, name, role in rows:
-        conn_skills = get_connection()
-        cur_skills = conn_skills.cursor()
-        try:
-            technical_skills = _fetch_employee_skills(cur_skills, employee_id, "technical")
-            soft_skills = _fetch_employee_skills(cur_skills, employee_id, "soft")
-            goals = _fetch_employee_learning_goals(cur_skills, employee_id)
-            growth_text = _fetch_employee_growth_text(cur_skills, employee_id)
-            skills = _merge_skills(technical_skills)
-            soft_skills = _merge_skills(soft_skills)
-            recent_workload = _fetch_recent_workload_hours(cur_skills, employee_id)
-        finally:
-            cur_skills.close()
-            conn_skills.close()
-        derived = _derive_role_tags(role)
-        skill_names = {s["skill_name"].lower() for s in skills}
-        for tag in derived:
-            if tag.lower() not in skill_names:
-                skills.append({"skill_name": tag, "years_experience": None, "derived": True})
-                skill_names.add(tag.lower())
-        years = [s["years_experience"] for s in skills if s.get("years_experience") is not None]
-        employees.append({
-            "employee_id": employee_id,
-            "name": name,
-            "role": role,
-            "experience": max(years) if years else 0,
-            "skills": [s["skill_name"] for s in skills],
-            "skills_detail": skills,
-            "soft_skills": [s["skill_name"] for s in soft_skills],
-            "soft_skills_detail": soft_skills,
-            "learning_goals": [g["skill_name"] for g in goals],
-            "growth_text": growth_text,
-            "recent_workload_hours": recent_workload,
-        })
-
-    return employees
+    return _build_employee_records(rows)
 
 
 # ----------------------------------------------------------
@@ -257,44 +334,7 @@ def fetch_employees_by_user(user_id: int) -> List[Dict[str, Any]]:
         cur.close()
         conn.close()
 
-    employees: List[Dict[str, Any]] = []
-
-    for employee_id, name, role in rows:
-        conn_skills = get_connection()
-        cur_skills = conn_skills.cursor()
-        try:
-            technical_skills = _fetch_employee_skills(cur_skills, employee_id, "technical")
-            soft_skills = _fetch_employee_skills(cur_skills, employee_id, "soft")
-            goals = _fetch_employee_learning_goals(cur_skills, employee_id)
-            growth_text = _fetch_employee_growth_text(cur_skills, employee_id)
-            skills = _merge_skills(technical_skills)
-            soft_skills = _merge_skills(soft_skills)
-            recent_workload = _fetch_recent_workload_hours(cur_skills, employee_id)
-        finally:
-            cur_skills.close()
-            conn_skills.close()
-        derived = _derive_role_tags(role)
-        skill_names = {s["skill_name"].lower() for s in skills}
-        for tag in derived:
-            if tag.lower() not in skill_names:
-                skills.append({"skill_name": tag, "years_experience": None, "derived": True})
-                skill_names.add(tag.lower())
-        years = [s["years_experience"] for s in skills if s.get("years_experience") is not None]
-        employees.append({
-            "employee_id": employee_id,
-            "name": name,
-            "role": role,
-            "experience": max(years) if years else 0,
-            "skills": [s["skill_name"] for s in skills],
-            "skills_detail": skills,
-            "soft_skills": [s["skill_name"] for s in soft_skills],
-            "soft_skills_detail": soft_skills,
-            "learning_goals": [g["skill_name"] for g in goals],
-            "growth_text": growth_text,
-            "recent_workload_hours": recent_workload,
-        })
-
-    return employees
+    return _build_employee_records(rows)
 
 
 # ----------------------------------------------------------

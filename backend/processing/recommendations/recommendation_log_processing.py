@@ -47,6 +47,19 @@ def _parse_outcome_tags(raw_value: Optional[str]):
     return [part.strip() for part in text.split("|") if part.strip()]
 
 
+def _assert_task_owner(cur, user_id: int, task_id: int) -> None:
+    cur.execute(
+        """
+        SELECT 1
+        FROM "RecommendationTasks"
+        WHERE task_id = %s AND user_id = %s;
+        """,
+        (task_id, user_id),
+    )
+    if not cur.fetchone():
+        raise RecommendationLogError(404, "recommendation task not found for this user")
+
+
 def create_recommendation_task(
     user_id: int,
     task_description: str,
@@ -125,16 +138,7 @@ def mark_manager_selected(
     conn = get_connection()
     cur = conn.cursor()
     try:
-        cur.execute(
-            """
-            SELECT 1
-            FROM "RecommendationTasks"
-            WHERE task_id = %s AND user_id = %s;
-            """,
-            (task_id, user_id),
-        )
-        if not cur.fetchone():
-            raise RecommendationLogError(404, "recommendation task not found for this user")
+        _assert_task_owner(cur, user_id, task_id)
 
         cur.execute(
             """
@@ -203,16 +207,7 @@ def submit_recommendation_feedback(
     conn = get_connection()
     cur = conn.cursor()
     try:
-        cur.execute(
-            """
-            SELECT 1
-            FROM "RecommendationTasks"
-            WHERE task_id = %s AND user_id = %s;
-            """,
-            (task_id, user_id),
-        )
-        if not cur.fetchone():
-            raise RecommendationLogError(404, "recommendation task not found for this user")
+        _assert_task_owner(cur, user_id, task_id)
 
         cur.execute(
             """
@@ -251,16 +246,7 @@ def clear_recommendation_feedback(
     conn = get_connection()
     cur = conn.cursor()
     try:
-        cur.execute(
-            """
-            SELECT 1
-            FROM "RecommendationTasks"
-            WHERE task_id = %s AND user_id = %s;
-            """,
-            (task_id, user_id),
-        )
-        if not cur.fetchone():
-            raise RecommendationLogError(404, "recommendation task not found for this user")
+        _assert_task_owner(cur, user_id, task_id)
 
         cur.execute(
             """
@@ -335,29 +321,47 @@ def fetch_recommendation_history(user_id: int, limit: int = 10, offset: int = 0)
             """,
             (user_id, safe_limit, safe_offset),
         )
-        tasks = []
-        for row in cur.fetchall():
-            task_id = row[0]
+        rows = cur.fetchall()
+        task_ids = [row[0] for row in rows]
+        top_candidates_by_task = {task_id: [] for task_id in task_ids}
+
+        if task_ids:
             cur.execute(
                 """
-                SELECT rl.recommendation_rank, rl.recommendation_score, e.employee_id, e.name
-                FROM "RecommendationLog" rl
-                JOIN "Employees" e ON e.employee_id = rl.employee_id
-                WHERE rl.task_id = %s
-                ORDER BY rl.recommendation_rank ASC
-                LIMIT 3;
+                SELECT task_id, recommendation_rank, recommendation_score, employee_id, employee_name
+                FROM (
+                    SELECT
+                        rl.task_id,
+                        rl.recommendation_rank,
+                        rl.recommendation_score,
+                        e.employee_id,
+                        e.name AS employee_name,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY rl.task_id
+                            ORDER BY rl.recommendation_rank ASC
+                        ) AS position_in_task
+                    FROM "RecommendationLog" rl
+                    JOIN "Employees" e ON e.employee_id = rl.employee_id
+                    WHERE rl.task_id = ANY(%s)
+                ) ranked
+                WHERE position_in_task <= 3
+                ORDER BY task_id ASC, recommendation_rank ASC;
                 """,
-                (task_id,),
+                (task_ids,),
             )
-            top_candidates = [
-                {
-                    "rank": candidate[0],
-                    "score": float(candidate[1]) if candidate[1] is not None else None,
-                    "employee_id": candidate[2],
-                    "employee_name": candidate[3],
-                }
-                for candidate in cur.fetchall()
-            ]
+            for task_id, rank, score, employee_id, employee_name in cur.fetchall():
+                top_candidates_by_task.setdefault(task_id, []).append(
+                    {
+                        "rank": rank,
+                        "score": float(score) if score is not None else None,
+                        "employee_id": employee_id,
+                        "employee_name": employee_name,
+                    }
+                )
+
+        tasks = []
+        for row in rows:
+            task_id = row[0]
             tasks.append(
                 {
                     "task_id": task_id,
@@ -373,7 +377,7 @@ def fetch_recommendation_history(user_id: int, limit: int = 10, offset: int = 0)
                     "feedback_notes": row[10],
                     "outcome_tags": _parse_outcome_tags(row[11]),
                     "feedback_at": row[12].isoformat() if row[12] else None,
-                    "top_candidates": top_candidates,
+                    "top_candidates": top_candidates_by_task.get(task_id, []),
                 }
             )
         return {

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from processing.employee_processing import (
+from processing.employee.employee_processing import (
     EmployeeProcessingError,
     add_skills_to_employee,
     create_employee_entry,
@@ -8,8 +8,8 @@ from processing.employee_processing import (
     normalize_skill_entry,
     normalize_skill_lines,
 )
-from processing.employee_profile_processing import (
-    EmployeeProfileError,
+from processing.employee.employee_profile_common import EmployeeProfileError
+from processing.employee.employee_profile_accounts_processing import (
     create_employee_account,
 )
 

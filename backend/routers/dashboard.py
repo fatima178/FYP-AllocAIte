@@ -4,11 +4,12 @@ from datetime import date
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 
-from processing.dashboard_processing import (
+from processing.dashboard.dashboard_processing import (
     get_dashboard_summary,
     get_employees_data,
 )
 from db import get_connection
+from utils.request_utils import parse_date_range
 
 router = APIRouter()
 
@@ -28,23 +29,16 @@ def dashboard_summary(
     end_date: Optional[str] = None,
 ):
     try:
-        start = None
-        end = None
-        if start_date or end_date:
-            if not start_date or not end_date:
-                raise HTTPException(400, "start_date and end_date must be provided together")
-            try:
-                start = date.fromisoformat(start_date)
-                end = date.fromisoformat(end_date)
-            except ValueError:
-                raise HTTPException(400, "start_date/end_date must be in YYYY-MM-DD format")
-
-            if start > end:
-                start, end = end, start
-
+        start, end = parse_date_range(
+            start_date,
+            end_date,
+            normalize_order=True,
+        )
         return get_dashboard_summary(user_id, start, end)
     except HTTPException:
         raise
+    except ValueError as exc:
+        raise HTTPException(400, str(exc).replace("valid ISO date", "must be in YYYY-MM-DD format"))
     except Exception as e:
         raise HTTPException(500, str(e))
 
@@ -67,23 +61,16 @@ def dashboard_employees(
     end_date: Optional[str] = None,
 ):
     try:
-        start = None
-        end = None
-        if start_date or end_date:
-            if not start_date or not end_date:
-                raise HTTPException(400, "start_date and end_date must be provided together")
-            try:
-                start = date.fromisoformat(start_date)
-                end = date.fromisoformat(end_date)
-            except ValueError:
-                raise HTTPException(400, "start_date/end_date must be in YYYY-MM-DD format")
-
-            if start > end:
-                start, end = end, start
-
+        start, end = parse_date_range(
+            start_date,
+            end_date,
+            normalize_order=True,
+        )
         return get_employees_data(user_id, search, skills, availability, start, end)
     except HTTPException:
         raise
+    except ValueError as exc:
+        raise HTTPException(400, str(exc).replace("valid ISO date", "must be in YYYY-MM-DD format"))
     except Exception as e:
         raise HTTPException(500, str(e))
 

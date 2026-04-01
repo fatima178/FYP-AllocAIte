@@ -9,7 +9,7 @@ from .task_scoring import (
     compute_role_match,
     build_recommendation_entry,
 )
-from processing.settings_processing import fetch_user_settings
+from processing.settings.settings_processing import fetch_user_settings
 
 # cached global reference to avoid repeatedly loading the model
 _DEFAULT_MODEL = None

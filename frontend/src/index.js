@@ -3,28 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import { getSessionItem } from './session';
-
-const resolveFontSizeValue = (size) =>
-  size === 'small' ? '14px' : size === 'large' ? '18px' : '16px';
-
-const applyInitialPreferences = () => {
-  if (typeof document === 'undefined') {
-    return;
-  }
-  const userId = getSessionItem('user_id');
-  if (!userId) {
-    document.body.classList.remove('dark-theme');
-    document.documentElement.style.fontSize = resolveFontSizeValue('medium');
-    return;
-  }
-
-  const savedTheme = localStorage.getItem(`theme_${userId}`) || 'light';
-  document.body.classList.toggle('dark-theme', savedTheme === 'dark');
-
-  const savedFontSize = localStorage.getItem(`fontSize_${userId}`) || 'medium';
-  document.documentElement.style.fontSize = resolveFontSizeValue(savedFontSize);
-};
+import { applyInitialPreferences } from './lib/preferences';
 
 applyInitialPreferences();
 

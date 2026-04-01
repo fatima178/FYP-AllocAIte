@@ -1,22 +1,34 @@
 from datetime import date
 from fastapi import APIRouter, HTTPException
 
-from processing.employee_profile_processing import (
-    EmployeeProfileError,
+from processing.employee.employee_profile_common import EmployeeProfileError
+from processing.employee.employee_profile_read_processing import (
     get_employee_profile,
     get_employee_recommendation_reason,
     get_employee_settings,
+)
+from processing.employee.employee_profile_skills_processing import (
     update_employee_self_skills,
     delete_employee_skill,
     fetch_pending_skill_requests,
     review_pending_skill_request,
+)
+from processing.employee.employee_profile_preferences_processing import (
     update_learning_goals,
     update_preferences,
 )
-from processing.employee_calendar_processing import (
+from processing.employee.employee_calendar_processing import (
     EmployeeCalendarError,
     fetch_employee_calendar,
     create_personal_calendar_entry,
+)
+from schemas.employee_portal import (
+    EmployeeCalendarEntryRequest,
+    EmployeeLearningGoalsRequest,
+    EmployeePreferencesRequest,
+    EmployeeRecommendationReasonRequest,
+    EmployeeSkillReviewRequest,
+    EmployeeSkillsUpdateRequest,
 )
 
 router = APIRouter()
@@ -39,13 +51,9 @@ def employee_settings(user_id: int):
 
 
 @router.put("/employee/skills")
-def employee_update_skills(payload: dict):
-    user_id = payload.get("user_id")
-    skills = payload.get("skills")
-    if not user_id:
-        raise HTTPException(400, "user_id is required")
+def employee_update_skills(payload: EmployeeSkillsUpdateRequest):
     try:
-        return update_employee_self_skills(int(user_id), skills)
+        return update_employee_self_skills(payload.user_id, payload.skills)
     except EmployeeProfileError as exc:
         raise HTTPException(exc.status_code, exc.message)
 
@@ -75,70 +83,44 @@ def employee_pending_skills(user_id: int):
 
 
 @router.post("/employee/skills/review")
-def employee_review_skill(payload: dict):
-    user_id = payload.get("user_id")
-    request_id = payload.get("request_id")
-    approve = payload.get("approve")
-    if not user_id:
-        raise HTTPException(400, "user_id is required")
-    if not request_id:
-        raise HTTPException(400, "request_id is required")
-    if approve is None:
-        raise HTTPException(400, "approve is required")
+def employee_review_skill(payload: EmployeeSkillReviewRequest):
     try:
-        return review_pending_skill_request(int(user_id), int(request_id), bool(approve))
+        return review_pending_skill_request(payload.user_id, payload.request_id, payload.approve)
     except EmployeeProfileError as exc:
         raise HTTPException(exc.status_code, exc.message)
 
 
 @router.put("/employee/learning-goals")
-def employee_update_learning_goals(payload: dict):
-    user_id = payload.get("user_id")
-    goals = payload.get("learning_goals")
-    if not user_id:
-        raise HTTPException(400, "user_id is required")
+def employee_update_learning_goals(payload: EmployeeLearningGoalsRequest):
     try:
-        return update_learning_goals(int(user_id), goals)
+        return update_learning_goals(payload.user_id, payload.learning_goals)
     except EmployeeProfileError as exc:
         raise HTTPException(exc.status_code, exc.message)
 
 
 @router.put("/employee/preferences")
-def employee_update_preferences(payload: dict):
-    user_id = payload.get("user_id")
-    preferences = payload.get("preferences")
+def employee_update_preferences(payload: EmployeePreferencesRequest):
+    preferences = payload.preferences
     if preferences is None:
-        preferences = payload.get("preferences_text")
+        preferences = payload.preferences_text
     if preferences is None:
-        preferences = payload.get("growth_text")
-    if not user_id:
-        raise HTTPException(400, "user_id is required")
+        preferences = payload.growth_text
     if preferences is None:
         raise HTTPException(400, "preferences_text is required")
     try:
-        return update_preferences(int(user_id), preferences)
+        return update_preferences(payload.user_id, preferences)
     except EmployeeProfileError as exc:
         raise HTTPException(exc.status_code, exc.message)
 
 
 @router.post("/employee/recommendation-reason")
-def employee_recommendation_reason(payload: dict):
-    user_id = payload.get("user_id")
-    task_description = payload.get("task_description")
-    start_date = payload.get("start_date")
-    end_date = payload.get("end_date")
-    if not user_id:
-        raise HTTPException(400, "user_id is required")
-    if not task_description:
-        raise HTTPException(400, "task_description is required")
-    if not start_date or not end_date:
-        raise HTTPException(400, "start_date and end_date are required")
+def employee_recommendation_reason(payload: EmployeeRecommendationReasonRequest):
     try:
         return get_employee_recommendation_reason(
-            int(user_id),
-            task_description,
-            start_date,
-            end_date,
+            payload.user_id,
+            payload.task_description,
+            payload.start_date.isoformat(),
+            payload.end_date.isoformat(),
         )
     except EmployeeProfileError as exc:
         raise HTTPException(exc.status_code, exc.message)
@@ -153,20 +135,13 @@ def employee_calendar(user_id: int, week_start: date = None):
 
 
 @router.post("/employee/calendar")
-def employee_calendar_entry(payload: dict):
-    user_id = payload.get("user_id")
-    label = payload.get("label")
-    start_date = payload.get("start_date")
-    end_date = payload.get("end_date")
-    if not user_id:
-        raise HTTPException(400, "user_id is required")
-    if not start_date or not end_date:
-        raise HTTPException(400, "start_date and end_date are required")
+def employee_calendar_entry(payload: EmployeeCalendarEntryRequest):
     try:
-        start_dt = date.fromisoformat(str(start_date))
-        end_dt = date.fromisoformat(str(end_date))
-        return create_personal_calendar_entry(int(user_id), label, start_dt, end_dt)
-    except ValueError:
-        raise HTTPException(400, "start_date and end_date must be valid ISO dates")
+        return create_personal_calendar_entry(
+            payload.user_id,
+            payload.label,
+            payload.start_date,
+            payload.end_date,
+        )
     except EmployeeCalendarError as exc:
         raise HTTPException(exc.status_code, exc.message)

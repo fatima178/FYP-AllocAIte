@@ -3,43 +3,24 @@ import './App.css';
 
 // individual route components
 import LoginPage from './Pages/Login';
-import UploadPage from './Pages/Upload';
-import DashboardPage from './Pages/Dashboard';
+import UploadPage from './Pages/Upload/index';
+import DashboardPage from './Pages/Dashboard/index';
 import TasksPage from './Pages/Tasks';
-import AssignmentsPage from './Pages/Assignments';
+import AssignmentsPage from './Pages/Assignments/index';
 import ChatbotPage from './Pages/Chatbot';
-import RecommendationsPage from './Pages/Recommendations';
-import SettingsPage from "./Pages/Settings";
+import RecommendationsPage from './Pages/Recommendations/index';
+import SettingsPage from "./Pages/Settings/SettingsPage";
 import ChatbotPopup from "./Pages/ChatbotPopup";
 import EmployeePortalPage from './Pages/EmployeePortal';
-import EmployeeCalendarPage from './Pages/EmployeeCalendar';
-import EmployeeSettingsPage from './Pages/EmployeeSettings';
-import InvitePage from './Pages/Invite';
+import EmployeeCalendarPage from './Pages/EmployeeCalendar/index';
+import EmployeeSettingsPage from './Pages/EmployeeSettings/index';
+import InvitePage from './Pages/Invite/index';
 import { getSessionItem } from './session';
+import { applyInitialPreferences } from './lib/preferences';
 
 function App() {
-  // apply user theme + font preferences on initial load
   useEffect(() => {
-    // converts logical font sizes to actual CSS pixel values
-    const resolveFontSizeValue = (size) =>
-      size === 'small' ? '16px' : size === 'large' ? '20px' : '18px';
-
-    const userId = getSessionItem('user_id');
-
-    // if no user logged in, reset display preferences
-    if (!userId) {
-      document.body.classList.remove('dark-theme');
-      document.documentElement.style.fontSize = resolveFontSizeValue('medium');
-      return;
-    }
-
-    // apply saved theme (light/dark)
-    const storedTheme = localStorage.getItem(`theme_${userId}`) || 'light';
-    document.body.classList.toggle('dark-theme', storedTheme === 'dark');
-
-    // apply saved font size
-    const storedFontSize = localStorage.getItem(`fontSize_${userId}`) || 'medium';
-    document.documentElement.style.fontSize = resolveFontSizeValue(storedFontSize);
+    applyInitialPreferences();
   }, []);
 
   // determine current URL path

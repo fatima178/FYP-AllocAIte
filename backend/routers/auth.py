@@ -1,13 +1,17 @@
 # routers/auth.py
 
-import hashlib
-import re
 import psycopg2
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
 
 from db import get_connection
+from utils.auth_utils import (
+    PASSWORD_RULE_MESSAGE,
+    hash_password,
+    password_matches,
+    validate_password_complexity,
+)
 
 router = APIRouter()
 
@@ -40,13 +44,12 @@ def register_user(payload: RegisterRequest):
     cur = conn.cursor()
 
     # basic password rules
-    if not (re.search(r"[A-Z]", payload.password) and re.search(r"[^A-Za-z0-9]", payload.password)):
-        raise HTTPException(
-            400,
-            "password must include at least one uppercase letter and one special character."
-        )
+    try:
+        validate_password_complexity(payload.password)
+    except ValueError:
+        raise HTTPException(400, PASSWORD_RULE_MESSAGE)
 
-    password_hash = hashlib.sha256(payload.password.encode("utf-8")).hexdigest()
+    password_hash = hash_password(payload.password)
 
     try:
         # check email uniqueness before inserting
@@ -112,10 +115,7 @@ def login_user(payload: LoginRequest):
         user_id, name, stored_hash, created_at, account_type, employee_id = record
 
         # hash incoming password
-        given_hash = hashlib.sha256(payload.password.encode("utf-8")).hexdigest()
-
-        # compare stored and incoming hash
-        if stored_hash != given_hash:
+        if not password_matches(payload.password, stored_hash):
             raise HTTPException(401, "invalid email or password.")
 
         cur.execute(

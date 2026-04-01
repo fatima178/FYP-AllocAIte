@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from db import get_connection
 
@@ -80,51 +80,61 @@ def list_employees(user_id: int) -> List[Dict[str, Any]]:
             (user_id,),
         )
         rows = cur.fetchall()
+
+        employee_ids = [row[0] for row in rows]
+        skill_map = {employee_id: [] for employee_id in employee_ids}
+        goal_map = {employee_id: [] for employee_id in employee_ids}
+
+        if employee_ids:
+            cur.execute(
+                """
+                SELECT employee_id, skill_name, years_experience, skill_type
+                FROM "EmployeeSkills"
+                WHERE employee_id = ANY(%s)
+                ORDER BY employee_id ASC, skill_name ASC;
+                """,
+                (employee_ids,),
+            )
+            for employee_id, skill_name, years_experience, skill_type in cur.fetchall():
+                skill_map.setdefault(employee_id, []).append(
+                    {
+                        "skill_name": skill_name,
+                        "years_experience": years_experience,
+                        "skill_type": skill_type,
+                    }
+                )
+
+            cur.execute(
+                """
+                SELECT employee_id, skill_name, priority
+                FROM "EmployeeLearningGoals"
+                WHERE employee_id = ANY(%s)
+                ORDER BY employee_id ASC, priority DESC, skill_name ASC;
+                """,
+                (employee_ids,),
+            )
+            for employee_id, skill_name, priority in cur.fetchall():
+                goal_map.setdefault(employee_id, []).append(
+                    {
+                        "skill_name": skill_name,
+                        "priority": priority,
+                    }
+                )
+
+        return [
+            {
+                "employee_id": employee_id,
+                "name": name,
+                "role": role,
+                "department": department,
+                "skills": skill_map.get(employee_id, []),
+                "learning_goals": goal_map.get(employee_id, []),
+            }
+            for employee_id, name, role, department in rows
+        ]
     finally:
         cur.close()
         conn.close()
-
-    results = []
-    for row in rows:
-        employee_id = row[0]
-        conn = get_connection()
-        cur = conn.cursor()
-        try:
-            cur.execute(
-                """
-                SELECT skill_name, years_experience, skill_type
-                FROM "EmployeeSkills"
-                WHERE employee_id = %s
-                ORDER BY skill_name ASC;
-                """,
-                (employee_id,),
-            )
-            skill_rows = cur.fetchall()
-            cur.execute(
-                """
-                SELECT skill_name, priority
-                FROM "EmployeeLearningGoals"
-                WHERE employee_id = %s
-                ORDER BY priority DESC, skill_name ASC;
-                """,
-                (employee_id,),
-            )
-            goal_rows = cur.fetchall()
-        finally:
-            cur.close()
-            conn.close()
-
-        skills = [{"skill_name": s, "years_experience": y, "skill_type": t} for s, y, t in skill_rows]
-        learning_goals = [{"skill_name": s, "priority": p} for s, p in goal_rows]
-        results.append({
-            "employee_id": employee_id,
-            "name": row[1],
-            "role": row[2],
-            "department": row[3],
-            "skills": skills,
-            "learning_goals": learning_goals,
-        })
-    return results
 
 
 def create_employee_entry(user_id: int, payload: Dict[str, Any]):

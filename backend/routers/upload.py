@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, File, Form, UploadFile
 
-from processing.upload_processing import (
+from processing.uploads.upload_processing import (
     UploadProcessingError,
     process_upload,
 )

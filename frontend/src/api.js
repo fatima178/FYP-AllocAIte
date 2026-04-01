@@ -45,3 +45,15 @@ export async function apiFetch(path, options = {}) {
   // success response: return the parsed JSON
   return body;
 }
+
+export async function apiDownload(path, options = {}) {
+  const url = path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
+  const response = await fetch(url, options);
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    throw new APIError(detail || `Request failed with status ${response.status}`, response.status, detail);
+  }
+
+  return response.blob();
+}

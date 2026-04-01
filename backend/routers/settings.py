@@ -3,44 +3,27 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from io import BytesIO
-from pydantic import BaseModel, EmailStr
 
-from processing.settings_processing import (
+from processing.settings.settings_processing import (
     change_user_password,
     fetch_user_settings,
     persist_user_settings,
     update_account_details as process_account_details,
     verify_user_password,
 )
-from processing.export_processing import export_manager_data
-from processing.recommendation_log_processing import (
+from processing.uploads.export_processing import export_manager_data
+from processing.recommendations.recommendation_log_processing import (
     RecommendationLogError,
     fetch_recommendation_history,
 )
+from schemas.settings import (
+    ChangePasswordRequest,
+    SettingsUpdateRequest,
+    UpdateDetailsRequest,
+    VerifyPasswordRequest,
+)
 
 router = APIRouter()
-
-
-# pydantic model for updating account details
-# fields not provided stay unchanged
-class UpdateDetailsRequest(BaseModel):
-    user_id: int
-    name: Optional[str] = None
-    email: Optional[EmailStr] = None
-
-
-# pydantic model for password change requests
-# carries both the old password and the new one
-class ChangePasswordRequest(BaseModel):
-    user_id: int
-    current_password: str
-    new_password: str
-
-
-# pydantic model used when only verifying a password
-class VerifyPasswordRequest(BaseModel):
-    user_id: int
-    current_password: str
 
 
 @router.get("/settings")
@@ -50,24 +33,13 @@ def get_settings(user_id: int):
 
 
 @router.post("/settings")
-def update_settings(data: dict):
-    # user settings (theme and font size) come in as a raw dict
-    user_id = data.get("user_id")
-    theme = data.get("theme")
-    font_size = data.get("font_size")
-    use_custom_weights = data.get("use_custom_weights")
-    weights = data.get("weights")
-
-    if not user_id:
-        raise HTTPException(400, "user_id is required")
-
-    # persist_user_settings updates only the fields passed
+def update_settings(payload: SettingsUpdateRequest):
     return persist_user_settings(
-        int(user_id),
-        theme,
-        font_size,
-        use_custom_weights,
-        weights,
+        payload.user_id,
+        payload.theme,
+        payload.font_size,
+        payload.use_custom_weights,
+        payload.weights,
     )
 
 

@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from processing.task_processing import (
+from processing.tasks.task_processing import (
     TaskProcessingError,
     create_task_entry,
     delete_task_entry,

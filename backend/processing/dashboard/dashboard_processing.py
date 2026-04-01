@@ -2,25 +2,30 @@
 
 from datetime import date
 from db import get_connection
-from processing.availability_processing import calculate_availability, dashboard_window
+from processing.availability_processing import calculate_availability_from_rows, dashboard_window
 from processing.assignment_history_processing import archive_completed_assignments
 
 
-# ----------------------------------------------------------
-# get the latest active upload for a user
-# ----------------------------------------------------------
-# this determines which dataset the dashboard should use.
-# if no active upload exists, returns none.
-def get_latest_upload_id(cur, user_id: int):
-    cur.execute("""
-        SELECT upload_id
-        FROM "Uploads"
-        WHERE user_id = %s AND is_active = TRUE
-        ORDER BY upload_date DESC
-        LIMIT 1;
-    """, (user_id,))
-    result = cur.fetchone()
-    return result[0] if result else None
+def _merge_skills(skill_rows):
+    merged = {}
+    for employee_id, skill_name, years_experience, skill_type in skill_rows:
+        if skill_type != "technical":
+            continue
+        label = str(skill_name or "").strip()
+        if not label:
+            continue
+        key = (employee_id, label.lower())
+        if key not in merged:
+            merged[key] = {"skill_name": label, "years_experience": years_experience}
+            continue
+        try:
+            merged[key]["years_experience"] = max(
+                merged[key].get("years_experience") or 0,
+                years_experience or 0,
+            )
+        except Exception:
+            merged[key]["years_experience"] = merged[key].get("years_experience") or years_experience
+    return merged
 
 
 # ----------------------------------------------------------
@@ -76,11 +81,29 @@ def get_dashboard_summary(user_id: int, window_start=None, window_end=None):
         """, (user_id,))
         employees = cur.fetchall()
 
-        available_count = 0
-        for (employee_id,) in employees:
-            result = calculate_availability(employee_id, window_start, window_end)
+        employee_ids = [employee_id for (employee_id,) in employees]
+        assignment_map = {employee_id: [] for employee_id in employee_ids}
+        if employee_ids:
+            cur.execute(
+                """
+                SELECT employee_id, title, start_date, end_date, total_hours, remaining_hours
+                FROM "Assignments"
+                WHERE employee_id = ANY(%s)
+                  AND start_date <= %s
+                  AND end_date >= %s;
+                """,
+                (employee_ids, window_end, window_start),
+            )
+            for row in cur.fetchall():
+                assignment_map.setdefault(row[0], []).append(row[1:])
 
-            # only count fully available employees
+        available_count = 0
+        for employee_id in employee_ids:
+            result = calculate_availability_from_rows(
+                assignment_map.get(employee_id, []),
+                window_start,
+                window_end,
+            )
             if result["status"].lower() == "available":
                 available_count += 1
 
@@ -141,7 +164,6 @@ def get_employees_data(
         if not window_start or not window_end:
             window_start, window_end = dashboard_window()
 
-        # fetch full employee records
         cur.execute("""
             SELECT employee_id, name, role, department
             FROM "Employees"
@@ -150,52 +172,60 @@ def get_employees_data(
         """, (user_id,))
         rows = cur.fetchall()
 
+        employee_ids = [employee_id for employee_id, _, _, _ in rows]
         employees = []
+        skill_map = {employee_id: [] for employee_id in employee_ids}
+        soft_skill_map = {employee_id: [] for employee_id in employee_ids}
+        assignment_map = {employee_id: [] for employee_id in employee_ids}
 
-        for emp in rows:
-            employee_id, name, role, dept = emp
-
-            cur.execute("""
-                SELECT skill_name, years_experience
+        if employee_ids:
+            cur.execute(
+                """
+                SELECT employee_id, skill_name, years_experience, skill_type
                 FROM "EmployeeSkills"
-                WHERE employee_id = %s AND skill_type = 'technical'
-                ORDER BY skill_name ASC;
-            """, (employee_id,))
-            org_skills = [
-                {"skill_name": s, "years_experience": y}
-                for s, y in cur.fetchall()
-            ]
+                WHERE employee_id = ANY(%s)
+                ORDER BY employee_id ASC, skill_name ASC;
+                """,
+                (employee_ids,),
+            )
+            merged_skills = _merge_skills(cur.fetchall())
+            for (employee_id, _), skill_payload in merged_skills.items():
+                skill_map.setdefault(employee_id, []).append(skill_payload)
 
-            cur.execute("""
-                SELECT skill_name, years_experience
+            cur.execute(
+                """
+                SELECT employee_id, skill_name, years_experience
                 FROM "EmployeeSkills"
-                WHERE employee_id = %s AND skill_type = 'soft'
-                ORDER BY skill_name ASC;
-            """, (employee_id,))
-            soft_skills = [
-                {"skill_name": s, "years_experience": y}
-                for s, y in cur.fetchall()
-            ]
+                WHERE employee_id = ANY(%s)
+                  AND skill_type = 'soft'
+                ORDER BY employee_id ASC, skill_name ASC;
+                """,
+                (employee_ids,),
+            )
+            for employee_id, skill_name, years_experience in cur.fetchall():
+                soft_skill_map.setdefault(employee_id, []).append(
+                    {"skill_name": skill_name, "years_experience": years_experience}
+                )
 
-            merged = {}
-            for item in org_skills:
-                label = str(item.get("skill_name") or "").strip()
-                if not label:
-                    continue
-                key = label.lower()
-                years = item.get("years_experience")
-                if key not in merged:
-                    merged[key] = {"skill_name": label, "years_experience": years}
-                else:
-                    try:
-                        merged[key]["years_experience"] = max(
-                            merged[key].get("years_experience") or 0,
-                            years or 0,
-                        )
-                    except Exception:
-                        merged[key]["years_experience"] = merged[key].get("years_experience") or years
+            cur.execute(
+                """
+                SELECT employee_id, title, start_date, end_date, total_hours, remaining_hours
+                FROM "Assignments"
+                WHERE employee_id = ANY(%s)
+                  AND start_date <= %s
+                  AND end_date >= %s
+                ORDER BY employee_id ASC, start_date ASC;
+                """,
+                (employee_ids, window_end, window_start),
+            )
+            for employee_id, title, start_date, end_date, total_hours, remaining_hours in cur.fetchall():
+                assignment_map.setdefault(employee_id, []).append(
+                    (title, start_date, end_date, total_hours, remaining_hours)
+                )
 
-            parsed_skills = list(merged.values())
+        for employee_id, name, role, dept in rows:
+            parsed_skills = skill_map.get(employee_id, [])
+            soft_skills = soft_skill_map.get(employee_id, [])
 
             # search filter (matches name or role)
             if search:
@@ -213,8 +243,10 @@ def get_employees_data(
                     continue
 
             # compute availability for next 7 days
-            availability_obj = calculate_availability(
-                employee_id, window_start, window_end
+            availability_obj = calculate_availability_from_rows(
+                assignment_map.get(employee_id, []),
+                window_start,
+                window_end,
             )
 
             # availability filter (exact match)
@@ -223,16 +255,8 @@ def get_employees_data(
                     continue
 
             # fetch assignments active in the dashboard window
-            cur.execute("""
-                SELECT title, start_date, end_date
-                FROM "Assignments"
-                WHERE employee_id = %s
-                  AND start_date <= %s
-                  AND end_date >= %s;
-            """, (employee_id, window_end, window_start))
-
             assignments = []
-            for title, start_d, end_d in cur.fetchall():
+            for title, start_d, end_d, _, _ in assignment_map.get(employee_id, []):
                 assignments.append({
                     "title": title,
                     "start_date": str(start_d),

@@ -1,10 +1,14 @@
-import hashlib
-import re
 from typing import Optional
 
 from fastapi import HTTPException
 
 from db import get_connection
+from utils.auth_utils import (
+    PASSWORD_RULE_MESSAGE,
+    hash_password,
+    password_matches,
+    validate_password_complexity,
+)
 
 
 # ----------------------------------------------------------
@@ -253,9 +257,7 @@ def verify_user_password(user_id: int, current_password: str):
             raise HTTPException(404, "user not found.")
 
         stored_hash = row[0]
-        current_hash = hashlib.sha256(current_password.encode("utf-8")).hexdigest()
-
-        if stored_hash != current_hash:
+        if not password_matches(current_password, stored_hash):
             raise HTTPException(401, "current password is incorrect.")
 
         return {"message": "Password verified."}
@@ -274,15 +276,10 @@ def verify_user_password(user_id: int, current_password: str):
 #   - current password matches stored hash
 def change_user_password(user_id: int, current_password: str, new_password: str):
     # simple complexity rule: must contain uppercase + special char
-    password_rules = (
-        re.search(r"[A-Z]", new_password)
-        and re.search(r"[^A-Za-z0-9]", new_password)
-    )
-    if not password_rules:
-        raise HTTPException(
-            400,
-            "password must include at least one uppercase letter and one special character.",
-        )
+    try:
+        validate_password_complexity(new_password)
+    except ValueError:
+        raise HTTPException(400, PASSWORD_RULE_MESSAGE)
 
     # reject identical passwords
     if new_password.strip() == current_password.strip():
@@ -299,14 +296,11 @@ def change_user_password(user_id: int, current_password: str, new_password: str)
             raise HTTPException(404, "user not found.")
 
         stored_hash = row[0]
-        current_hash = hashlib.sha256(current_password.encode("utf-8")).hexdigest()
-
-        # validate current password
-        if stored_hash != current_hash:
+        if not password_matches(current_password, stored_hash):
             raise HTTPException(401, "current password is incorrect.")
 
         # store new password hash
-        new_hash = hashlib.sha256(new_password.encode("utf-8")).hexdigest()
+        new_hash = hash_password(new_password)
         cur.execute(
             'UPDATE "Users" SET password_hash = %s WHERE user_id = %s;',
             (new_hash, user_id),

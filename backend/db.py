@@ -1,14 +1,15 @@
-# db.py
+import os
+
 import psycopg2
 
 
 def get_connection():
     conn = psycopg2.connect(
-        dbname="allocaite",
-        user="fatima",
-        password=" ",
-        host="localhost",
-        port="5433"
+        dbname=os.getenv("ALLOCATE_DB_NAME", "allocaite"),
+        user=os.getenv("ALLOCATE_DB_USER", "fatima"),
+        password=os.getenv("ALLOCATE_DB_PASSWORD", " "),
+        host=os.getenv("ALLOCATE_DB_HOST", "localhost"),
+        port=os.getenv("ALLOCATE_DB_PORT", "5433")
     )
     return conn
 

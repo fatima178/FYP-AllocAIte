@@ -1,17 +1,21 @@
-from datetime import datetime
 from fastapi import APIRouter, HTTPException
 
-from processing.recommend_processing import (
+from processing.recommendations.recommend_processing import (
     RecommendationError,
     generate_recommendations,
 )
-from processing.recommend_assignment import assign_recommended_task
-from processing.recommendation_log_processing import (
+from processing.recommendations.recommend_assignment import assign_recommended_task
+from processing.recommendations.recommendation_log_processing import (
     RecommendationLogError,
     attach_assignment_to_task,
     clear_recommendation_feedback,
     mark_manager_selected,
     submit_recommendation_feedback,
+)
+from schemas.recommend import (
+    RecommendationAssignRequest,
+    RecommendationFeedbackRequest,
+    RecommendationRequest,
 )
 
 router = APIRouter()
@@ -26,52 +30,17 @@ router = APIRouter()
 #   - start/end dates valid ISO format and ordered correctly
 # calls the matching pipeline and returns ranked recommendations.
 @router.post("/recommend")
-def recommend_task(data: dict):
-    task = data.get("task_description")
-    upload_id = data.get("upload_id")
-    user_id = data.get("user_id")
-    start = data.get("start_date")
-    end = data.get("end_date")
-
-    # required fields
-    if not task:
-        raise HTTPException(400, "task_description is required")
-    if not start or not end:
-        raise HTTPException(400, "start_date and end_date are required")
-
-    # validate user_id
-    try:
-        resolved_user_id = int(user_id) if user_id is not None else None
-    except (TypeError, ValueError):
-        raise HTTPException(400, "user_id must be an integer")
-
-    # validate upload_id (metadata only)
-    try:
-        resolved_upload_id = int(upload_id) if upload_id is not None else None
-    except (TypeError, ValueError):
-        raise HTTPException(400, "upload_id must be an integer")
-
-    # validate date format
-    try:
-        start_dt = datetime.fromisoformat(start).date()
-        end_dt = datetime.fromisoformat(end).date()
-    except ValueError:
-        raise HTTPException(
-            400,
-            "start_date and end_date must be valid ISO dates (yyyy-mm-dd)"
-        )
-
-    if start_dt > end_dt:
+def recommend_task(payload: RecommendationRequest):
+    if payload.start_date > payload.end_date:
         raise HTTPException(400, "start_date must be on or before end_date")
 
-    # run recommendation engine
     try:
         return generate_recommendations(
-            task,
-            start_dt.isoformat(),
-            end_dt.isoformat(),
-            resolved_user_id,
-            None,
+            payload.task_description,
+            payload.start_date.isoformat(),
+            payload.end_date.isoformat(),
+            payload.user_id,
+            payload.upload_id,
         )
     except RecommendationError as exc:
         raise HTTPException(exc.status_code, exc.message)
@@ -85,43 +54,25 @@ def recommend_task(data: dict):
 #   - resolves correct upload for user
 # inserts assignment via assign_recommended_task().
 @router.post("/recommend/assign")
-def assign_recommendation(data: dict):
-    user_id = data.get("user_id")
-    employee_id = data.get("employee_id")
-    title = data.get("task_description")
-    start = data.get("start_date")
-    end = data.get("end_date")
-    upload_id = data.get("upload_id")
-    task_id = data.get("task_id")
-
-    # required fields
-    if not user_id:
-        raise HTTPException(400, "user_id is required")
-    if not employee_id:
-        raise HTTPException(400, "employee_id is required")
-    if not title:
-        raise HTTPException(400, "task_description is required")
-    if not start or not end:
-        raise HTTPException(400, "start_date and end_date are required")
-
+def assign_recommendation(payload: RecommendationAssignRequest):
+    if payload.start_date > payload.end_date:
+        raise HTTPException(400, "start_date must be on or before end_date")
     try:
-        # create assignment
         result = assign_recommended_task(
-            int(user_id),
-            int(employee_id),
-            title,
-            start,
-            end,
-            None,
+            payload.user_id,
+            payload.employee_id,
+            payload.task_description,
+            payload.start_date.isoformat(),
+            payload.end_date.isoformat(),
+            payload.upload_id,
         )
 
-        # mark which recommendation was selected (if task_id provided)
-        if task_id is not None:
+        if payload.task_id is not None:
             try:
-                mark_manager_selected(int(user_id), int(task_id), int(employee_id))
+                mark_manager_selected(payload.user_id, payload.task_id, payload.employee_id)
                 attach_assignment_to_task(
-                    int(user_id),
-                    int(task_id),
+                    payload.user_id,
+                    payload.task_id,
                     int(result.get("assignment_id")),
                 )
             except RecommendationLogError:
@@ -137,27 +88,15 @@ def assign_recommendation(data: dict):
 # submit feedback for a completed assignment
 # ----------------------------------------------------------
 @router.post("/recommend/feedback")
-def submit_feedback(data: dict):
-    user_id = data.get("user_id")
-    task_id = data.get("task_id")
-    employee_id = data.get("employee_id")
-    rating = data.get("performance_rating")
-    notes = data.get("feedback_notes")
-    outcome_tags = data.get("outcome_tags")
-
-    if not user_id or not task_id or not employee_id:
-        raise HTTPException(400, "user_id, task_id, and employee_id are required")
-    if not rating:
-        raise HTTPException(400, "performance_rating is required")
-
+def submit_feedback(payload: RecommendationFeedbackRequest):
     try:
         submit_recommendation_feedback(
-            int(user_id),
-            int(task_id),
-            int(employee_id),
-            str(rating),
-            str(notes).strip() if notes is not None else None,
-            outcome_tags if isinstance(outcome_tags, list) else None,
+            payload.user_id,
+            payload.task_id,
+            payload.employee_id,
+            payload.performance_rating,
+            str(payload.feedback_notes).strip() if payload.feedback_notes is not None else None,
+            payload.outcome_tags,
         )
         return {"message": "Feedback submitted successfully."}
     except RecommendationLogError as exc:

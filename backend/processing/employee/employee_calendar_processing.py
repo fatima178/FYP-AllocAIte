@@ -2,7 +2,10 @@ from datetime import date, timedelta
 from typing import Optional
 
 from db import get_connection
-from processing.employee_profile_processing import _resolve_employee_id, EmployeeProfileError
+from processing.employee.employee_profile_common import (
+    EmployeeProfileError,
+    _resolve_employee_id,
+)
 
 
 class EmployeeCalendarError(Exception):

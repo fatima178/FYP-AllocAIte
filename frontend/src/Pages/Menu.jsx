@@ -1,9 +1,10 @@
 import '../styles/Menu.css';
+import { getCurrentPath, navigateTo } from '../lib/navigation';
 import { clearSession, getSessionItem } from '../session';
 
 function Menu() {
   // track the current URL so we can highlight the active page
-  const currentPath = window.location.pathname;
+  const currentPath = getCurrentPath();
   const accountType = getSessionItem('account_type') || 'manager';
 
   // list of navigation links shown in the menu bar
@@ -27,13 +28,13 @@ function Menu() {
   const goTo = (path) => {
     // prevents unnecessary redirect if user is already on the page
     if (currentPath === path) return;
-    window.location.href = path;
+    navigateTo(path);
   };
 
   // logout removes user session and returns to home page
   const handleLogout = () => {
     clearSession();
-    window.location.href = '/';
+    navigateTo('/');
   };
 
   return (
