@@ -392,8 +392,22 @@
 .history-card {
   border: 1px solid var(--card-border);
   border-radius: 12px;
-  padding: 16px;
   background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.history-card--expanded {
+  padding-bottom: 16px;
+}
+
+.history-card__toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  padding: 16px;
+  cursor: pointer;
 }
 
 .history-card__header {
@@ -408,6 +422,26 @@
   font-size: 1rem;
 }
 
+.history-card__header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.history-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  font-size: 1rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
 .history-meta,
 .history-description,
 .history-notes p,
@@ -418,14 +452,32 @@
 }
 
 .history-description {
-  margin-top: 10px;
+  margin: 0 16px;
+}
+
+.history-summary {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.history-summary__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: baseline;
+}
+
+.history-summary__row span {
+  color: var(--text);
+  opacity: 0.84;
 }
 
 .history-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
-  margin-top: 14px;
+  margin: 14px 16px 0;
 }
 
 .history-badge {
@@ -445,6 +497,11 @@
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
+}
+
+.history-tags {
+  margin-left: 16px;
+  margin-right: 16px;
 }
 
 .history-tag,
@@ -470,7 +527,7 @@
 
 .history-notes,
 .history-candidates {
-  margin-top: 14px;
+  margin: 14px 16px 0;
 }
 
 .modal-backdrop {
