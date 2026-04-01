@@ -177,73 +177,75 @@ function EmployeeCalendarPage() {
             </div>
           </div>
 
-          <div className="calendar-header">
-            {weekDays.map((day) => (
-              <div key={day.label} className="day-col">
-                {day.label}
-              </div>
-            ))}
-          </div>
-
-          <div className="calendar-body">
-            {loading && <div className="calendar-message">Loading calendar...</div>}
-            {!loading && error && (
-              <div className="calendar-message error">{error}</div>
-            )}
-
-            {!loading && !error && (
-              <div className="calendar-row">
-                <div
-                  className="timeline"
-                  style={{
-                    height: Math.max(
-                      TIMELINE_MIN_HEIGHT,
-                      LANE_BASE_OFFSET + items.length * (LANE_HEIGHT + LANE_GAP)
-                    ),
-                  }}
-                >
-                  <div className="timeline-cells">
-                    {weekDays.map((day) => (
-                      <div key={`day-${day.label}`} className="timeline-cell" />
-                    ))}
-                  </div>
-
-                  {[...items]
-                    .sort((a, b) =>
-                      a.span === b.span
-                        ? a.start_offset - b.start_offset
-                        : a.span - b.span
-                    )
-                    .map((item, index) => {
-                      const left = Math.max(0, Math.min((item.start_offset / 7) * 100, 100));
-                      const width = Math.min((item.span / 7) * 100, 100 - left);
-                      const top = LANE_BASE_OFFSET + index * (LANE_HEIGHT + LANE_GAP);
-
-                      return (
-                        <div
-                          key={`${item.type}-${item.id}`}
-                          className={`task-block ${item.type === 'personal' ? 'personal' : ''}`}
-                          style={{
-                            left: `${left}%`,
-                            width: `${width}%`,
-                            top: `${top}px`,
-                            height: `${LANE_HEIGHT}px`,
-                          }}
-                          title={`${item.title} (${item.start_date} → ${item.end_date})`}
-                        >
-                          {item.title}
-                        </div>
-                      );
-                    })}
+          <div className="calendar-scroll">
+            <div className="calendar-header">
+              {weekDays.map((day) => (
+                <div key={day.label} className="day-col">
+                  {day.label}
                 </div>
-              </div>
-            )}
+              ))}
+            </div>
 
-            {!loading && !error && !hasAnyItems && (
-              <div className="calendar-message empty">
-                No assignments or calendar entries scheduled this week.
-              </div>
-            )}
+            <div className="calendar-body">
+              {loading && <div className="calendar-message">Loading calendar...</div>}
+              {!loading && error && (
+                <div className="calendar-message error">{error}</div>
+              )}
+
+              {!loading && !error && (
+                <div className="calendar-row">
+                  <div
+                    className="timeline"
+                    style={{
+                      height: Math.max(
+                        TIMELINE_MIN_HEIGHT,
+                        LANE_BASE_OFFSET + items.length * (LANE_HEIGHT + LANE_GAP)
+                      ),
+                    }}
+                  >
+                    <div className="timeline-cells">
+                      {weekDays.map((day) => (
+                        <div key={`day-${day.label}`} className="timeline-cell" />
+                      ))}
+                    </div>
+
+                    {[...items]
+                      .sort((a, b) =>
+                        a.span === b.span
+                          ? a.start_offset - b.start_offset
+                          : a.span - b.span
+                      )
+                      .map((item, index) => {
+                        const left = Math.max(0, Math.min((item.start_offset / 7) * 100, 100));
+                        const width = Math.min((item.span / 7) * 100, 100 - left);
+                        const top = LANE_BASE_OFFSET + index * (LANE_HEIGHT + LANE_GAP);
+
+                        return (
+                          <div
+                            key={`${item.type}-${item.id}`}
+                            className={`task-block ${item.type === 'personal' ? 'personal' : ''}`}
+                            style={{
+                              left: `${left}%`,
+                              width: `${width}%`,
+                              top: `${top}px`,
+                              height: `${LANE_HEIGHT}px`,
+                            }}
+                            title={`${item.title} (${item.start_date} → ${item.end_date})`}
+                          >
+                            {item.title}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {!loading && !error && !hasAnyItems && (
+                <div className="calendar-message empty">
+                  No assignments or calendar entries scheduled this week.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

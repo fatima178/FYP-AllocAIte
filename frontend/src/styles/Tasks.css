@@ -106,6 +106,12 @@ body,
   --name-col-width: 180px;
 }
 
+.calendar-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
 .tasks-section-card {
   background: var(--card);
   border: 1px solid var(--card-border);
@@ -199,6 +205,7 @@ body,
   border-radius: 8px 8px 0 0;
   overflow: hidden;
   color: var(--text);
+  min-width: calc(var(--name-col-width) + var(--task-days, 7) * 140px);
 }
 
 .calendar-header .name-col,
@@ -219,6 +226,7 @@ body,
   border-radius: 0 0 8px 8px;
   background: var(--surface-muted);
   padding: 0.5rem 0;
+  min-width: calc(var(--name-col-width) + var(--task-days, 7) * 140px);
 }
 
 .calendar-row {
@@ -232,6 +240,7 @@ body,
 
 .employee-calendar-page .calendar-header {
   grid-template-columns: repeat(7, 1fr);
+  min-width: calc(7 * 140px);
 }
 
 .employee-calendar-page .calendar-header .day-col:last-child {
@@ -518,10 +527,6 @@ body,
   .approval-card {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .calendar-header {
-    display: none;
   }
 
   .calendar-row {
