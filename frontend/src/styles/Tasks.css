@@ -103,7 +103,10 @@ body,
   padding: 1.5rem;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
   color: var(--text);
-  --name-col-width: 180px;
+  --name-col-width: 132px;
+  --calendar-day-min-width: 82px;
+  --calendar-day-padding: 0.5rem;
+  --calendar-day-font-size: 0.78rem;
 }
 
 .calendar-scroll {
@@ -205,14 +208,14 @@ body,
   border-radius: 8px 8px 0 0;
   overflow: hidden;
   color: var(--text);
-  min-width: calc(var(--name-col-width) + var(--task-days, 7) * 140px);
+  min-width: calc(var(--name-col-width) + var(--task-days, 7) * var(--calendar-day-min-width));
 }
 
 .calendar-header .name-col,
 .calendar-header .day-col {
-  padding: 0.8rem;
+  padding: var(--calendar-day-padding);
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: var(--calendar-day-font-size);
   border-right: 1px solid var(--border-subtle);
 }
 
@@ -226,7 +229,7 @@ body,
   border-radius: 0 0 8px 8px;
   background: var(--surface-muted);
   padding: 0.5rem 0;
-  min-width: calc(var(--name-col-width) + var(--task-days, 7) * 140px);
+  min-width: calc(var(--name-col-width) + var(--task-days, 7) * var(--calendar-day-min-width));
 }
 
 .calendar-row {
@@ -243,7 +246,7 @@ body,
 
 .employee-calendar-page .calendar-header {
   grid-template-columns: repeat(7, 1fr);
-  min-width: calc(7 * 140px);
+  min-width: calc(7 * var(--calendar-day-min-width));
 }
 
 .employee-calendar-page .calendar-header .day-col:last-child {
@@ -533,7 +536,10 @@ body,
 
 @media (max-width: 960px) {
   .tasks-calendar-card {
-    --name-col-width: 140px;
+    --name-col-width: 118px;
+    --calendar-day-min-width: 72px;
+    --calendar-day-padding: 0.42rem;
+    --calendar-day-font-size: 0.72rem;
   }
 
   .tasks-page {
@@ -542,6 +548,13 @@ body,
 }
 
 @media (max-width: 720px) {
+  .tasks-calendar-card {
+    --name-col-width: 104px;
+    --calendar-day-min-width: 64px;
+    --calendar-day-padding: 0.35rem;
+    --calendar-day-font-size: 0.68rem;
+  }
+
   .tasks-header {
     flex-direction: column;
     align-items: flex-start;
@@ -567,5 +580,14 @@ body,
 
   .timeline {
     height: 80px;
+  }
+}
+
+@media (max-width: 540px) {
+  .tasks-calendar-card {
+    --name-col-width: 92px;
+    --calendar-day-min-width: 58px;
+    --calendar-day-padding: 0.3rem;
+    --calendar-day-font-size: 0.64rem;
   }
 }
