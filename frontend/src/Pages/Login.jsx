@@ -185,42 +185,22 @@ function LoginPage() {
             <img src={groupChat} alt="AllocAIte" />
           </div>
 
-          <div>
+          <div className="hero-brand-copy">
             <h1>AllocAIte</h1>
             <p>Staffing Management for Tech Teams</p>
           </div>
         </div>
 
-        {/* feature highlights displayed as bullet cards */}
-        <div className="hero-points">
-          <div>
-            <span>✔</span>
-            <div>
-              <h3>Smarter Task Allocation</h3>
-              <p>
-                Automatically match the right employee to each project using AI
-                that looks at their skills and availability.
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <span>✔</span>
-            <div>
-              <h3>Intelligent Insights</h3>
-              <p>
-                See team capacity clearly, find missing skills, and make quick,
-                data driven staffing choices.
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <span>✔</span>
-            <div>
-              <h3>Seamless Integration</h3>
-              <p>Easily upload your team data from Excel.</p>
-            </div>
+        <div className="hero-copy">
+          <h2>Plan work clearly. Assign with confidence.</h2>
+          <p>
+            Match work to the right employees by combining skills, availability,
+            workload and team context in one place.
+          </p>
+          <div className="hero-highlights" aria-label="Product highlights">
+            <span>Smart matching</span>
+            <span>Capacity visibility</span>
+            <span>Better planning</span>
           </div>
         </div>
       </section>

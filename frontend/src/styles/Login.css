@@ -17,7 +17,7 @@ body {
 .auth-page {
   display: grid;
   grid-template-columns: repeat(2, minmax(360px, 1fr));
-  min-height: 100vh;
+  min-height: calc(100vh / var(--app-scale, 1));
   align-items: stretch;
   font-size: 1.7rem;
 }
@@ -29,17 +29,53 @@ body {
 }
 
 .hero {
-  background-image: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.88)),
-    url('../images/ai-circuit-brain.jpg');
-  background-size: cover;
-  background-position: center;
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(10, 18, 42, 0.76) 0%, rgba(10, 18, 42, 0.68) 42%, rgba(14, 28, 56, 0.56) 100%),
+    linear-gradient(135deg, rgba(18, 31, 63, 0.84), rgba(18, 31, 63, 0.7));
   color: white;
-  padding: clamp(2rem, 5vw, 4rem);
+  padding: clamp(3rem, 6vw, 5rem);
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 2.6rem;
   justify-content: center;
-  min-height: 100vh;
+  min-height: calc(100vh / var(--app-scale, 1));
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: -6%;
+  background-image: url('../images/ai-circuit-brain.jpg');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.22;
+  filter: blur(1.3px) saturate(0.78) brightness(0.68) contrast(0.84);
+  animation: hero-pan 18s ease-in-out infinite alternate;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 42%, rgba(255, 255, 255, 0.1), transparent 34%),
+    linear-gradient(90deg, rgba(6, 12, 28, 0.22) 0%, rgba(6, 12, 28, 0.08) 55%, rgba(6, 12, 28, 0.02) 100%);
+}
+
+.hero > * {
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes hero-pan {
+  from {
+    transform: scale(1.06) translate3d(-1.5%, 0, 0);
+  }
+  to {
+    transform: scale(1.1) translate3d(1.5%, -1%, 0);
+  }
 }
 
 .hero-brand {
@@ -49,57 +85,87 @@ body {
 }
 
 .hero-brand .logo {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
+  width: 4.25rem;
+  height: 4.25rem;
+  border-radius: 1.2rem;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 14px 30px rgba(7, 16, 38, 0.22);
   display: grid;
   place-items: center;
+  flex: 0 0 auto;
 }
 
 .hero-brand .logo img {
-  width: 36px;
-  height: 36px;
+  width: 2.25rem;
+  height: 2.25rem;
+  opacity: 1;
+  filter: brightness(0) invert(1);
+}
+
+.hero-brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
 }
 
 .hero-brand h1 {
   margin: 0;
-  font-size: clamp(2rem, 4vw, 2.8rem);
+  font-size: clamp(3.5rem, 6vw, 5.4rem);
+  line-height: 0.9;
+  letter-spacing: -0.05em;
 }
 
 .hero-brand p {
-  margin: 0.2rem 0 0;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 1.05rem;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.92rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.hero-points {
+.hero-copy {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-}
-
-.hero-points > div {
-  display: flex;
   gap: 1rem;
-  align-items: flex-start;
+  max-width: 31rem;
 }
 
-.hero-points span {
-  font-size: 1.25rem;
-  line-height: 1.25rem;
-}
-
-.hero-points h3 {
-  margin: 0 0 0.25rem;
-  font-size: 1.25rem;
-}
-
-.hero-points p {
+.hero-copy h2 {
   margin: 0;
-  color: rgba(255, 255, 255, 0.8);
-  max-width: 30ch;
-  font-size: 1.15rem;
+  font-size: clamp(2.35rem, 4vw, 3.1rem);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+  text-wrap: balance;
+}
+
+.hero-copy p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.78);
+  max-width: 29rem;
+  font-size: 1.08rem;
+  line-height: 1.7;
+}
+
+.hero-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 0.35rem;
+}
+
+.hero-highlights span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .auth-panel {
@@ -109,7 +175,7 @@ body {
   padding: clamp(2rem, 5vw, 4rem);
   background: var(--bg);
   color: var(--text);
-  min-height: 100vh;
+  min-height: calc(100vh / var(--app-scale, 1));
 }
 
 @media (max-width: 900px) {
