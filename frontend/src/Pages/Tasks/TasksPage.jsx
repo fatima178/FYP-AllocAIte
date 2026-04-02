@@ -10,9 +10,9 @@ import TaskFormModal from './TaskFormModal';
 import TasksCalendar from './TasksCalendar';
 import {
   addDays,
+  buildWeekDays,
   defaultEmployeeOptions,
   formatDateInput,
-  formatDayLabel,
   initialWeekStart,
 } from './utils';
 
@@ -61,13 +61,7 @@ function TasksPage() {
 
   const viewDays = useMemo(() => viewWeeks * 7, [viewWeeks]);
   const weekEnd = useMemo(() => addDays(weekStart, viewDays - 1), [weekStart, viewDays]);
-  const weekDays = useMemo(
-    () => Array.from({ length: viewDays }).map((_, index) => {
-      const date = addDays(weekStart, index);
-      return { date, label: formatDayLabel(date) };
-    }),
-    [weekStart, viewDays]
-  );
+  const weekDays = useMemo(() => buildWeekDays(weekStart, viewDays), [weekStart, viewDays]);
 
   const rows = useMemo(() => {
     const employeeRows = (weekData.employees || []).map((emp) => ({

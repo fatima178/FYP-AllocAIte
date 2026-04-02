@@ -236,6 +236,9 @@ body,
   min-height: 70px;
   background: var(--card);
   border-bottom: 1px solid var(--border-subtle);
+  --task-block-bg: var(--button-bg);
+  --task-block-text: var(--button-text);
+  --task-block-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
 }
 
 .employee-calendar-page .calendar-header {
@@ -264,6 +267,17 @@ body,
   align-items: center;
 }
 
+.calendar-row:nth-child(even) {
+  background: var(--calendar-row-alt-bg);
+  --task-block-bg: var(--calendar-task-alt-bg);
+  --task-block-text: #ffffff;
+  --task-block-shadow: var(--calendar-task-alt-shadow);
+}
+
+.calendar-row:nth-child(even) .name-col {
+  background: var(--calendar-row-alt-name-bg);
+}
+
 .timeline {
   position: relative;
   width: 100%;
@@ -282,6 +296,15 @@ body,
   background: var(--surface-soft);
 }
 
+.calendar-row:nth-child(even) .timeline-cell {
+  background: var(--calendar-row-alt-cell-bg);
+}
+
+.calendar-header .day-col.today {
+  background: var(--calendar-today-bg);
+  color: var(--calendar-today-text);
+}
+
 .timeline-cell:last-child {
   border-right: none;
 }
@@ -291,8 +314,8 @@ body,
   height: 44px;
   top: 13px;
   border-radius: 6px;
-  background: var(--button-bg);
-  color: var(--button-text);
+  background: var(--task-block-bg);
+  color: var(--task-block-text);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -301,7 +324,7 @@ body,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  box-shadow: var(--task-block-shadow);
   cursor: pointer;
 }
 

@@ -3,34 +3,15 @@ import Menu from '../Menu';
 import '../../styles/Tasks.css';
 import { apiFetch } from '../../api';
 import { getSessionItem } from '../../session';
-
-const getWeekStart = (inputDate) => {
-  const date = new Date(inputDate);
-  const day = date.getDay();
-  const diff = (day === 0 ? -6 : 1) - day;
-  date.setDate(date.getDate() + diff);
-  date.setHours(0, 0, 0, 0);
-  return date;
-};
-
-const addDays = (date, days) => {
-  const clone = new Date(date);
-  clone.setDate(clone.getDate() + days);
-  return clone;
-};
-
-const formatDateInput = (date) => {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+import {
+  addDays,
+  buildWeekDays,
+  formatDateInput,
+  getWeekStart,
+} from '../Tasks/utils';
 
 const formatRangeLabel = (date) =>
   date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-
-const formatDayLabel = (date) =>
-  date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
 
 const initialWeekStart = getWeekStart(new Date());
 
@@ -58,12 +39,7 @@ function EmployeeCalendarPage() {
 
   const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
 
-  const weekDays = useMemo(() => {
-    return Array.from({ length: 7 }).map((_, index) => {
-      const date = addDays(weekStart, index);
-      return { date, label: formatDayLabel(date) };
-    });
-  }, [weekStart]);
+  const weekDays = useMemo(() => buildWeekDays(weekStart, 7), [weekStart]);
 
   const fetchCalendar = useCallback(async () => {
     if (!userId) {
@@ -180,7 +156,10 @@ function EmployeeCalendarPage() {
           <div className="calendar-scroll">
             <div className="calendar-header">
               {weekDays.map((day) => (
-                <div key={day.label} className="day-col">
+                <div
+                  key={day.label}
+                  className={`day-col${day.isToday ? ' today' : ''}`}
+                >
                   {day.label}
                 </div>
               ))}
@@ -202,10 +181,13 @@ function EmployeeCalendarPage() {
                         LANE_BASE_OFFSET + items.length * (LANE_HEIGHT + LANE_GAP)
                       ),
                     }}
-                  >
+                    >
                     <div className="timeline-cells">
                       {weekDays.map((day) => (
-                        <div key={`day-${day.label}`} className="timeline-cell" />
+                        <div
+                          key={`day-${day.label}`}
+                          className={`timeline-cell${day.isToday ? ' today' : ''}`}
+                        />
                       ))}
                     </div>
 

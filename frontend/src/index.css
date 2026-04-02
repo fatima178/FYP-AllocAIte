@@ -25,6 +25,13 @@ code {
   --button-text: #ffffff;
   --button-hover-bg: #1d4ed8;
   --button-hover-text: #ffffff;
+  --calendar-row-alt-bg: rgba(148, 163, 184, 0.08);
+  --calendar-row-alt-name-bg: rgba(148, 163, 184, 0.1);
+  --calendar-row-alt-cell-bg: rgba(148, 163, 184, 0.07);
+  --calendar-task-alt-bg: #3b82f6;
+  --calendar-task-alt-shadow: 0 4px 12px rgba(59, 130, 246, 0.28);
+  --calendar-today-bg: rgba(34, 197, 94, 0.16);
+  --calendar-today-text: #15803d;
   --muted-text: #6b7280;
   --surface-muted: #f3f4f6;
   --surface-soft: #f9fafb;
@@ -47,6 +54,13 @@ code {
   --button-text: #ffffff;
   --button-hover-bg: #2563eb;
   --button-hover-text: #ffffff;
+  --calendar-row-alt-bg: rgba(51, 65, 85, 0.34);
+  --calendar-row-alt-name-bg: rgba(71, 85, 105, 0.4);
+  --calendar-row-alt-cell-bg: rgba(51, 65, 85, 0.26);
+  --calendar-task-alt-bg: #2563eb;
+  --calendar-task-alt-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  --calendar-today-bg: rgba(22, 163, 74, 0.34);
+  --calendar-today-text: #dcfce7;
   --muted-text: #9ca3af;
   --surface-muted: #1f2937;
   --surface-soft: #111827;

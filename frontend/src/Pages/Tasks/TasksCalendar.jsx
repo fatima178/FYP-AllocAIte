@@ -34,7 +34,12 @@ export default function TasksCalendar({
         <div className="calendar-header">
           <div className="name-col">Name</div>
           {weekDays.map((day) => (
-            <div key={day.label} className="day-col">{day.label}</div>
+            <div
+              key={day.label}
+              className={`day-col${day.isToday ? ' today' : ''}`}
+            >
+              {day.label}
+            </div>
           ))}
         </div>
 
@@ -53,10 +58,13 @@ export default function TasksCalendar({
                     LANE_BASE_OFFSET + row.tasks.length * (LANE_HEIGHT + LANE_GAP)
                   ),
                 }}
-              >
+                >
                 <div className="timeline-cells">
                   {weekDays.map((day) => (
-                    <div key={`${row.id}-${day.label}`} className="timeline-cell" />
+                    <div
+                      key={`${row.id}-${day.label}`}
+                      className={`timeline-cell${day.isToday ? ' today' : ''}`}
+                    />
                   ))}
                 </div>
 

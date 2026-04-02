@@ -26,6 +26,25 @@ export const formatRangeLabel = (date) =>
 export const formatDayLabel = (date) =>
   date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
 
+export const isSameDay = (left, right) =>
+  left.getFullYear() === right.getFullYear() &&
+  left.getMonth() === right.getMonth() &&
+  left.getDate() === right.getDate();
+
+export const buildWeekDays = (weekStart, totalDays) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return Array.from({ length: totalDays }).map((_, index) => {
+    const date = addDays(weekStart, index);
+    return {
+      date,
+      label: formatDayLabel(date),
+      isToday: isSameDay(date, today),
+    };
+  });
+};
+
 export const initialWeekStart = getWeekStart(new Date());
 export const defaultEmployeeOptions = [{ employee_id: null, name: 'Unassigned' }];
 export const TIMELINE_MIN_HEIGHT = 70;
