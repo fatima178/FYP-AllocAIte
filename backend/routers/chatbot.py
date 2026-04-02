@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from processing.nlp.chatbot_processing import handle_chatbot_query
+from processing.nlp.chatbot_processing import get_chatbot_suggestions, handle_chatbot_query
 
 router = APIRouter(tags=["Chatbot"])
 
@@ -19,5 +19,16 @@ def chatbot(data: dict):
 
     try:
         return handle_chatbot_query(message, int(user_id))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
+@router.get("/chatbot/suggestions")
+def chatbot_suggestions(user_id: int):
+    if not user_id:
+        raise HTTPException(400, "Missing user_id")
+
+    try:
+        return {"suggestions": get_chatbot_suggestions(int(user_id))}
     except ValueError as exc:
         raise HTTPException(400, str(exc))

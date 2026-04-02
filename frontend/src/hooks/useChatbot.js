@@ -3,17 +3,18 @@ import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../api";
 import { getSessionItem } from "../session";
 
-const DEFAULT_SUGGESTIONS = [
-  "Who is available next week?",
-  "Who has Python skills?",
-  "What is Emma doing this week?",
-  "Show all backend developers",
-];
-
 export function useChatbot() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
   const chatEndRef = useRef(null);
+  const nextMessageIdRef = useRef(1);
+
+  const createMessage = (sender, text) => ({
+    id: nextMessageIdRef.current++,
+    sender,
+    text,
+  });
 
   useEffect(() => {
     if (!chatEndRef.current || messages.length === 0) {
@@ -21,6 +22,35 @@ export function useChatbot() {
     }
     chatEndRef.current.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    const userId = getSessionItem("user_id");
+    if (!userId) {
+      setSuggestions([]);
+      return;
+    }
+
+    let active = true;
+
+    const loadSuggestions = async () => {
+      try {
+        const res = await apiFetch(`/chatbot/suggestions?user_id=${Number(userId)}`);
+        if (active) {
+          setSuggestions(Array.isArray(res.suggestions) ? res.suggestions : []);
+        }
+      } catch {
+        if (active) {
+          setSuggestions([]);
+        }
+      }
+    };
+
+    loadSuggestions();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const sendMessage = async () => {
     const trimmed = input.trim();
@@ -30,12 +60,12 @@ export function useChatbot() {
     if (!userId) {
       setMessages((prev) => [
         ...prev,
-        { sender: "bot", text: "Please log in before using the assistant." },
+        createMessage("bot", "Please log in before using the assistant."),
       ]);
       return;
     }
 
-    setMessages((prev) => [...prev, { sender: "user", text: trimmed }]);
+    setMessages((prev) => [...prev, createMessage("user", trimmed)]);
 
     try {
       const res = await apiFetch("/chatbot", {
@@ -47,11 +77,11 @@ export function useChatbot() {
         }),
       });
 
-      setMessages((prev) => [...prev, { sender: "bot", text: res.response }]);
+      setMessages((prev) => [...prev, createMessage("bot", res.response)]);
     } catch {
       setMessages((prev) => [
         ...prev,
-        { sender: "bot", text: "Server error. Try again." },
+        createMessage("bot", "Server error. Try again."),
       ]);
     } finally {
       setInput("");
@@ -64,6 +94,6 @@ export function useChatbot() {
     setInput,
     sendMessage,
     chatEndRef,
-    suggestions: DEFAULT_SUGGESTIONS,
+    suggestions,
   };
 }

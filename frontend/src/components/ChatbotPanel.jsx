@@ -11,34 +11,58 @@ export default function ChatbotPanel({
   onClose,
 }) {
   const isPopup = variant === "popup";
+  const hasMessages = messages.length > 0;
 
   return (
-    <>
-      {isPopup ? (
-        <div className="chatbot-header">
-          <span>{title}</span>
-          {onClose ? (
-            <button className="close-btn" onClick={onClose}>×</button>
-          ) : null}
+    <div className={`chatbot-shell ${isPopup ? "is-popup" : "is-full"}`}>
+      <div className="chatbot-panel-header">
+        <div className="chatbot-panel-heading">
+          <span className="chatbot-kicker">AI Assistant</span>
+          {isPopup ? (
+            <h2 className="chatbot-panel-title chatbot-panel-title--popup">{title}</h2>
+          ) : (
+            <>
+              <h1 className="chatbot-panel-title">{title}</h1>
+              <p className="chatbot-panel-subtitle">{subtitle}</p>
+            </>
+          )}
         </div>
-      ) : (
-        <>
-          <h1 className="chatbot-title">{title}</h1>
-          <p className="chatbot-subtitle">{subtitle}</p>
-        </>
-      )}
-
-      <div className={isPopup ? "chatbot-messages" : "chatbot-full-messages"}>
-        {messages.map((msg, index) => (
-          <div key={`${msg.sender}-${index}`} className={`chat-msg ${msg.sender}`}>
-            {msg.text}
-          </div>
-        ))}
-        <div ref={chatEndRef}></div>
+        {isPopup && onClose ? (
+          <button className="close-btn" type="button" onClick={onClose} aria-label="Close chatbot">
+            ×
+          </button>
+        ) : null}
       </div>
 
-      <div className={isPopup ? "suggestions" : "chatbot-full-suggestions"}>
-        <span>Suggestions:</span>
+      <div className="chatbot-message-panel">
+        {!hasMessages && !isPopup ? (
+          <div className="chatbot-empty-state">
+            <div className="chatbot-empty-icon">A</div>
+            <div className="chatbot-empty-copy">
+              <h3>Ask about your team</h3>
+              <p>
+                Check availability, skills, assignments, and employee details using plain language.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="chatbot-messages">
+          {messages.map((msg) => (
+            <div key={msg.id} className={`chat-msg-row ${msg.sender}`}>
+              <div className={`chat-msg ${msg.sender}`}>
+                {msg.text}
+              </div>
+            </div>
+          ))}
+          <div ref={chatEndRef}></div>
+        </div>
+      </div>
+
+      <div className="chatbot-suggestions">
+        <div className="chatbot-suggestions-header">
+          {isPopup ? "Try one of these" : "Try a prompt"}
+        </div>
         <div className="suggestion-list">
           {suggestions.map((suggestion) => (
             <button
@@ -63,6 +87,6 @@ export default function ChatbotPanel({
         />
         <button type="button" onClick={sendMessage}>Send</button>
       </div>
-    </>
+    </div>
   );
 }

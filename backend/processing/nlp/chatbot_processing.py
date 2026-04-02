@@ -1,360 +1,745 @@
 from datetime import datetime, timedelta
-from dateutil import parser
 import re
+from typing import Dict, List, Sequence, Set
+
+from dateutil import parser
 
 from db import get_connection
+from processing.recommendations.recommend_processing import (
+    RecommendationError,
+    generate_recommendations,
+)
+
+try:
+    from sentence_transformers import SentenceTransformer, util
+except Exception:  # pragma: no cover - optional dependency at runtime
+    SentenceTransformer = None
+    util = None
 
 
-# parses natural language date expressions into an actual date range.
-# this function supports keywords (today, tomorrow, next week, this week, next month),
-# explicit iso dates, and fuzzy natural formats.
-# returns (start_date, end_date). if parsing fails, returns (none, none).
+INTENT_EXAMPLES: Dict[str, Sequence[str]] = {
+    "availability": (
+        "who is available next week",
+        "who is free tomorrow",
+        "show me employees who are busy this week",
+        "who can take on work on friday",
+    ),
+    "assignment": (
+        "what is someone working on this week",
+        "what task is an employee assigned to",
+        "who is working on onboarding",
+        "what is a team member working on next week",
+    ),
+    "skills": (
+        "who has python skills",
+        "show employees with sql and api experience",
+        "who knows frontend development",
+        "find people with ux skills",
+    ),
+    "role": (
+        "show all backend developers",
+        "list the designers",
+        "who are the analysts",
+        "show frontend engineers",
+    ),
+    "employee_summary": (
+        "tell me about an employee",
+        "show employee profile",
+        "what do you know about this team member",
+        "summarise this employee",
+    ),
+    "hiring": (
+        "who should i hire for a specific task",
+        "do we need to hire for this task",
+        "who is the best fit for this task",
+        "recommend someone for this project",
+    ),
+}
+
+INTENT_KEYWORDS: Dict[str, Sequence[str]] = {
+    "availability": ("available", "availability", "free", "busy", "capacity"),
+    "assignment": ("doing", "working", "assigned", "assignment", "task", "project"),
+    "skills": ("skill", "skills", "know", "knows", "expert", "experience", "tech stack"),
+    "role": ("role", "roles", "developer", "engineer", "designer", "analyst", "backend", "frontend"),
+    "employee_summary": ("about", "profile", "summary", "summarise", "details"),
+    "hiring": ("hire", "hiring", "recruit", "recommend", "best fit", "staff", "candidate"),
+}
+
+SKILL_ALIASES: Dict[str, Sequence[str]] = {
+    "python": ("python", "py"),
+    "sql": ("sql", "postgres", "postgresql", "database", "databases"),
+    "api": ("api", "apis", "rest", "backend api"),
+    "backend": ("backend", "server side", "server-side"),
+    "frontend": ("frontend", "front end", "front-end", "ui"),
+    "ux": ("ux", "user experience"),
+    "design": ("design", "designer", "figma", "product design"),
+    "nlp": ("nlp", "natural language processing"),
+    "tensorflow": ("tensorflow", "tf"),
+    "django": ("django",),
+}
+
+ROLE_ALIASES: Dict[str, Sequence[str]] = {
+    "backend": ("backend", "backend developer", "backend engineer", "api developer"),
+    "frontend": ("frontend", "frontend developer", "frontend engineer", "ui engineer"),
+    "developer": ("developer", "engineer", "software engineer"),
+    "designer": ("designer", "design", "ux designer", "ui designer"),
+    "analyst": ("analyst", "analysis", "data analyst", "business analyst"),
+    "manager": ("manager", "lead", "team lead"),
+}
+
+_EMBEDDING_MODEL = None
+_INTENT_EMBEDDINGS = None
+
+
+def normalize_text(text: str) -> str:
+    return re.sub(r"\s+", " ", (text or "").strip().lower())
+
+
+def tokenize(text: str) -> Set[str]:
+    return set(re.findall(r"[a-z0-9]+", normalize_text(text)))
+
+
+def format_date_range_label(start, end) -> str:
+    if start == end:
+        return start.isoformat()
+    return f"{start.isoformat()} to {end.isoformat()}"
+
+
 def parse_date_range(text: str):
-    t = text.lower().strip()
+    t = normalize_text(text)
     now = datetime.today()
 
-    # direct keyword: tomorrow
+    if "today" in t:
+        return now.date(), now.date()
+
     if "tomorrow" in t:
         d = now + timedelta(days=1)
         return d.date(), d.date()
 
-    # direct keyword: today
-    if "today" in t:
-        return now.date(), now.date()
+    if "yesterday" in t:
+        d = now - timedelta(days=1)
+        return d.date(), d.date()
 
-    # pattern: "in x days"
     match = re.search(r"in (\d+) days", t)
     if match:
         offset = int(match.group(1))
         d = now + timedelta(days=offset)
         return d.date(), d.date()
 
-    # keyword: next week (monday to sunday)
+    match = re.search(r"next (\d+) weeks?", t)
+    if match:
+        weeks = max(1, int(match.group(1)))
+        start = now + timedelta(days=(7 - now.weekday()))
+        end = start + timedelta(days=weeks * 7 - 1)
+        return start.date(), end.date()
+
     if "next week" in t:
-        # calculate next monday based on weekday
         start = now + timedelta(days=(7 - now.weekday()))
         end = start + timedelta(days=6)
         return start.date(), end.date()
 
-    # keyword: this week (current monday to sunday)
     if "this week" in t:
         start = now - timedelta(days=now.weekday())
         end = start + timedelta(days=6)
         return start.date(), end.date()
 
-    # keyword: next month (first day to last day of next month)
-    if "next month" in t:
-        # move to next month by jumping 32 days forward, then resetting day
-        first = (now.replace(day=1) + timedelta(days=32)).replace(day=1)
-        # find end of month by jumping 32 more days and stepping back 1
-        last = (first + timedelta(days=32)).replace(day=1) - timedelta(days=1)
-        return first.date(), last.date()
+    if "this month" in t:
+        start = now.replace(day=1)
+        next_month = (start + timedelta(days=32)).replace(day=1)
+        end = next_month - timedelta(days=1)
+        return start.date(), end.date()
 
-    # detect explicit iso dates like "2025-03-20"
-    iso_dates = re.findall(r"\d{4}-\d{2}-\d{2}", t)
-    if len(iso_dates) >= 1:
+    if "next month" in t:
+        start = (now.replace(day=1) + timedelta(days=32)).replace(day=1)
+        end = ((start + timedelta(days=32)).replace(day=1) - timedelta(days=1))
+        return start.date(), end.date()
+
+    between_match = re.search(r"(?:between|from)\s+(.+?)\s+(?:and|to)\s+(.+)", t)
+    if between_match:
+        start_text, end_text = between_match.groups()
         try:
-            # if 1 date: treat as start=end
-            # if 2+: treat first as start, last as end
-            start = parser.parse(iso_dates[0]).date()
-            end = parser.parse(iso_dates[-1]).date()
-            return start, end
+            start = parser.parse(start_text, fuzzy=True).date()
+            end = parser.parse(end_text, fuzzy=True).date()
+            return (start, end) if start <= end else (end, start)
         except Exception:
-            # ignore parsing error
             pass
 
-    # fuzzy parse for things like "feb 5", "next friday", "4 march", etc.
+    iso_dates = re.findall(r"\d{4}-\d{2}-\d{2}", t)
+    if iso_dates:
+        try:
+            start = parser.parse(iso_dates[0]).date()
+            end = parser.parse(iso_dates[-1]).date()
+            return (start, end) if start <= end else (end, start)
+        except Exception:
+            pass
+
     try:
-        d = parser.parse(t, fuzzy=True).date()
+        d = parser.parse(t, fuzzy=True, default=now).date()
         return d, d
     except Exception:
         return None, None
 
 
-# extracts known technical skills from user input.
-# uses simple keyword search over a predefined list of skills.
-def parse_skills(text: str):
-    t = text.lower()
-    known = [
-        "python",
-        "django",
-        "sql",
-        "nlp",
-        "tensorflow",
-        "api",
-        "backend",
-        "frontend",
-        "ui",
-        "ux",
-        "design",
-    ]
-    # return only skills actually mentioned in the text
-    return [s for s in known if s in t]
+def get_semantic_model():
+    global _EMBEDDING_MODEL
+    if _EMBEDDING_MODEL is not None:
+        return _EMBEDDING_MODEL
+    if SentenceTransformer is None:
+        return None
+    try:
+        _EMBEDDING_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
+    except Exception:
+        _EMBEDDING_MODEL = None
+    return _EMBEDDING_MODEL
 
 
-# attempts to identify an employee in the message.
-# matches either the full name or the first name.
-# returns (employee_id, employee_name) or (none, none) if not found.
-def parse_employee(cur, upload_id, text: str):
-    t = text.lower()
+def get_intent_embeddings():
+    global _INTENT_EMBEDDINGS
+    if _INTENT_EMBEDDINGS is not None:
+        return _INTENT_EMBEDDINGS
+    model = get_semantic_model()
+    if model is None:
+        return None
+    texts = [example for examples in INTENT_EXAMPLES.values() for example in examples]
+    try:
+        _INTENT_EMBEDDINGS = model.encode(texts, convert_to_tensor=True)
+    except Exception:
+        _INTENT_EMBEDDINGS = None
+    return _INTENT_EMBEDDINGS
 
-    # fetch all employees from this upload so we can match names locally
+
+def semantic_intent_scores(message: str) -> Dict[str, float]:
+    model = get_semantic_model()
+    intent_embeddings = get_intent_embeddings()
+    if model is None or intent_embeddings is None or util is None:
+        return {}
+
+    try:
+        query_embedding = model.encode(message, convert_to_tensor=True)
+        similarities = util.cos_sim(query_embedding, intent_embeddings)[0].tolist()
+    except Exception:
+        return {}
+
+    scores: Dict[str, float] = {}
+    offset = 0
+    for intent, examples in INTENT_EXAMPLES.items():
+        slice_scores = similarities[offset : offset + len(examples)]
+        offset += len(examples)
+        scores[intent] = max(slice_scores) if slice_scores else 0.0
+    return scores
+
+
+def lexical_intent_scores(message: str) -> Dict[str, float]:
+    normalized = normalize_text(message)
+    message_tokens = tokenize(normalized)
+    scores: Dict[str, float] = {}
+
+    for intent, keywords in INTENT_KEYWORDS.items():
+        keyword_score = sum(1 for keyword in keywords if keyword in normalized)
+        example_score = 0.0
+        for example in INTENT_EXAMPLES[intent]:
+            example_tokens = tokenize(example)
+            if example_tokens:
+                example_score = max(example_score, len(message_tokens & example_tokens) / len(example_tokens))
+        scores[intent] = keyword_score + example_score
+
+    return scores
+
+
+def merge_scores(*score_maps: Dict[str, float]) -> Dict[str, float]:
+    merged: Dict[str, float] = {}
+    for score_map in score_maps:
+        for key, value in score_map.items():
+            merged[key] = merged.get(key, 0.0) + value
+    return merged
+
+
+def get_employee_directory(cur, user_id: int) -> List[Dict[str, object]]:
     cur.execute(
-        'SELECT employee_id, name FROM "Employees" WHERE user_id = %s;',
-        (upload_id,),
+        """
+        SELECT employee_id, name, COALESCE(role, ''), COALESCE(department, '')
+        FROM "Employees"
+        WHERE user_id = %s
+        ORDER BY name ASC;
+        """,
+        (user_id,),
     )
-    rows = cur.fetchall()
-
-    # loop through employees and check if full name or first name appears in the message
-    for emp_id, full_name in rows:
-        full = full_name.lower()
-        first = full.split(" ")[0]
-
-        if full in t or first in t:
-            return emp_id, full_name
-
-    return None, None
+    return [
+        {
+            "employee_id": row[0],
+            "name": row[1],
+            "role": row[2],
+            "department": row[3],
+        }
+        for row in cur.fetchall()
+    ]
 
 
-# simple intent classifier based on keywords.
-# determines what the user is asking about so the chatbot knows which handler to call.
-def detect_intent(text: str):
-    t = text.lower()
+def parse_employee(employees: Sequence[Dict[str, object]], text: str):
+    normalized = normalize_text(text)
+    message_tokens = tokenize(normalized)
 
-    # checking someone's schedule or free time
-    if "available" in t or "free" in t or "busy" in t:
-        return "availability"
+    best_match = None
+    best_score = 0.0
+    for employee in employees:
+        name = normalize_text(employee["name"])
+        first_name = name.split(" ")[0] if name else ""
+        name_tokens = tokenize(name)
 
-    # checking what task someone is doing
-    if "doing" in t or "working on" in t or "assigned" in t or "task" in t:
-        return "assignment"
+        score = 0.0
+        if name and name in normalized:
+            score = 3.0
+        elif first_name and re.search(rf"\b{re.escape(first_name)}\b", normalized):
+            score = 2.0
+        elif name_tokens:
+            overlap = len(message_tokens & name_tokens)
+            if overlap:
+                score = overlap / len(name_tokens)
 
-    # checking what skills someone has
-    if "skill" in t or "knows" in t or "expert" in t or "has" in t:
-        return "skills"
+        if score > best_score:
+            best_match = employee
+            best_score = score
 
-    # checking by job role
-    if "backend" in t or "developer" in t or "designer" in t or "analyst" in t:
-        return "role"
-
-    # default when no intent matches
-    return "fallback"
+    return best_match if best_score >= 1.0 else None
 
 
-# handles "who is available on date x" style questions.
-# uses overlapping date logic to filter employees.
-def handle_availability(cur, upload_id: int, message: str):
-    # first parse the date range from the message
+def get_known_skills(cur, user_id: int) -> List[str]:
+    cur.execute(
+        """
+        SELECT DISTINCT lower(skill_name)
+        FROM "EmployeeSkills" es
+        JOIN "Employees" e ON e.employee_id = es.employee_id
+        WHERE e.user_id = %s
+        ORDER BY lower(skill_name);
+        """,
+        (user_id,),
+    )
+    return [row[0] for row in cur.fetchall() if row[0]]
+
+
+def get_known_roles(cur, user_id: int) -> List[str]:
+    cur.execute(
+        """
+        SELECT DISTINCT lower(role)
+        FROM "Employees"
+        WHERE user_id = %s AND role IS NOT NULL AND trim(role) <> ''
+        ORDER BY lower(role);
+        """,
+        (user_id,),
+    )
+    return [row[0] for row in cur.fetchall() if row[0]]
+
+
+def expand_alias_hits(text: str, alias_map: Dict[str, Sequence[str]]) -> Set[str]:
+    normalized = normalize_text(text)
+    hits = set()
+    for canonical, aliases in alias_map.items():
+        if any(alias in normalized for alias in aliases):
+            hits.add(canonical)
+    return hits
+
+
+def parse_skills(cur, user_id: int, text: str) -> List[str]:
+    normalized = normalize_text(text)
+    hits = expand_alias_hits(normalized, SKILL_ALIASES)
+    db_skills = get_known_skills(cur, user_id)
+
+    for skill in db_skills:
+        skill_tokens = tokenize(skill)
+        if skill in normalized or (skill_tokens and skill_tokens <= tokenize(normalized)):
+            hits.add(skill)
+
+    return sorted(hits)
+
+
+def parse_role_filters(cur, user_id: int, text: str) -> List[str]:
+    normalized = normalize_text(text)
+    hits = expand_alias_hits(normalized, ROLE_ALIASES)
+    db_roles = get_known_roles(cur, user_id)
+
+    for role in db_roles:
+        role_tokens = tokenize(role)
+        if role in normalized or (role_tokens and role_tokens <= tokenize(normalized)):
+            hits.add(role)
+
+    return sorted(hits)
+
+
+def detect_intent(cur, user_id: int, message: str) -> str:
+    lexical_scores = lexical_intent_scores(message)
+    semantic_scores = semantic_intent_scores(message)
+    scores = merge_scores(lexical_scores, semantic_scores)
+
+    employees = get_employee_directory(cur, user_id)
+    employee_match = parse_employee(employees, message)
+    skills = parse_skills(cur, user_id, message)
+    roles = parse_role_filters(cur, user_id, message)
+    start, _ = parse_date_range(message)
+
+    if employee_match:
+        scores["assignment"] = scores.get("assignment", 0.0) + 1.25
+        scores["employee_summary"] = scores.get("employee_summary", 0.0) + 0.75
+    if skills:
+        scores["skills"] = scores.get("skills", 0.0) + 1.5
+    if roles:
+        scores["role"] = scores.get("role", 0.0) + 1.5
+    if start:
+        scores["availability"] = scores.get("availability", 0.0) + 0.75
+        scores["assignment"] = scores.get("assignment", 0.0) + 0.5
+    if any(keyword in normalize_text(message) for keyword in INTENT_KEYWORDS["hiring"]):
+        scores["hiring"] = scores.get("hiring", 0.0) + 1.75
+
+    best_intent = max(scores, key=scores.get) if scores else "fallback"
+    threshold = 0.75 if semantic_scores else 0.6
+    return best_intent if scores.get(best_intent, 0.0) >= threshold else "fallback"
+
+
+def handle_availability(cur, user_id: int, message: str):
     start, end = parse_date_range(message)
     if not start:
         return {
             "response": (
                 "I couldn’t understand the timeframe. Try 'next week', 'tomorrow', "
-                "or a date like 2025-02-10."
+                "or a range like 'from 2026-04-01 to 2026-04-05'."
             )
         }
 
-    # select all employees who do not appear in an overlapping assignment window.
-    # overlapping condition: assignment.start <= query.end and assignment.end >= query.start
     cur.execute(
         """
-        SELECT name FROM "Employees"
-        WHERE user_id = %s
-          AND employee_id NOT IN (
+        SELECT e.name
+        FROM "Employees" e
+        WHERE e.user_id = %s
+          AND e.employee_id NOT IN (
               SELECT a.employee_id
               FROM "Assignments" a
-              JOIN "Employees" e ON a.employee_id = e.employee_id
-              WHERE e.user_id = %s
+              JOIN "Employees" ea ON ea.employee_id = a.employee_id
+              WHERE ea.user_id = %s
+                AND a.employee_id IS NOT NULL
                 AND a.start_date <= %s
                 AND a.end_date >= %s
-          );
+          )
+        ORDER BY e.name ASC;
         """,
-        (upload_id, upload_id, end, start),
+        (user_id, user_id, end, start),
     )
-
-    # get names, deduplicate and sort alphabetically for clean output
-    names = sorted(set([r[0] for r in cur.fetchall()]))
+    names = [row[0] for row in cur.fetchall()]
 
     if not names:
-        return {"response": f"No one is available between {start} and {end}."}
+        return {"response": f"No one is available between {format_date_range_label(start, end)}."}
 
+    preview = ", ".join(names[:10])
+    suffix = "" if len(names) <= 10 else f" and {len(names) - 10} more"
     return {
-        "response": f"Available between {start} and {end}: " + ", ".join(names)
+        "response": (
+            f"Available between {format_date_range_label(start, end)}: {preview}{suffix}."
+        )
     }
 
 
-# handles "who knows python" or "show employees with sql and django" queries.
-def handle_skills(cur, upload_id: int, message: str):
-    skills = parse_skills(message)
+def handle_skills(cur, user_id: int, message: str):
+    skills = parse_skills(cur, user_id, message)
     if not skills:
-        return {"response": "Specify a skill (e.g., python, sql, ui design)."}
+        known_skills = get_known_skills(cur, user_id)[:8]
+        suggestion_text = ", ".join(known_skills) if known_skills else "python, sql, frontend"
+        return {"response": f"Specify a skill to search for, for example: {suggestion_text}."}
 
     conditions = []
-    params = [upload_id]
+    params: List[object] = [user_id]
     for skill in skills:
         conditions.append("lower(es.skill_name) LIKE %s")
         params.append(f"%{skill}%")
 
-    where_clause = " AND ".join(conditions)
-
-    query = f"""
+    where_clause = " OR ".join(conditions)
+    cur.execute(
+        f"""
         SELECT DISTINCT e.name
         FROM "Employees" e
         JOIN "EmployeeSkills" es ON e.employee_id = es.employee_id
         WHERE e.user_id = %s
-          AND es.skill_type = 'technical'
-          AND {where_clause};
-    """
-    cur.execute(query, params)
+          AND ({where_clause})
+        ORDER BY e.name ASC;
+        """,
+        params,
+    )
 
-    names = sorted(set([r[0] for r in cur.fetchall()]))
-
+    names = [row[0] for row in cur.fetchall()]
     if not names:
-        return {"response": "No employees found with those skills."}
+        return {"response": f"No employees found with skills matching: {', '.join(skills)}."}
 
-    return {"response": f"Employees with {', '.join(skills)}: " + ", ".join(names)}
+    return {"response": f"Employees with {', '.join(skills)}: {', '.join(names)}."}
 
 
-# handles questions like "what is alice doing next week?"
-# combines employee name detection + date parsing + assignment overlap filtering.
-def handle_assignment(cur, upload_id: int, message: str):
-    # figure out which employee the user is asking about
-    emp_id, full_name = parse_employee(cur, upload_id, message)
-    if not emp_id:
-        return {
-            "response": "I couldn’t find that employee. Try full or first name."
-        }
+def handle_assignment(cur, user_id: int, message: str):
+    employees = get_employee_directory(cur, user_id)
+    employee = parse_employee(employees, message)
+    if not employee:
+        return {"response": "I couldn’t find that employee. Try a first name or full name."}
 
-    # figure out the date range the user mentioned
     start, end = parse_date_range(message)
     if not start:
+        start = datetime.today().date()
+        end = start
+
+    cur.execute(
+        """
+        SELECT title, start_date, end_date
+        FROM "Assignments"
+        WHERE employee_id = %s
+          AND start_date <= %s
+          AND end_date >= %s
+        ORDER BY start_date ASC, title ASC;
+        """,
+        (employee["employee_id"], end, start),
+    )
+    tasks = cur.fetchall()
+
+    if not tasks:
         return {
             "response": (
-                "Specify a timeframe (e.g., 'this week', 'tomorrow', or '2025-02-05')."
+                f"{employee['name']} has no assignments between {format_date_range_label(start, end)}."
             )
         }
 
-    # get all assignments overlapping this date range for this employee
+    formatted = ", ".join(
+        f"{title} ({task_start.isoformat()} to {task_end.isoformat()})"
+        for title, task_start, task_end in tasks
+    )
+    return {
+        "response": (
+            f"{employee['name']} is scheduled for {formatted} "
+            f"during {format_date_range_label(start, end)}."
+        )
+    }
+
+
+def handle_role(cur, user_id: int, message: str):
+    roles = parse_role_filters(cur, user_id, message)
+    if not roles:
+        known_roles = get_known_roles(cur, user_id)[:8]
+        if not known_roles:
+            return {"response": "I couldn’t find any role data for this team yet."}
+        return {"response": f"Try a role like: {', '.join(known_roles)}."}
+
+    conditions = []
+    params: List[object] = [user_id]
+    for role in roles:
+        conditions.append("lower(role) LIKE %s")
+        params.append(f"%{role}%")
+
+    cur.execute(
+        f"""
+        SELECT name, role
+        FROM "Employees"
+        WHERE user_id = %s
+          AND ({' OR '.join(conditions)})
+        ORDER BY name ASC;
+        """,
+        params,
+    )
+    rows = cur.fetchall()
+
+    if not rows:
+        return {"response": f"No employees found for roles matching: {', '.join(roles)}."}
+
+    formatted = ", ".join(f"{name} ({role})" for name, role in rows[:12])
+    suffix = "" if len(rows) <= 12 else f" and {len(rows) - 12} more"
+    return {"response": f"Employees matching {', '.join(roles)}: {formatted}{suffix}."}
+
+
+def handle_employee_summary(cur, user_id: int, message: str):
+    employees = get_employee_directory(cur, user_id)
+    employee = parse_employee(employees, message)
+    if not employee:
+        return {"response": "I couldn’t find that employee. Try a first name or full name."}
+
+    cur.execute(
+        """
+        SELECT skill_name
+        FROM "EmployeeSkills"
+        WHERE employee_id = %s
+        ORDER BY years_experience DESC NULLS LAST, skill_name ASC
+        LIMIT 6;
+        """,
+        (employee["employee_id"],),
+    )
+    skills = [row[0] for row in cur.fetchall()]
+
+    today = datetime.today().date()
     cur.execute(
         """
         SELECT title
         FROM "Assignments"
         WHERE employee_id = %s
-          AND (user_id = %s OR user_id IS NULL)
           AND start_date <= %s
-          AND end_date >= %s;
+          AND end_date >= %s
+        ORDER BY start_date ASC, title ASC
+        LIMIT 5;
         """,
-        (emp_id, upload_id, end, start),
+        (employee["employee_id"], today, today),
     )
+    active_tasks = [row[0] for row in cur.fetchall()]
 
-    tasks = [r[0] for r in cur.fetchall()]
+    parts = [f"{employee['name']} is a {employee['role'] or 'team member'}"]
+    if employee["department"]:
+        parts[-1] += f" in {employee['department']}"
+    if skills:
+        parts.append(f"Top skills: {', '.join(skills)}")
+    if active_tasks:
+        parts.append(f"Current work: {', '.join(active_tasks)}")
 
-    # respond depending on whether tasks exist
-    if not tasks:
-        return {"response": f"{full_name} has no tasks between {start} and {end}."}
-
-    return {"response": f"{full_name} is working on: " + ", ".join(tasks)}
+    return {"response": ". ".join(parts) + "."}
 
 
-# handles role-based queries such as "show me designers" or "list backend developers".
-def handle_role(cur, upload_id: int):
-    cur.execute(
-        """
-        SELECT name FROM "Employees"
-        WHERE user_id = %s
-          AND (
-              lower(role) LIKE '%%backend%%'
-              OR lower(role) LIKE '%%developer%%'
-              OR lower(role) LIKE '%%designer%%'
-              OR lower(role) LIKE '%%analyst%%'
-          );
-        """,
-        (upload_id,),
+def build_hiring_task_description(message: str) -> str:
+    normalized = re.sub(
+        r"\b(who should i hire|who can i hire|do we need to hire|recommend someone|best fit|for this task|for this project|for this role)\b",
+        " ",
+        normalize_text(message),
     )
-    names = sorted(set([r[0] for r in cur.fetchall()]))
-
-    if not names:
-        return {"response": "No developers found."}
-
-    return {"response": "Developers: " + ", ".join(names)}
+    normalized = re.sub(r"\s+", " ", normalized).strip(" ?.")
+    return normalized or message.strip()
 
 
-# finds the current active upload for this user.
-# if there is no active upload, fallback to the most recently uploaded file.
-def resolve_upload_id(cur, user_id: int):
-    # check for an explicitly active upload
-    cur.execute(
-        """
-        SELECT upload_id
-        FROM "Uploads"
-        WHERE user_id = %s AND is_active = TRUE
-        ORDER BY upload_date DESC
-        LIMIT 1;
-        """,
-        (user_id,),
+def handle_hiring(cur, user_id: int, message: str):
+    start, end = parse_date_range(message)
+    if not start:
+        start = datetime.today().date()
+        end = start + timedelta(days=6)
+
+    task_description = build_hiring_task_description(message)
+
+    try:
+        result = generate_recommendations(
+            task_description=task_description,
+            start_date=start.isoformat(),
+            end_date=end.isoformat(),
+            user_id=user_id,
+            upload_id=None,
+        )
+    except RecommendationError as exc:
+        return {"response": exc.message}
+
+    recommendations = result.get("recommendations") or []
+    gap_analysis = result.get("gap_analysis")
+
+    if recommendations:
+        top_matches = recommendations[:3]
+        match_text = "; ".join(
+            f"{rec.get('name')} ({rec.get('score_percent')}%)"
+            for rec in top_matches
+            if rec.get("name")
+        )
+        response_parts = [
+            f"For '{task_description}' during {format_date_range_label(start, end)}, top internal matches are: {match_text}."
+        ]
+    else:
+        response_parts = [
+            f"I could not find a strong internal match for '{task_description}' during {format_date_range_label(start, end)}."
+        ]
+
+    if gap_analysis:
+        gap_message = gap_analysis.get("message")
+        missing_skills = gap_analysis.get("missing_skills") or []
+        suggested_roles = gap_analysis.get("suggested_roles") or []
+        if gap_message:
+            response_parts.append(gap_message)
+        if missing_skills:
+            response_parts.append(f"Missing skills: {', '.join(missing_skills)}.")
+        if suggested_roles:
+            response_parts.append(f"Suggested hiring roles: {', '.join(suggested_roles)}.")
+
+    return {"response": " ".join(response_parts)}
+
+
+def build_fallback_examples(cur, user_id: int) -> List[str]:
+    skills = get_known_skills(cur, user_id)
+    roles = get_known_roles(cur, user_id)
+    employees = get_employee_directory(cur, user_id)
+
+    examples = ["Who is available next week?"]
+    examples.append(
+        f"Who has {skills[0]} skills?" if skills else "Who has Python skills?"
     )
-    row = cur.fetchone()
-    if row:
-        return row[0]
-
-    # fallback to last upload ever made by this user
-    cur.execute(
-        """
-        SELECT upload_id
-        FROM "Uploads"
-        WHERE user_id = %s
-        ORDER BY upload_date DESC
-        LIMIT 1;
-        """,
-        (user_id,),
+    examples.append(
+        f"Show employees with {roles[0]} roles"
+        if roles
+        else "Show employees with backend roles"
     )
-    row = cur.fetchone()
-    return row[0] if row else None
+    examples.append(
+        f"What is {employees[0]['name']} working on this week?"
+        if employees
+        else "What is someone working on this week?"
+    )
+    examples.append("Who should I hire for a backend API task?")
+    return examples
 
 
-# central handler for all chatbot queries.
-# this function decides which sub-handler to call based on detected intent.
-# it also manages database connection lifecycle.
+def handle_fallback(cur, user_id: int):
+    examples = build_fallback_examples(cur, user_id)
+    return {
+        "response": "I can help with availability, assignments, skills, roles, and employee summaries. "
+        + "Try one of these: "
+        + " | ".join(examples)
+    }
+
+
+def get_chatbot_suggestions(user_id: int) -> List[str]:
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute('SELECT 1 FROM "Employees" WHERE user_id = %s LIMIT 1;', (user_id,))
+        if not cur.fetchone():
+            return build_fallback_examples(cur, user_id)
+        return build_fallback_examples(cur, user_id)
+    finally:
+        cur.close()
+        conn.close()
+
+
+def log_chat(cur, user_id: int, message: str, response: str):
+    try:
+        cur.execute(
+            """
+            INSERT INTO "ChatLogs" (user_id, query_text, response_text)
+            VALUES (%s, %s, %s);
+            """,
+            (user_id, message, response),
+        )
+    except Exception:
+        pass
+
+
 def handle_chatbot_query(message: str, user_id: int):
-    # basic validation: message and user must be present
     message = (message or "").strip()
     if not message:
         raise ValueError("missing message")
     if not user_id:
         raise ValueError("missing user_id")
 
-    # classify the user's request
-    intent = detect_intent(message)
-
-    # open db connection
     conn = get_connection()
     cur = conn.cursor()
 
     try:
-        cur.execute(
-            'SELECT 1 FROM "Employees" WHERE user_id = %s LIMIT 1;',
-            (user_id,),
-        )
+        cur.execute('SELECT 1 FROM "Employees" WHERE user_id = %s LIMIT 1;', (user_id,))
         if not cur.fetchone():
-            return {
-                "response": "No employee data found. Please upload your team sheet first."
-            }
+            return {"response": "No employee data found. Please upload your team sheet first."}
 
-        # call the correct handler depending on intent
-        if intent == "availability":
-            return handle_availability(cur, user_id, message)
-        if intent == "skills":
-            return handle_skills(cur, user_id, message)
-        if intent == "assignment":
-            return handle_assignment(cur, user_id, message)
-        if intent == "role":
-            return handle_role(cur, user_id)
-
-        # default fallback response when nothing matches
-        return {
-            "response": "I didn’t understand that. Try asking about availability, skills, roles, or assignments."
+        intent = detect_intent(cur, user_id, message)
+        handlers = {
+            "availability": handle_availability,
+            "skills": handle_skills,
+            "assignment": handle_assignment,
+            "role": handle_role,
+            "employee_summary": handle_employee_summary,
+            "hiring": handle_hiring,
+            "fallback": lambda cursor, uid, _: handle_fallback(cursor, uid),
         }
+
+        result = handlers.get(intent, handlers["fallback"])(cur, user_id, message)
+        log_chat(cur, user_id, message, result.get("response", ""))
+        conn.commit()
+        return result
     finally:
-        # always close database cursor and connection to avoid leaks
         cur.close()
         conn.close()
