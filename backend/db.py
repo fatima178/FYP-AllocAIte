@@ -112,8 +112,14 @@ def init_db():
             label TEXT,
             start_date DATE,
             end_date DATE,
+            total_hours FLOAT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+    """)
+
+    cur.execute("""
+        ALTER TABLE "EmployeeCalendarEntries"
+        ADD COLUMN IF NOT EXISTS total_hours FLOAT;
     """)
 
     # assignments table stores project assignments for employees

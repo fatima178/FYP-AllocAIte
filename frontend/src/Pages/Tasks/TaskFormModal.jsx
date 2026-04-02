@@ -55,6 +55,18 @@ export default function TaskFormModal({
           </label>
 
           <label>
+            Total hours
+            <input
+              type="number"
+              min="0.5"
+              step="0.5"
+              value={formData.totalHours}
+              onChange={(e) => onChange('totalHours', e.target.value)}
+              required
+            />
+          </label>
+
+          <label>
             Assign to
             <select value={formData.employeeId} onChange={(e) => onChange('employeeId', e.target.value)}>
               {(weekData.employee_options || []).map((option) => (

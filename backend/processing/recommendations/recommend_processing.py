@@ -226,6 +226,7 @@ def generate_recommendations(
     end_date: str,
     user_id: Optional[int],
     upload_id: Optional[int],
+    persist_history: bool = True,
 ):
     if user_id is None:
         raise RecommendationError(400, "user_id is required")
@@ -241,20 +242,22 @@ def generate_recommendations(
     recommendations = match_employees(task_description, user_id, start_date, end_date)
     gap_analysis = _build_gap_analysis(task_description, user_id, recommendations)
 
-    # record the recommendation request + ranked results for evaluation
-    try:
-        start_dt = date.fromisoformat(str(start_date))
-        end_dt = date.fromisoformat(str(end_date))
-        task_id = create_recommendation_task(
-            user_id,
-            task_description,
-            start_dt,
-            end_dt,
-        )
-        log_recommendations(task_id, recommendations)
-    except Exception:
-        # recommendation logging should not block the response
-        task_id = None
+    task_id = None
+    if persist_history:
+        # record the recommendation request + ranked results for evaluation
+        try:
+            start_dt = date.fromisoformat(str(start_date))
+            end_dt = date.fromisoformat(str(end_date))
+            task_id = create_recommendation_task(
+                user_id,
+                task_description,
+                start_dt,
+                end_dt,
+            )
+            log_recommendations(task_id, recommendations)
+        except Exception:
+            # recommendation logging should not block the response
+            task_id = None
 
     return {
         "task_id": task_id,

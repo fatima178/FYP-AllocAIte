@@ -55,7 +55,7 @@
   background: var(--button-bg);
   color: var(--button-text);
   border-color: transparent;
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+  box-shadow: var(--shadow-accent-soft);
 }
 
 .settings-main {
@@ -80,8 +80,8 @@
   background: var(--card);
   padding: 25px;
   border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-  border-left: 6px solid #4a7aff;
+  box-shadow: var(--shadow-card-lg);
+  border-left: 6px solid var(--button-bg);
   margin-bottom: 25px;
   border: 1px solid var(--card-border);
 }
@@ -130,7 +130,7 @@
   border: 1px solid var(--card-border);
   border-radius: 12px;
   background: var(--card);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16);
+  box-shadow: var(--shadow-popover);
   opacity: 0;
   visibility: hidden;
   transform: translateY(-6px);
@@ -195,21 +195,21 @@
 }
 
 .weight-budget-summary__item--pending {
-  background: rgba(239, 68, 68, 0.12);
-  border-color: rgba(185, 28, 28, 0.35);
+  background: var(--error-bg-medium);
+  border-color: var(--danger-border);
 }
 
 .weight-budget-summary__item--pending strong {
-  color: #b91c1c;
+  color: var(--error-text);
 }
 
 .weight-budget-summary__item--complete {
-  background: rgba(34, 197, 94, 0.14);
-  border-color: rgba(4, 120, 87, 0.35);
+  background: var(--success-bg-medium);
+  border-color: var(--accent-border-soft);
 }
 
 .weight-budget-summary__item--complete strong {
-  color: #047857;
+  color: var(--success-text);
 }
 
 .weight-slider-list {
@@ -298,7 +298,7 @@
 .button-row button:hover,
 .modal-actions button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-card-lg);
 }
 
 .button-row button.primary:hover,
@@ -350,7 +350,7 @@
 }
 
 .dark-theme .settings-card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-dark-sm);
 }
 
 .settings-form {
@@ -480,13 +480,13 @@
 
 .status-message.success,
 .status-message.info {
-  background: rgba(34, 197, 94, 0.15);
-  color: #047857;
+  background: var(--success-bg-medium);
+  color: var(--success-text);
 }
 
 .status-message.error {
-  background: rgba(239, 68, 68, 0.15);
-  color: #b91c1c;
+  background: var(--error-bg-medium);
+  color: var(--error-text);
 }
 
 .muted {
@@ -662,8 +662,8 @@
 }
 
 .history-tag {
-  background: rgba(37, 99, 235, 0.12);
-  color: #1d4ed8;
+  background: var(--accent-bg-medium);
+  color: var(--accent-text-strong);
 }
 
 .history-candidate {
@@ -680,7 +680,7 @@
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--surface-overlay-strong);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -694,7 +694,7 @@
   padding: 24px;
   width: min(520px, 100%);
   border: 1px solid var(--card-border);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-popover-strong);
   max-height: 90vh;
   overflow-y: auto;
 }

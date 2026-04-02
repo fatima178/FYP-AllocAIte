@@ -79,6 +79,7 @@ def assign_recommended_task(
     title: str,
     start_date: str,
     end_date: str,
+    total_hours: float,
     upload_id: Optional[int] = None,
 ):
     # clean task title
@@ -98,6 +99,12 @@ def assign_recommended_task(
     # ensure the time interval is logically valid
     if start > end:
         raise ValueError("start date cannot be after end date.")
+    try:
+        total_hours = float(total_hours)
+    except (TypeError, ValueError):
+        raise ValueError("total_hours must be a number.")
+    if total_hours <= 0:
+        raise ValueError("total_hours must be greater than 0.")
 
     conn = get_connection()
     cur = conn.cursor()
@@ -115,8 +122,6 @@ def assign_recommended_task(
         if not cur.fetchone():
             raise ValueError("employee not found for this user.")
 
-        # insert assignment into database
-        # total_hours and remaining_hours are left null, to be filled later
         cur.execute(
             """
             INSERT INTO "Assignments" (
@@ -129,7 +134,7 @@ def assign_recommended_task(
                 total_hours,
                 remaining_hours
             )
-            VALUES (%s, %s, NULL, %s, %s, %s, NULL, NULL)
+            VALUES (%s, %s, NULL, %s, %s, %s, %s, %s)
             RETURNING assignment_id;
             """,
             (
@@ -138,6 +143,8 @@ def assign_recommended_task(
                 clean_title,
                 start,
                 end,
+                total_hours,
+                total_hours,
             ),
         )
 

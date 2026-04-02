@@ -18,6 +18,7 @@ class RecommendationAssignRequest(BaseModel):
     task_description: str = Field(..., min_length=1)
     start_date: date
     end_date: date
+    total_hours: float = Field(..., gt=0)
     upload_id: Optional[int] = None
     task_id: Optional[int] = None
 

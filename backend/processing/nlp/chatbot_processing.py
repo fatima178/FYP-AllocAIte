@@ -615,6 +615,7 @@ def handle_hiring(cur, user_id: int, message: str):
             end_date=end.isoformat(),
             user_id=user_id,
             upload_id=None,
+            persist_history=False,
         )
     except RecommendationError as exc:
         return {"response": exc.message}

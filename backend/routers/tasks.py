@@ -24,6 +24,7 @@ class TaskCreate(BaseModel):
     start_date: date                             # start date must be valid iso (handled by pydantic)
     end_date: date                               # same for end date
     employee_id: Optional[int] = None            # optional: allows unassigned tasks
+    total_hours: Optional[float] = Field(None, gt=0)
 
 
 # pydantic model for updating a task
@@ -34,6 +35,7 @@ class TaskUpdate(BaseModel):
     start_date: date
     end_date: date
     employee_id: Optional[int] = None
+    total_hours: Optional[float] = Field(None, gt=0)
 
 
 @router.get("/tasks/week")
@@ -74,6 +76,7 @@ def create_task(payload: TaskCreate):
             payload.start_date,
             payload.end_date,
             payload.employee_id,
+            payload.total_hours,
         )
     except TaskProcessingError as exc:
         raise HTTPException(exc.status_code, exc.message)
@@ -90,6 +93,7 @@ def update_task(assignment_id: int, payload: TaskUpdate):
             payload.start_date,
             payload.end_date,
             payload.employee_id,
+            payload.total_hours,
         )
     except TaskProcessingError as exc:
         raise HTTPException(exc.status_code, exc.message)

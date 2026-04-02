@@ -15,7 +15,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   font-weight: 700;
-  color: #2563eb;
+  color: var(--accent-text);
 }
 
 .assignments-sidecard__tips h3,
@@ -48,7 +48,7 @@
   padding: 28px;
   border-radius: 24px;
   border: 1px solid var(--card-border);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.07);
+  box-shadow: var(--shadow-card-2xl);
 }
 
 .form-box {
@@ -61,7 +61,7 @@
   position: absolute;
   inset: 0 0 auto 0;
   height: 5px;
-  background: linear-gradient(90deg, #2563eb, #0ea5e9, #14b8a6);
+  background: linear-gradient(90deg, var(--accent-gradient-start), var(--accent-gradient-mid), var(--accent-gradient-end));
 }
 
 .assignments-prompt-list {
@@ -76,7 +76,7 @@
   border: 1px solid var(--card-border);
   border-radius: 18px;
   background:
-    linear-gradient(180deg, rgba(37, 99, 235, 0.02), transparent),
+    linear-gradient(180deg, var(--accent-bg-subtle), transparent),
     var(--card);
   color: var(--text);
   text-align: left;
@@ -87,8 +87,8 @@
 
 .assignments-prompt:hover {
   transform: translateY(-2px);
-  border-color: rgba(37, 99, 235, 0.28);
-  box-shadow: 0 12px 25px rgba(15, 23, 42, 0.08);
+  border-color: var(--accent-border-soft);
+  box-shadow: var(--shadow-card-xl);
 }
 
 .assignments-sidecard__tips {
@@ -159,7 +159,7 @@
   border: 1px solid var(--card-border);
   border-radius: 20px;
   background: var(--card);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+  box-shadow: var(--shadow-card-2xl);
   opacity: 0;
   visibility: hidden;
   transform: translateY(-6px);
@@ -213,8 +213,8 @@
   min-width: 132px;
   padding: 14px 16px;
   border-radius: 18px;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.14), rgba(15, 23, 42, 0.06));
-  border: 1px solid rgba(37, 99, 235, 0.12);
+  background: linear-gradient(135deg, var(--accent-bg-strong), var(--surface-overlay-bright-faint));
+  border: 1px solid var(--accent-bg-medium);
 }
 
 .form-box__meter span {
@@ -243,7 +243,7 @@
 .form-section {
   padding: 18px;
   border-radius: 20px;
-  background: linear-gradient(180deg, rgba(37, 99, 235, 0.03), transparent 42%);
+  background: linear-gradient(180deg, var(--accent-bg-subtle), transparent 42%);
   border: 1px solid var(--card-border);
 }
 
@@ -304,8 +304,8 @@
 .form-box textarea:focus,
 .form-box input[type="date"]:focus {
   outline: none;
-  border-color: rgba(37, 99, 235, 0.55);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+  border-color: var(--accent-border-strong);
+  box-shadow: var(--shadow-accent-ring);
 }
 
 .form-date-grid {
@@ -339,17 +339,17 @@
   cursor: pointer;
   font-size: 16px;
   font-weight: 600;
-  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.28);
+  box-shadow: var(--shadow-button-accent);
   transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
 
 .form-footer button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 18px 32px rgba(37, 99, 235, 0.32);
+  box-shadow: var(--shadow-button-accent-hover);
 }
 
 .form-footer button:disabled {
-  background: #9db5ff;
+  background: var(--accent-bg-hover);
   cursor: not-allowed;
   box-shadow: none;
 }
@@ -374,19 +374,19 @@
 .dark-theme .assignments-prompt,
 .dark-theme .assignments-sidecard,
 .dark-theme .assignments-prompt {
-  background: rgba(17, 24, 39, 0.72);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: var(--surface-dark-panel);
+  border-color: var(--card-border);
 }
 
 .dark-theme .form-box__hint,
 .dark-theme .form-section,
 .dark-theme .form-field--date {
-  background: rgba(17, 24, 39, 0.72);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: var(--surface-dark-panel);
+  border-color: var(--card-border);
 }
 
 .dark-theme .form-box {
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-dark-lg);
 }
 
 @media (max-width: 980px) {

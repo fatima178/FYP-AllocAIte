@@ -39,3 +39,4 @@ class EmployeeCalendarEntryRequest(BaseModel):
     label: Optional[str] = None
     start_date: date
     end_date: date
+    total_hours: float = Field(..., gt=0)

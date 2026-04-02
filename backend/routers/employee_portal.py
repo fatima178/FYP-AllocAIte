@@ -142,6 +142,7 @@ def employee_calendar_entry(payload: EmployeeCalendarEntryRequest):
             payload.label,
             payload.start_date,
             payload.end_date,
+            payload.total_hours,
         )
     except EmployeeCalendarError as exc:
         raise HTTPException(exc.status_code, exc.message)

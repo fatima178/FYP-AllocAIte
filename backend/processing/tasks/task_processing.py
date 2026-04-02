@@ -70,7 +70,7 @@ def _normalize_week_start(target: Optional[date]) -> date:
 #   - start_offset is number of days from beginning of week
 #   - span is number of visible days the assignment covers
 def _build_task_payload(row, week_start: date, week_end: date):
-    assignment_id, employee_id, title, start_date, end_date, employee_name = row
+    assignment_id, employee_id, title, start_date, end_date, employee_name, total_hours = row
 
     visible_start = max(start_date, week_start)
     visible_end = min(end_date, week_end)
@@ -87,6 +87,7 @@ def _build_task_payload(row, week_start: date, week_end: date):
         "end_date": str(end_date),
         "start_offset": start_offset,
         "span": span,
+        "total_hours": float(total_hours or 0),
     }
 
 
@@ -130,7 +131,8 @@ def fetch_weekly_tasks(user_id: int, week_start: Optional[date], weeks: int = 1)
                 a.title,
                 a.start_date,
                 a.end_date,
-                e.name
+                e.name,
+                a.total_hours
             FROM "Assignments" a
             LEFT JOIN "Employees" e ON a.employee_id = e.employee_id
             WHERE (
@@ -303,6 +305,7 @@ def create_task_entry(
     start_date: date,
     end_date: date,
     employee_id: Optional[int] = None,
+    total_hours: Optional[float] = None,
 ) -> dict:
     clean_title = (title or "").strip()
     if not clean_title:
@@ -329,7 +332,15 @@ def create_task_entry(
                 raise TaskProcessingError(404, "employee not found for this user")
         # insert new assignment
         days = (end_date - start_date).days + 1
-        total_hours = float(days * 8)
+        if total_hours is None:
+            total_hours = float(days * 8)
+        else:
+            try:
+                total_hours = float(total_hours)
+            except (TypeError, ValueError):
+                raise TaskProcessingError(400, "total_hours must be a number")
+            if total_hours <= 0:
+                raise TaskProcessingError(400, "total_hours must be greater than 0")
         cur.execute(
             """
             INSERT INTO "Assignments" (
@@ -438,6 +449,7 @@ def update_task_entry(
     start_date: date,
     end_date: date,
     employee_id: Optional[int] = None,
+    total_hours: Optional[float] = None,
 ) -> dict:
     clean_title = (title or "").strip()
     if not clean_title:
@@ -476,14 +488,27 @@ def update_task_entry(
             (assignment_id,),
         )
         row = cur.fetchone()
-        total_hours = row[0] if row else None
+        existing_total_hours = row[0] if row else None
         remaining_hours = row[1] if row else None
+
+        if total_hours is None:
+            total_hours = existing_total_hours
 
         if total_hours is None:
             days = (end_date - start_date).days + 1
             total_hours = float(days * 8)
+        else:
+            try:
+                total_hours = float(total_hours)
+            except (TypeError, ValueError):
+                raise TaskProcessingError(400, "total_hours must be a number")
+            if total_hours <= 0:
+                raise TaskProcessingError(400, "total_hours must be greater than 0")
+
         if remaining_hours is None:
             remaining_hours = total_hours
+        else:
+            remaining_hours = min(float(remaining_hours), float(total_hours))
 
         cur.execute(
             """

@@ -28,6 +28,7 @@ function RecommendationsPage() {
 
   // editable label shown in the modal before confirming assignment
   const [taskLabel, setTaskLabel] = useState("");
+  const [taskHours, setTaskHours] = useState("");
 
   // score display mode: absolute vs relative to top recommendation
   const [scoreMode, setScoreMode] = useState("absolute");
@@ -57,6 +58,7 @@ function RecommendationsPage() {
 
     // default pre-filled label is the original task description
     setTaskLabel(taskContext.task_description || "");
+    setTaskHours(taskContext.task_hours ? String(taskContext.task_hours) : "");
     setModalOpen(true);
   };
 
@@ -66,6 +68,7 @@ function RecommendationsPage() {
     setModalOpen(false);
     setSelectedEmployee(null);
     setTaskLabel("");
+    setTaskHours("");
   };
 
   // send assignment request to backend
@@ -78,6 +81,15 @@ function RecommendationsPage() {
       setStatus({
         type: "error",
         message: "Please enter a short task label before assigning.",
+      });
+      return;
+    }
+
+    const parsedHours = Number(taskHours);
+    if (!Number.isFinite(parsedHours) || parsedHours <= 0) {
+      setStatus({
+        type: "error",
+        message: "Please enter the total hours before assigning.",
       });
       return;
     }
@@ -101,6 +113,7 @@ function RecommendationsPage() {
         task_description: cleanedLabel,
         start_date: taskContext.start_date,
         end_date: taskContext.end_date,
+        total_hours: parsedHours,
         task_id: taskContext.task_id ?? null,
       };
 
@@ -120,6 +133,7 @@ function RecommendationsPage() {
       setModalOpen(false);
       setSelectedEmployee(null);
       setTaskLabel("");
+      setTaskHours("");
     } catch (err) {
       setStatus({
         type: "error",
@@ -343,6 +357,19 @@ function RecommendationsPage() {
                 value={taskLabel}
                 onChange={(e) => setTaskLabel(e.target.value)}
                 placeholder="e.g., UI Mockups for Sprint 5"
+                disabled={assignLoading}
+              />
+            </label>
+
+            <label className="modal-label">
+              Total hours
+              <input
+                type="number"
+                min="0.5"
+                step="0.5"
+                value={taskHours}
+                onChange={(e) => setTaskHours(e.target.value)}
+                placeholder="e.g. 24"
                 disabled={assignLoading}
               />
             </label>

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from db import get_connection
-from processing.availability_processing import calculate_availability_from_rows
+from processing.availability_processing import calculate_availability_from_rows, fetch_availability_rows
 
 
 # ----------------------------------------------------------
@@ -399,21 +399,14 @@ def calculate_assignment_availability(employee_id: int, start, end) -> float:
     cur = conn.cursor()
 
     try:
-        cur.execute("""
-            SELECT start_date, end_date, total_hours, remaining_hours
-            FROM "Assignments"
-            WHERE employee_id = %s
-              AND start_date <= %s
-              AND end_date >= %s
-        """, (employee_id, end, start))
-        rows = cur.fetchall()
+        rows = fetch_availability_rows(cur, employee_id, start, end)
 
     finally:
         cur.close()
         conn.close()
 
     availability = calculate_availability_from_rows(
-        [(None, row[0], row[1], row[2], row[3]) for row in rows],
+        rows,
         start,
         end,
     )

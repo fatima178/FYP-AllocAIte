@@ -20,7 +20,16 @@ def _normalize_week_start(target: Optional[date]) -> date:
     return base - timedelta(days=base.weekday())
 
 
-def _build_item_payload(title: str, start_date: date, end_date: date, week_start: date, week_end: date, kind: str, item_id: int):
+def _build_item_payload(
+    title: str,
+    start_date: date,
+    end_date: date,
+    week_start: date,
+    week_end: date,
+    kind: str,
+    item_id: int,
+    total_hours: Optional[float] = None,
+):
     visible_start = max(start_date, week_start)
     visible_end = min(end_date, week_end)
     start_offset = (visible_start - week_start).days
@@ -33,6 +42,7 @@ def _build_item_payload(title: str, start_date: date, end_date: date, week_start
         "end_date": str(end_date),
         "start_offset": start_offset,
         "span": span,
+        "total_hours": float(total_hours or 0),
     }
 
 
@@ -85,7 +95,7 @@ def fetch_employee_calendar(user_id: int, week_start: Optional[date]) -> dict:
 
         cur.execute(
             """
-            SELECT entry_id, label, start_date, end_date
+            SELECT entry_id, label, start_date, end_date, total_hours
             FROM "EmployeeCalendarEntries"
             WHERE employee_id = %s
               AND start_date <= %s
@@ -106,7 +116,7 @@ def fetch_employee_calendar(user_id: int, week_start: Optional[date]) -> dict:
             for history_id, title, start_date, end_date in history_rows
         )
 
-        for entry_id, label, start_date, end_date in personal_rows:
+        for entry_id, label, start_date, end_date, total_hours in personal_rows:
             items.append(
                 _build_item_payload(
                     label,
@@ -116,6 +126,7 @@ def fetch_employee_calendar(user_id: int, week_start: Optional[date]) -> dict:
                     week_end_day,
                     "personal",
                     entry_id,
+                    total_hours,
                 )
             )
 
@@ -143,6 +154,7 @@ def create_personal_calendar_entry(
     label: str,
     start_date: date,
     end_date: date,
+    total_hours: float,
 ) -> dict:
     employee_id = _resolve_employee_id(user_id)
     clean_label = str(label or "").strip()
@@ -150,17 +162,23 @@ def create_personal_calendar_entry(
         raise EmployeeCalendarError(400, "label is required")
     if start_date > end_date:
         raise EmployeeCalendarError(400, "start_date cannot be after end_date")
+    try:
+        total_hours = float(total_hours)
+    except (TypeError, ValueError):
+        raise EmployeeCalendarError(400, "total_hours must be a number")
+    if total_hours <= 0:
+        raise EmployeeCalendarError(400, "total_hours must be greater than 0")
 
     conn = get_connection()
     cur = conn.cursor()
     try:
         cur.execute(
             """
-            INSERT INTO "EmployeeCalendarEntries" (employee_id, label, start_date, end_date)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO "EmployeeCalendarEntries" (employee_id, label, start_date, end_date, total_hours)
+            VALUES (%s, %s, %s, %s, %s)
             RETURNING entry_id;
             """,
-            (employee_id, clean_label, start_date, end_date),
+            (employee_id, clean_label, start_date, end_date, total_hours),
         )
         entry_id = cur.fetchone()[0]
         conn.commit()

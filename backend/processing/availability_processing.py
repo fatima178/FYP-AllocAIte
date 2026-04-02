@@ -58,6 +58,29 @@ def calculate_availability_from_rows(rows, window_start: date, window_end: date)
     return {"status": status, "percent": round(percent, 1)}
 
 
+def fetch_availability_rows(cur, employee_id: int, window_start: date, window_end: date):
+    cur.execute("""
+        SELECT title, start_date, end_date, total_hours, remaining_hours
+        FROM "Assignments"
+        WHERE employee_id = %s
+          AND start_date <= %s
+          AND end_date >= %s;
+    """, (employee_id, window_end, window_start))
+    rows = list(cur.fetchall())
+
+    cur.execute("""
+        SELECT label, start_date, end_date, total_hours
+        FROM "EmployeeCalendarEntries"
+        WHERE employee_id = %s
+          AND start_date <= %s
+          AND end_date >= %s;
+    """, (employee_id, window_end, window_start))
+    for label, start_date, end_date, total_hours in cur.fetchall():
+        rows.append((label, start_date, end_date, total_hours, total_hours))
+
+    return rows
+
+
 def calculate_availability(employee_id: int, window_start: date, window_end: date):
     """
     computes availability based on assignments overlapping the given date window.
@@ -67,14 +90,7 @@ def calculate_availability(employee_id: int, window_start: date, window_end: dat
     cur = conn.cursor()
 
     try:
-        cur.execute("""
-            SELECT title, start_date, end_date, total_hours, remaining_hours
-            FROM "Assignments"
-            WHERE employee_id = %s
-              AND start_date <= %s
-              AND end_date >= %s;
-        """, (employee_id, window_end, window_start))
-        rows = cur.fetchall()
+        rows = fetch_availability_rows(cur, employee_id, window_start, window_end)
         return calculate_availability_from_rows(rows, window_start, window_end)
     finally:
         cur.close()

@@ -34,12 +34,14 @@ function TasksPage() {
     title: '',
     startDate: formatDateInput(initialWeekStart),
     endDate: formatDateInput(initialWeekStart),
+    totalHours: '',
     employeeId: '',
   });
   const [editForm, setEditForm] = useState({
     title: '',
     startDate: formatDateInput(initialWeekStart),
     endDate: formatDateInput(initialWeekStart),
+    totalHours: '',
     employeeId: '',
   });
   const [editTaskId, setEditTaskId] = useState(null);
@@ -128,6 +130,7 @@ function TasksPage() {
       title: '',
       startDate: formatDateInput(weekStart),
       endDate: formatDateInput(weekStart),
+      totalHours: '',
       employeeId: '',
     });
     setFormError('');
@@ -206,6 +209,7 @@ function TasksPage() {
       title: task.title || '',
       startDate: task.start_date,
       endDate: task.end_date,
+      totalHours: task.total_hours ? String(task.total_hours) : '',
       employeeId: task.employee_id ? String(task.employee_id) : '',
     });
     setEditError('');
@@ -236,6 +240,7 @@ function TasksPage() {
           title: formData.title,
           start_date: formData.startDate,
           end_date: formData.endDate,
+          total_hours: Number(formData.totalHours),
           employee_id: formData.employeeId ? Number(formData.employeeId) : null,
         }),
       });
@@ -244,6 +249,7 @@ function TasksPage() {
         title: '',
         startDate: formatDateInput(weekStart),
         endDate: formatDateInput(weekStart),
+        totalHours: '',
         employeeId: '',
       });
       fetchWeekData();
@@ -268,6 +274,7 @@ function TasksPage() {
           title: editForm.title,
           start_date: editForm.startDate,
           end_date: editForm.endDate,
+          total_hours: Number(editForm.totalHours),
           employee_id: editForm.employeeId ? Number(editForm.employeeId) : null,
         }),
       });

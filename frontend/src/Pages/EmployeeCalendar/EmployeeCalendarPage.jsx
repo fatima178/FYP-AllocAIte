@@ -35,6 +35,7 @@ function EmployeeCalendarPage() {
     label: '',
     startDate: formatDateInput(initialWeekStart),
     endDate: formatDateInput(initialWeekStart),
+    totalHours: '',
   });
 
   const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
@@ -78,6 +79,7 @@ function EmployeeCalendarPage() {
       label: '',
       startDate: formatDateInput(weekStart),
       endDate: formatDateInput(weekStart),
+      totalHours: '',
     });
     setFormError('');
     setShowModal(true);
@@ -107,6 +109,7 @@ function EmployeeCalendarPage() {
           label: formData.label,
           start_date: formData.startDate,
           end_date: formData.endDate,
+          total_hours: Number(formData.totalHours),
         }),
       });
       setShowModal(false);
@@ -270,6 +273,18 @@ function EmployeeCalendarPage() {
                   onChange={(e) => setFormData((prev) => ({ ...prev, endDate: e.target.value }))}
                   required
                   min={formData.startDate}
+                />
+              </label>
+
+              <label>
+                Total hours
+                <input
+                  type="number"
+                  min="0.5"
+                  step="0.5"
+                  value={formData.totalHours}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, totalHours: e.target.value }))}
+                  required
                 />
               </label>
 

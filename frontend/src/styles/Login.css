@@ -32,9 +32,9 @@ body {
   position: relative;
   overflow: hidden;
   background:
-    linear-gradient(90deg, rgba(10, 18, 42, 0.76) 0%, rgba(10, 18, 42, 0.68) 42%, rgba(14, 28, 56, 0.56) 100%),
-    linear-gradient(135deg, rgba(18, 31, 63, 0.84), rgba(18, 31, 63, 0.7));
-  color: white;
+    var(--login-hero-overlay-main),
+    var(--login-hero-overlay-secondary);
+  color: var(--button-text);
   padding: clamp(3rem, 6vw, 5rem);
   display: flex;
   flex-direction: column;
@@ -59,9 +59,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(circle at 18% 42%, rgba(255, 255, 255, 0.1), transparent 34%),
-    linear-gradient(90deg, rgba(6, 12, 28, 0.22) 0%, rgba(6, 12, 28, 0.08) 55%, rgba(6, 12, 28, 0.02) 100%);
+  background: var(--login-hero-after);
 }
 
 .hero > * {
@@ -88,9 +86,9 @@ body {
   width: 4.25rem;
   height: 4.25rem;
   border-radius: 1.2rem;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  box-shadow: 0 14px 30px rgba(7, 16, 38, 0.22);
+  background: var(--login-hero-logo-bg);
+  border: 1px solid var(--surface-overlay-border-strong);
+  box-shadow: var(--shadow-popover);
   display: grid;
   place-items: center;
   flex: 0 0 auto;
@@ -118,7 +116,7 @@ body {
 
 .hero-brand p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--login-hero-text-muted);
   font-size: 0.92rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -141,7 +139,7 @@ body {
 
 .hero-copy p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--login-hero-text-body);
   max-width: 29rem;
   font-size: 1.08rem;
   line-height: 1.7;
@@ -159,10 +157,10 @@ body {
   align-items: center;
   min-height: 2rem;
   padding: 0.35rem 0.8rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--login-hero-pill-border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.86);
+  background: var(--login-hero-pill-bg);
+  color: var(--login-hero-pill-text);
   font-size: 0.86rem;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -188,7 +186,7 @@ body {
 .tab-switcher {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--surface-overlay-medium);
   border-radius: 999px;
   padding: 0.25rem;
   margin-bottom: 1.5rem;
@@ -209,14 +207,14 @@ body {
 .tab-switcher button.active {
   background: var(--card);
   color: var(--text);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+  box-shadow: var(--shadow-card-2xl);
 }
 
 .auth-card {
   background: var(--card);
   border-radius: 1.5rem;
   padding: clamp(2rem, 4vw, 3rem);
-  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+  box-shadow: var(--shadow-card-3xl);
   border: 1px solid var(--card-border);
   display: flex;
   flex-direction: column;
@@ -254,8 +252,8 @@ input {
 }
 
 input:focus {
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
+  border-color: var(--input-focus-border);
+  box-shadow: var(--input-focus-ring);
   outline: none;
 }
 
@@ -278,7 +276,7 @@ button.primary:disabled {
 
 button.primary:not(:disabled):hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 20px rgba(15, 23, 42, 0.18);
+  box-shadow: var(--shadow-card-2xl);
 }
 
 button.linkish {
@@ -316,13 +314,13 @@ button.linkish {
 }
 
 .status.success {
-  background: #ecfdf5;
-  color: #047857;
+  background: var(--success-bg-soft);
+  color: var(--success-text);
 }
 
 .status.error {
-  background: #fef2f2;
-  color: #b45309;
+  background: var(--error-bg-soft);
+  color: var(--warning-text-strong);
 }
 
 @media (max-width: 768px) {
@@ -336,13 +334,13 @@ button.linkish {
 }
 
 .dark-theme .auth-card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-dark-sm);
 }
 
 .dark-theme .tab-switcher {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--surface-overlay-bright-soft);
 }
 
 .dark-theme .tab-switcher button.active {
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-dark-sm);
 }

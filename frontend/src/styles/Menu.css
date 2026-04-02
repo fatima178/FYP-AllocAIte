@@ -12,7 +12,7 @@
 .brand {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #2563eb;
+  color: var(--accent-text);
   border: none;
   background: transparent;
   cursor: pointer;
@@ -38,7 +38,7 @@
 }
 
 .menu-link.active {
-  background: rgba(37, 99, 235, 0.12);
+  background: var(--accent-bg-medium);
   color: var(--button-bg);
   opacity: 1;
 }
@@ -49,17 +49,17 @@
   padding: 0.5rem 1.2rem;
   font-weight: 600;
   color: var(--button-bg);
-  background: rgba(37, 99, 235, 0.12);
+  background: var(--accent-bg-medium);
   cursor: pointer;
   font-size: inherit;
 }
 
 .logout-button:hover {
-  background: rgba(37, 99, 235, 0.2);
+  background: var(--accent-bg-hover);
 }
 
 .dark-theme .menu-bar {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-dark-sm);
 }
 
 .dark-theme .menu-link {
@@ -67,11 +67,11 @@
 }
 
 .dark-theme .menu-link.active {
-  background: rgba(59, 130, 246, 0.25);
+  background: var(--accent-bg-hover);
 }
 
 .dark-theme .logout-button {
-  background: rgba(59, 130, 246, 0.25);
+  background: var(--accent-bg-hover);
 }
 
 @media (max-width: 640px) {

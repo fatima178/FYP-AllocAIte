@@ -64,6 +64,7 @@ def assign_recommendation(payload: RecommendationAssignRequest):
             payload.task_description,
             payload.start_date.isoformat(),
             payload.end_date.isoformat(),
+            payload.total_hours,
             payload.upload_id,
         )
 
