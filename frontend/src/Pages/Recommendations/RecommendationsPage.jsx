@@ -56,8 +56,7 @@ function RecommendationsPage() {
     setStatus({ type: null, message: "" });
     setSelectedEmployee(emp);
 
-    // default pre-filled label is the original task description
-    setTaskLabel(taskContext.task_description || "");
+    setTaskLabel("");
     setTaskHours(taskContext.task_hours ? String(taskContext.task_hours) : "");
     setModalOpen(true);
   };
@@ -356,7 +355,7 @@ function RecommendationsPage() {
                 type="text"
                 value={taskLabel}
                 onChange={(e) => setTaskLabel(e.target.value)}
-                placeholder="e.g., UI Mockups for Sprint 5"
+                placeholder=""
                 disabled={assignLoading}
               />
             </label>

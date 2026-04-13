@@ -171,7 +171,7 @@ def fetch_weekly_tasks(user_id: int, week_start: Optional[date], weeks: int = 1)
         employee_list.sort(key=lambda item: item["name"].lower())
         unassigned.sort(key=lambda item: item["title"].lower())
 
-        # build dropdown selection list (includes "unassigned")
+        # build dropdown selection list 
         employee_options = [{"employee_id": None, "name": "unassigned"}]
         employee_options.extend(
             {"employee_id": emp_id, "name": name}

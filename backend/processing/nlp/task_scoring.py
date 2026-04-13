@@ -166,12 +166,16 @@ def _build_reason(
                 explanation.append("Preferences and learning goals text shows limited alignment")
 
     # feedback summary
-    if feedback_score >= 0.7:
+    if feedback_score >= 0.85:
         explanation.append("Past feedback on similar tasks has been excellent")
-    elif feedback_score >= 0.5:
+    elif feedback_score >= 0.6:
         explanation.append("Past feedback on similar tasks has been strong")
     elif feedback_score >= 0.3:
         explanation.append("Past feedback on similar tasks has been positive")
+    elif feedback_score <= -0.45:
+        explanation.append("Past feedback on similar tasks has been poor")
+    elif feedback_score <= -0.2:
+        explanation.append("Past feedback on similar tasks has been mixed to weak")
 
     # role relevance summary
     if role_score >= 0.8:
@@ -184,9 +188,9 @@ def _build_reason(
     # experience summary
     exp_text = _format_experience(experience)
     if experience >= 5:
-        explanation.append(f"Strong matched-skill experience (up to {exp_text} years)")
+        explanation.append(f"Strong matched skill experience (up to {exp_text} years)")
     else:
-        explanation.append(f"Matched-skill experience up to {exp_text} years")
+        explanation.append(f"Matched skill experience up to {exp_text} years")
 
     # availability summary
     if availability_percent >= 70:

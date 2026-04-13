@@ -2,7 +2,6 @@ import os
 
 import psycopg2
 
-
 def get_connection():
     conn = psycopg2.connect(
         dbname=os.getenv("ALLOCATE_DB_NAME", "allocaite"),

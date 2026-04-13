@@ -258,7 +258,9 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
             "Excellent": 1.0,
             "Good": 0.7,
             "Average": 0.4,
-            "Poor": 0.0,
+            # Poor feedback should actively lower the recommendation score
+            # for similar tasks rather than merely removing a possible bonus.
+            "Poor": -0.6,
         }
         scored = []
         for item in feedback_items:
@@ -294,7 +296,7 @@ def match_employees(task_description, user_id, start_date, end_date, model=None)
         if not scored:
             return 0.0
         top = sorted(scored, reverse=True)[:3]
-        return max(0.0, min(1.0, sum(top) / len(top)))
+        return max(-1.0, min(1.0, sum(top) / len(top)))
 
     for idx, emp in enumerate(employees):
 

@@ -23,7 +23,7 @@ export default function CompletedTasksPanel({
         )}
 
         <p className="calendar-message">
-          Feedback can be submitted for recommendation-generated tasks, even if they are still in progress.
+          Feedback can be submitted for recommended tasks, even if they are still in progress.
         </p>
 
         <div className="completed-list">
