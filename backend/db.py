@@ -2,13 +2,18 @@ import os
 
 import psycopg2
 
+
 def get_connection():
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        return psycopg2.connect(database_url)
+
     conn = psycopg2.connect(
-        dbname=os.getenv("ALLOCATE_DB_NAME", "allocaite"),
-        user=os.getenv("ALLOCATE_DB_USER", "fatima"),
-        password=os.getenv("ALLOCATE_DB_PASSWORD", " "),
-        host=os.getenv("ALLOCATE_DB_HOST", "localhost"),
-        port=os.getenv("ALLOCATE_DB_PORT", "5433")
+        dbname=os.getenv("ALLOCATE_DB_NAME") or os.getenv("PGDATABASE", "allocaite"),
+        user=os.getenv("ALLOCATE_DB_USER") or os.getenv("PGUSER", "fatima"),
+        password=os.getenv("ALLOCATE_DB_PASSWORD") or os.getenv("PGPASSWORD", ""),
+        host=os.getenv("ALLOCATE_DB_HOST") or os.getenv("PGHOST", "localhost"),
+        port=os.getenv("ALLOCATE_DB_PORT") or os.getenv("PGPORT", "5433")
     )
     return conn
 

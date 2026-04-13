@@ -1,4 +1,4 @@
-# main.py
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,10 +8,21 @@ from routers import upload, dashboard, auth, recommend, settings, tasks, chatbot
 
 app = FastAPI()
 
-ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+def get_allowed_origins():
+    origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+
+    env_origins = os.getenv("ALLOWED_ORIGINS", "")
+    if env_origins.strip():
+        origins.extend(origin.strip() for origin in env_origins.split(",") if origin.strip())
+
+    # Preserve order while removing duplicates.
+    return list(dict.fromkeys(origins))
+
+
+ALLOWED_ORIGINS = get_allowed_origins()
 
 app.add_middleware(
     CORSMiddleware,
