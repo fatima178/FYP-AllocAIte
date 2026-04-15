@@ -4,6 +4,7 @@ from typing import Iterable, Optional
 from db import get_connection
 
 
+# small custom error so routers can return the right HTTP status code
 class RecommendationLogError(Exception):
     def __init__(self, status_code: int, message: str):
         super().__init__(message)
@@ -12,6 +13,8 @@ class RecommendationLogError(Exception):
 
 
 ALLOWED_RATINGS = {"Excellent", "Good", "Average", "Poor"}
+
+# only these tags are accepted so feedback stays consistent for reports
 ALLOWED_OUTCOME_TAGS = {
     "Delivered on time",
     "High quality",
@@ -23,6 +26,7 @@ ALLOWED_OUTCOME_TAGS = {
 
 
 def _serialise_outcome_tags(outcome_tags: Optional[Iterable[str]]) -> Optional[str]:
+    # store multiple outcome tags as one string in the database
     if outcome_tags is None:
         return None
     clean = []
@@ -41,6 +45,7 @@ def _serialise_outcome_tags(outcome_tags: Optional[Iterable[str]]) -> Optional[s
 
 
 def _parse_outcome_tags(raw_value: Optional[str]):
+    # convert the stored string back into a list for the frontend
     text = str(raw_value or "").strip()
     if not text:
         return []
@@ -48,6 +53,7 @@ def _parse_outcome_tags(raw_value: Optional[str]):
 
 
 def _assert_task_owner(cur, user_id: int, task_id: int) -> None:
+    # stops one manager from editing another manager's recommendation history
     cur.execute(
         """
         SELECT 1
@@ -66,6 +72,7 @@ def create_recommendation_task(
     start_date: date,
     end_date: date,
 ) -> int:
+    # create the parent recommendation task before saving the ranked employees
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -97,6 +104,7 @@ def log_recommendations(
     task_id: int,
     recommendations: Iterable[dict],
 ) -> None:
+    # save the full ranked list so later feedback can refer back to it
     rows = []
     for idx, rec in enumerate(recommendations, start=1):
         employee_id = rec.get("employee_id")
@@ -135,6 +143,7 @@ def mark_manager_selected(
     task_id: int,
     employee_id: int,
 ) -> None:
+    # mark which recommended employee the manager actually chose
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -166,6 +175,7 @@ def attach_assignment_to_task(
     task_id: int,
     assignment_id: int,
 ) -> None:
+    # links the saved recommendation request to the assignment that was created
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -200,6 +210,7 @@ def submit_recommendation_feedback(
     feedback_notes: Optional[str] = None,
     outcome_tags: Optional[Iterable[str]] = None,
 ) -> None:
+    # feedback is only allowed on the selected recommendation for this task
     if rating not in ALLOWED_RATINGS:
         raise RecommendationLogError(400, "invalid performance rating")
     serialized_outcomes = _serialise_outcome_tags(outcome_tags)
@@ -243,6 +254,7 @@ def clear_recommendation_feedback(
     task_id: int,
     employee_id: int,
 ) -> None:
+    # remove feedback without deleting the recommendation history row itself
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -278,6 +290,7 @@ def clear_recommendation_feedback(
 
 
 def fetch_recommendation_history(user_id: int, limit: int = 10, offset: int = 0):
+    # clamp pagination values so the history page cannot request too much at once
     safe_limit = max(1, min(int(limit), 50))
     safe_offset = max(0, int(offset))
     conn = get_connection()
@@ -293,6 +306,7 @@ def fetch_recommendation_history(user_id: int, limit: int = 10, offset: int = 0)
         )
         total_count = int(cur.fetchone()[0] or 0)
 
+        # fetch the history rows and the manager's selected employee if one exists
         cur.execute(
             """
             SELECT
@@ -326,6 +340,7 @@ def fetch_recommendation_history(user_id: int, limit: int = 10, offset: int = 0)
         top_candidates_by_task = {task_id: [] for task_id in task_ids}
 
         if task_ids:
+            # show the top few candidates so the manager can remember what was suggested
             cur.execute(
                 """
                 SELECT task_id, recommendation_rank, recommendation_score, employee_id, employee_name

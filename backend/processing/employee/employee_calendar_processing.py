@@ -8,6 +8,7 @@ from processing.employee.employee_profile_common import (
 )
 
 
+# separate error type for calendar endpoints
 class EmployeeCalendarError(Exception):
     def __init__(self, status_code: int, message: str):
         super().__init__(message)
@@ -16,6 +17,7 @@ class EmployeeCalendarError(Exception):
 
 
 def _normalize_week_start(target: Optional[date]) -> date:
+    # always display a monday-to-sunday calendar week
     base = target or date.today()
     return base - timedelta(days=base.weekday())
 
@@ -30,6 +32,7 @@ def _build_item_payload(
     item_id: int,
     total_hours: Optional[float] = None,
 ):
+    # calculate where an item sits inside the visible week grid
     visible_start = max(start_date, week_start)
     visible_end = min(end_date, week_end)
     start_offset = (visible_start - week_start).days
@@ -47,6 +50,7 @@ def _build_item_payload(
 
 
 def fetch_employee_calendar(user_id: int, week_start: Optional[date]) -> dict:
+    # build the employee calendar from active tasks, past tasks and personal blocks
     employee_id = _resolve_employee_id(user_id)
     week_start_day = _normalize_week_start(week_start)
     week_end_day = week_start_day + timedelta(days=6)
@@ -80,6 +84,7 @@ def fetch_employee_calendar(user_id: int, week_start: Optional[date]) -> dict:
         )
         assignment_rows = cur.fetchall()
 
+        # completed tasks are shown separately so employees can see recent work history
         cur.execute(
             """
             SELECT history_id, title, start_date, end_date
@@ -93,6 +98,7 @@ def fetch_employee_calendar(user_id: int, week_start: Optional[date]) -> dict:
         )
         history_rows = cur.fetchall()
 
+        # personal entries represent employee-entered unavailable/busy time
         cur.execute(
             """
             SELECT entry_id, label, start_date, end_date, total_hours
@@ -156,6 +162,7 @@ def create_personal_calendar_entry(
     end_date: date,
     total_hours: float,
 ) -> dict:
+    # employees can add their own calendar blocks to affect availability
     employee_id = _resolve_employee_id(user_id)
     clean_label = str(label or "").strip()
     if not clean_label:

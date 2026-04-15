@@ -3,6 +3,7 @@ from typing import Optional, Tuple
 
 
 def parse_iso_date(value, field_name: str) -> date:
+    # convert request date strings into date objects with a clear error message
     try:
         return datetime.fromisoformat(str(value)).date()
     except (TypeError, ValueError) as exc:
@@ -18,6 +19,7 @@ def parse_date_range(
     require_both: bool = True,
     normalize_order: bool = False,
 ) -> Tuple[Optional[date], Optional[date]]:
+    # shared helper for endpoints that accept optional start/end date filters
     if start_value is None and end_value is None:
         return None, None
 
@@ -29,6 +31,7 @@ def parse_date_range(
 
     if start_date > end_date:
         if normalize_order:
+            # dashboard filters can be forgiving and swap reversed dates
             return end_date, start_date
         raise ValueError(f"{start_field} must be on or before {end_field}")
 

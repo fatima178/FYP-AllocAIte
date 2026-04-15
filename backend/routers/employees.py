@@ -11,6 +11,7 @@ router = APIRouter()
 
 
 def _required_positive_int(value, field_name: str) -> int:
+    # shared validation for ids coming from flexible dict payloads
     try:
         parsed = int(value)
     except (TypeError, ValueError):
@@ -22,6 +23,7 @@ def _required_positive_int(value, field_name: str) -> int:
 
 @router.get("/employees")
 def get_employees(user_id: int):
+    # list manager-owned employees for settings/team pages
     try:
         return {"employees": list_employees(user_id)}
     except EmployeeProcessingError as exc:
@@ -30,6 +32,7 @@ def get_employees(user_id: int):
 
 @router.post("/employees")
 def create_employee(payload: dict):
+    # create one employee manually instead of through excel upload
     user_id = _required_positive_int(payload.get("user_id"), "user_id")
     try:
         return create_employee_entry(user_id, payload)
@@ -39,6 +42,7 @@ def create_employee(payload: dict):
 
 @router.put("/employees/{employee_id}/skills")
 def update_employee_skills(employee_id: int, payload: dict):
+    # add or update skills for an existing employee
     user_id = _required_positive_int(payload.get("user_id"), "user_id")
     skills = payload.get("skills")
     try:

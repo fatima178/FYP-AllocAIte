@@ -14,6 +14,7 @@ from processing.employee.employee_profile_common import (
 
 
 def _normalize_skill_list(skills_raw) -> List[Dict[str, Any]]:
+    # clean employee-submitted skills before they are saved as pending requests
     if not isinstance(skills_raw, list):
         raise EmployeeProfileError(400, "skills must be a list")
     if not skills_raw:
@@ -35,6 +36,7 @@ def _normalize_skill_list(skills_raw) -> List[Dict[str, Any]]:
 
 
 def update_employee_self_skills(user_id: int, skills_raw) -> Dict[str, Any]:
+    # employee changes do not immediately affect recommendations until approved
     employee_id = _resolve_employee_id(user_id)
     skills = _normalize_skill_list(skills_raw)
     conn = get_connection()
@@ -54,6 +56,7 @@ def update_employee_self_skills(user_id: int, skills_raw) -> Dict[str, Any]:
             )
             row = cur.fetchone()
             if row:
+                # update an existing pending request instead of making duplicates
                 cur.execute(
                     """
                     UPDATE "EmployeeSelfSkills"
@@ -91,6 +94,7 @@ def update_employee_self_skills(user_id: int, skills_raw) -> Dict[str, Any]:
 
 
 def delete_employee_skill(user_id: int, skill_name: str, skill_type: str) -> Dict[str, Any]:
+    # employees can remove skills from their approved profile
     employee_id = _resolve_employee_id(user_id)
     clean_name = str(skill_name or "").strip()
     if not clean_name:
@@ -123,6 +127,7 @@ def delete_employee_skill(user_id: int, skill_name: str, skill_type: str) -> Dic
 
 
 def fetch_pending_skill_requests(manager_user_id: int) -> Dict[str, Any]:
+    # manager dashboard uses this to review employee-submitted skills
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -165,6 +170,7 @@ def fetch_pending_skill_requests(manager_user_id: int) -> Dict[str, Any]:
 
 
 def review_pending_skill_request(manager_user_id: int, request_id: int, approve: bool) -> Dict[str, Any]:
+    # approving copies the skill into EmployeeSkills; rejecting only updates request status
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -188,6 +194,7 @@ def review_pending_skill_request(manager_user_id: int, request_id: int, approve:
             raise EmployeeProfileError(400, "skill request has already been reviewed")
 
         if approve:
+            # approved skills start affecting recommendations straight away
             _upsert_employee_skill(cur, employee_id, skill_name, years_experience, skill_type)
             cur.execute(
                 """

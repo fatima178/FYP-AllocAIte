@@ -25,6 +25,7 @@ DEFAULT_COLUMN_MAP = {
 ALLOWED_EXTENSIONS = {".xlsx", ".xls"}
 
 
+# custom error for assignment upload validation and saving
 class AssignmentUploadError(Exception):
     def __init__(self, status_code: int, message: str):
         super().__init__(message)
@@ -33,12 +34,14 @@ class AssignmentUploadError(Exception):
 
 
 def _validate_extension(filename: str):
+    # only excel files are supported for this import flow
     extension = Path(filename or "").suffix.lower()
     if extension not in ALLOWED_EXTENSIONS:
         raise AssignmentUploadError(400, "only excel files (.xlsx or .xls) are allowed.")
 
 
 def _read_dataframe(file_bytes: bytes):
+    # read the first sheet from the uploaded workbook
     if not file_bytes:
         raise AssignmentUploadError(400, "uploaded file is empty.")
     try:
@@ -48,6 +51,7 @@ def _read_dataframe(file_bytes: bytes):
 
 
 def _parse_column_map(raw: str):
+    # frontend can pass custom column names, otherwise use the default template
     if not raw:
         return DEFAULT_COLUMN_MAP
     try:
@@ -60,6 +64,7 @@ def _parse_column_map(raw: str):
 
 
 def _validate_column_map(df: pd.DataFrame, column_map: dict):
+    # make sure the columns needed to create assignments actually exist
     missing_required = [f for f in REQUIRED_FIELDS if f not in column_map]
     if missing_required:
         raise AssignmentUploadError(
@@ -80,6 +85,7 @@ def _validate_column_map(df: pd.DataFrame, column_map: dict):
 
 
 def _normalize_rows(df: pd.DataFrame, column_map: dict):
+    # convert dataframe rows into plain dictionaries used by validation/saving
     rows = []
     for _, row in df.iterrows():
         rows.append({
@@ -94,6 +100,7 @@ def _normalize_rows(df: pd.DataFrame, column_map: dict):
 
 
 def _resolve_employee_ids(cur, user_id: int):
+    # assignment imports can only target employees owned by this manager
     cur.execute(
         """
         SELECT employee_id
@@ -106,6 +113,7 @@ def _resolve_employee_ids(cur, user_id: int):
 
 
 def process_assignment_upload(user_id: int, filename: str, file_bytes: bytes, column_map_raw: str):
+    # import assignments from an excel file and attach them to existing employees
     _validate_extension(filename)
     df = _read_dataframe(file_bytes)
     column_map = _parse_column_map(column_map_raw)
@@ -127,6 +135,7 @@ def process_assignment_upload(user_id: int, filename: str, file_bytes: bytes, co
         by_id = _resolve_employee_ids(cur, user_id)
 
         for idx, row in enumerate(rows):
+            # collect row errors first so the user can fix multiple issues at once
             row_number = idx + 2
 
             if not row["title"]:
@@ -166,6 +175,7 @@ def process_assignment_upload(user_id: int, filename: str, file_bytes: bytes, co
         if errors:
             raise AssignmentUploadError(400, " ; ".join(errors[:10]))
 
+        # record this import as an upload so assignments can be traced back
         cur.execute(
             """
             INSERT INTO "Uploads" (user_id, file_name, upload_type)
@@ -177,6 +187,7 @@ def process_assignment_upload(user_id: int, filename: str, file_bytes: bytes, co
         upload_id = cur.fetchone()[0]
 
         for row in rows:
+            # save each validated assignment row
             employee_id = int(row["employee_id"])
 
             start_date = pd.to_datetime(row["start_date"], errors="coerce")

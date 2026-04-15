@@ -3,6 +3,7 @@ from typing import Any, Dict, List
 from db import get_connection
 
 
+# error class used by employee endpoints
 class EmployeeProcessingError(Exception):
     def __init__(self, status_code: int, message: str):
         super().__init__(message)
@@ -11,6 +12,7 @@ class EmployeeProcessingError(Exception):
 
 
 def normalize_skill_entry(name: str, years) -> Dict[str, Any]:
+    # one skill must have a name and a non-negative years value
     clean_name = str(name or "").strip()
     if not clean_name:
         raise EmployeeProcessingError(400, "skill_name is required")
@@ -26,6 +28,7 @@ def normalize_skill_entry(name: str, years) -> Dict[str, Any]:
 
 
 def normalize_skill_lines(raw_text: str) -> List[Dict[str, Any]]:
+    # supports simple pasted text where each line is "skill, years" or "skill: years"
     text = str(raw_text or "").strip()
     if not text:
         raise EmployeeProcessingError(400, "skills input is required")
@@ -47,6 +50,7 @@ def normalize_skill_lines(raw_text: str) -> List[Dict[str, Any]]:
 
 
 def _parse_skills(raw) -> List[Dict[str, Any]]:
+    # normalise the structured skills payload used by settings/team management
     if not isinstance(raw, list):
         return []
     skills = []
@@ -68,6 +72,7 @@ def _parse_skills(raw) -> List[Dict[str, Any]]:
 
 
 def list_employees(user_id: int) -> List[Dict[str, Any]]:
+    # return employees with their skills and learning goals in one response
     conn = get_connection()
     cur = conn.cursor()
 
@@ -83,6 +88,7 @@ def list_employees(user_id: int) -> List[Dict[str, Any]]:
         )
         rows = cur.fetchall()
 
+        # fetch related skill/goal data in batches instead of per employee
         employee_ids = [row[0] for row in rows]
         skill_map = {employee_id: [] for employee_id in employee_ids}
         goal_map = {employee_id: [] for employee_id in employee_ids}
@@ -140,6 +146,7 @@ def list_employees(user_id: int) -> List[Dict[str, Any]]:
 
 
 def create_employee_entry(user_id: int, payload: Dict[str, Any]):
+    # manually create one employee from the settings/team page
     name = str(payload.get("name") or "").strip()
     role = str(payload.get("role") or "").strip()
     department = str(payload.get("department") or "").strip()
@@ -174,6 +181,7 @@ def create_employee_entry(user_id: int, payload: Dict[str, Any]):
         )
         employee_id = cur.fetchone()[0]
         for item in skills:
+            # save any skills submitted alongside the new employee
             cur.execute(
                 """
                 INSERT INTO "EmployeeSkills" (employee_id, skill_name, years_experience, skill_type)
@@ -196,6 +204,7 @@ def create_employee_entry(user_id: int, payload: Dict[str, Any]):
 
 
 def add_skills_to_employee(user_id: int, employee_id: int, raw_skills) -> Dict[str, Any]:
+    # add or update skills for an existing employee
     skills = _parse_skills(raw_skills)
     if not skills:
         raise EmployeeProcessingError(400, "at least one skill is required")
@@ -229,6 +238,7 @@ def add_skills_to_employee(user_id: int, employee_id: int, raw_skills) -> Dict[s
             )
             row = cur.fetchone()
             if row:
+                # existing skill gets updated rather than duplicated
                 cur.execute(
                     """
                     UPDATE "EmployeeSkills"

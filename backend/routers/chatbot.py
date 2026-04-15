@@ -10,6 +10,7 @@ router = APIRouter(tags=["Chatbot"])
 # -----------------------------------------------------
 @router.post("/chatbot")
 def chatbot(data: dict):
+    # receive a chat message and pass it into the chatbot processing layer
     message = data.get("message", "").strip()
     user_id = data.get("user_id")
     if not message:
@@ -25,6 +26,7 @@ def chatbot(data: dict):
 
 @router.get("/chatbot/suggestions")
 def chatbot_suggestions(user_id: int):
+    # suggestions are based on the manager's current uploaded data
     if not user_id:
         raise HTTPException(400, "Missing user_id")
 

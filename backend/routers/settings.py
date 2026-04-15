@@ -32,6 +32,7 @@ def get_settings(user_id: int):
 
 @router.post("/settings")
 def update_settings(payload: SettingsUpdateRequest):
+    # save appearance settings and optional recommendation weight changes
     return persist_user_settings(
         payload.user_id,
         payload.theme,
@@ -69,6 +70,7 @@ def change_password(payload: ChangePasswordRequest):
 
 @router.get("/settings/export")
 def export_settings(user_id: int):
+    # export the manager's data as an excel file for backup/download
     content = export_manager_data(user_id)
     filename = "allocaite_export.xlsx"
     return StreamingResponse(
@@ -84,6 +86,7 @@ def get_recommendation_history(
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):
+    # paginated recommendation history for the settings/history panel
     try:
         return fetch_recommendation_history(user_id, limit, offset)
     except RecommendationLogError as exc:

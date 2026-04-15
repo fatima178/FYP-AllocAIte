@@ -199,6 +199,7 @@ def fetch_weekly_tasks(user_id: int, week_start: Optional[date], weeks: int = 1)
 # fetch completed tasks for feedback
 # ----------------------------------------------------------
 def fetch_completed_tasks(user_id: int, limit: int = 20) -> dict:
+    # completed task list is used so managers can leave feedback afterwards
     archive_completed_assignments(user_id)
     conn = get_connection()
     cur = conn.cursor()
@@ -265,6 +266,7 @@ def fetch_completed_tasks(user_id: int, limit: int = 20) -> dict:
         rows = cur.fetchall()
         items = []
         for row in rows:
+            # include existing feedback fields so the frontend can show/edit them
             items.append({
                 "history_id": row[0],
                 "assignment_id": row[1],
@@ -404,6 +406,7 @@ def _validate_assignment_owner(cur, assignment_id: int, user_id: int) -> bool:
 # archive assignment into history before removal
 # ----------------------------------------------------------
 def _archive_assignment(cur, assignment_id: int):
+    # keep a copy in history before deleting from active assignments
     cur.execute(
         """
         INSERT INTO "AssignmentHistory" (
@@ -495,6 +498,7 @@ def update_task_entry(
             total_hours = existing_total_hours
 
         if total_hours is None:
+            # default work estimate assumes an 8 hour day across the task date range
             days = (end_date - start_date).days + 1
             total_hours = float(days * 8)
         else:
@@ -508,6 +512,7 @@ def update_task_entry(
         if remaining_hours is None:
             remaining_hours = total_hours
         else:
+            # remaining hours should never exceed total hours after an edit
             remaining_hours = min(float(remaining_hours), float(total_hours))
 
         cur.execute(
@@ -563,6 +568,7 @@ def delete_task_entry(user_id: int, assignment_id: int) -> dict:
         if not _validate_assignment_owner(cur, assignment_id, user_id):
             raise TaskProcessingError(404, "task not found for this user")
 
+        # archive first so deleted tasks can still appear in history/feedback
         _archive_assignment(cur, assignment_id)
 
         cur.execute(

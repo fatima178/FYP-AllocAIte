@@ -18,7 +18,9 @@ from processing.employee.employee_profile_common import (
 
 
 def get_employee_profile(user_id: int) -> Dict[str, Any]:
+    # collect all data needed for the employee portal home/profile page
     employee_id = _resolve_employee_id(user_id)
+    # archive finished tasks before reading so the portal is up to date
     archive_completed_assignments(user_id)
     conn = get_connection()
     cur = conn.cursor()
@@ -50,6 +52,7 @@ def get_employee_recommendation_reason(
     start_date: str,
     end_date: str,
 ) -> Dict[str, Any]:
+    # lets an employee see why they would or would not be recommended for a task
     employee_id = _resolve_employee_id(user_id)
     conn = get_connection()
     cur = conn.cursor()
@@ -68,6 +71,7 @@ def get_employee_recommendation_reason(
         if start_dt > end_dt:
             raise EmployeeProfileError(400, "start_date must be on or before end_date")
 
+        # reuse the main recommender and then pull out this employee's row
         results = match_employees(task_description, manager_user_id, start_dt.isoformat(), end_dt.isoformat())
         if not results:
             return {"message": "no recommendations found for this task"}
@@ -91,6 +95,7 @@ def get_employee_recommendation_reason(
 
 
 def get_employee_settings(user_id: int) -> Dict[str, Any]:
+    # employee settings reuse the same settings shape as managers, with manager info added
     employee_id = _resolve_employee_id(user_id)
     base = fetch_user_settings(user_id)
     conn = get_connection()

@@ -4,6 +4,7 @@ from typing import Any, Dict, List
 from db import get_connection
 
 
+# shared error type for employee portal processing
 class EmployeeProfileError(Exception):
     def __init__(self, status_code: int, message: str):
         super().__init__(message)
@@ -12,6 +13,7 @@ class EmployeeProfileError(Exception):
 
 
 def _resolve_employee_id(user_id: int) -> int:
+    # convert the logged-in user id into the employee row it belongs to
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -34,6 +36,7 @@ def _resolve_employee_id(user_id: int) -> int:
 
 
 def _fetch_employee_record(cur, employee_id: int) -> Dict[str, Any]:
+    # basic employee profile data shown at the top of the portal
     cur.execute(
         """
         SELECT employee_id, name, role, department, user_id
@@ -55,6 +58,7 @@ def _fetch_employee_record(cur, employee_id: int) -> Dict[str, Any]:
 
 
 def _fetch_employee_skills(cur, employee_id: int, skill_type: str) -> List[Dict[str, Any]]:
+    # skills are split into technical and soft skills using skill_type
     cur.execute(
         """
         SELECT skill_name, years_experience
@@ -68,6 +72,7 @@ def _fetch_employee_skills(cur, employee_id: int, skill_type: str) -> List[Dict[
 
 
 def _fetch_pending_self_skills(cur, employee_id: int) -> List[Dict[str, Any]]:
+    # pending self-reported skills still need manager approval
     cur.execute(
         """
         SELECT id, skill_name, years_experience, skill_type, status, updated_at
@@ -92,6 +97,7 @@ def _fetch_pending_self_skills(cur, employee_id: int) -> List[Dict[str, Any]]:
 
 
 def _fetch_learning_goals(cur, employee_id: int) -> List[Dict[str, Any]]:
+    # learning goals help the recommender understand what the employee wants to build
     cur.execute(
         """
         SELECT skill_name, priority, notes
@@ -105,6 +111,7 @@ def _fetch_learning_goals(cur, employee_id: int) -> List[Dict[str, Any]]:
 
 
 def _fetch_preferences(cur, employee_id: int) -> Dict[str, Any]:
+    # preference text is optional, so return empty fields when no row exists
     cur.execute(
         """
         SELECT preferred_roles, preferred_departments, preferred_projects, growth_text, work_style
@@ -132,6 +139,7 @@ def _fetch_preferences(cur, employee_id: int) -> Dict[str, Any]:
 
 
 def _fetch_assignments(cur, employee_id: int) -> Dict[str, Any]:
+    # split assignments into current/past buckets for the employee portal
     today = date.today()
 
     cur.execute(
@@ -189,6 +197,7 @@ def _fetch_assignments(cur, employee_id: int) -> Dict[str, Any]:
 
 
 def _ensure_manager_user(cur, manager_user_id: int) -> None:
+    # approval actions should only be available to manager accounts
     cur.execute(
         'SELECT account_type FROM "Users" WHERE user_id = %s;',
         (manager_user_id,),
@@ -201,6 +210,7 @@ def _ensure_manager_user(cur, manager_user_id: int) -> None:
 
 
 def _upsert_employee_skill(cur, employee_id: int, skill_name: str, years_experience, skill_type: str) -> None:
+    # update existing skill experience or insert a new skill if it is missing
     cur.execute(
         """
         SELECT id

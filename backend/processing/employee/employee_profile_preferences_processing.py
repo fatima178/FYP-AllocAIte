@@ -5,6 +5,7 @@ from processing.employee.employee_profile_common import EmployeeProfileError, _r
 
 
 def _normalize_goal_entry(item: Dict[str, Any]) -> Dict[str, Any]:
+    # clean one learning-goal row before saving it
     clean_name = str(item.get("skill_name") or "").strip()
     if not clean_name:
         raise EmployeeProfileError(400, "skill_name is required for learning goals")
@@ -19,6 +20,7 @@ def _normalize_goal_entry(item: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def update_learning_goals(user_id: int, goals_raw) -> Dict[str, Any]:
+    # replace the employee's learning goals with the latest submitted list
     employee_id = _resolve_employee_id(user_id)
     if not isinstance(goals_raw, list):
         raise EmployeeProfileError(400, "learning_goals must be a list")
@@ -29,6 +31,7 @@ def update_learning_goals(user_id: int, goals_raw) -> Dict[str, Any]:
     try:
         cur.execute('DELETE FROM "EmployeeLearningGoals" WHERE employee_id = %s;', (employee_id,))
         for goal in goals:
+            # insert each goal after clearing the old set
             cur.execute(
                 """
                 INSERT INTO "EmployeeLearningGoals" (employee_id, skill_name, priority, notes)
@@ -50,6 +53,7 @@ def update_learning_goals(user_id: int, goals_raw) -> Dict[str, Any]:
 
 
 def update_preferences(user_id: int, payload) -> Dict[str, Any]:
+    # save employee preference/growth text used as a recommendation signal
     employee_id = _resolve_employee_id(user_id)
     preferred_roles = None
     preferred_departments = None
@@ -58,6 +62,7 @@ def update_preferences(user_id: int, payload) -> Dict[str, Any]:
     growth_text = None
 
     if isinstance(payload, str):
+        # old frontend shape sent one text field, so still accept it
         growth_text = payload.strip() or None
     elif isinstance(payload, dict):
         preferred_roles = str(payload.get("preferred_roles") or "").strip() or None

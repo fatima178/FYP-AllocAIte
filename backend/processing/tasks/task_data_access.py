@@ -42,6 +42,7 @@ def _fetch_employee_learning_goals(cur, employee_id: int) -> List[Dict[str, Any]
 
 
 def _fetch_employee_growth_text(cur, employee_id: int) -> str:
+    # free-text growth preferences can help explain recommendations
     cur.execute(
         """
         SELECT growth_text
@@ -57,6 +58,7 @@ def _fetch_employee_growth_text(cur, employee_id: int) -> str:
 
 
 def _merge_skills(skills: List[Dict[str, Any]]):
+    # merge duplicate skill rows and keep the highest experience value
     merged = {}
     for item in skills:
         name = str(item.get("skill_name") or "").strip()
@@ -76,6 +78,7 @@ def _merge_skills(skills: List[Dict[str, Any]]):
 
 
 def _derive_role_tags(role: str) -> List[str]:
+    # add broad implied skills from a role name so sparse profiles still rank sensibly
     if not role:
         return []
     r = role.lower()
@@ -146,6 +149,7 @@ def _derive_role_tags(role: str) -> List[str]:
 
 
 def _fetch_recent_workload_hours(cur, employee_id: int, window_days: int = 90) -> float:
+    # recent work volume is used for the fairness/workload score
     cur.execute(
         """
         SELECT COALESCE(SUM(COALESCE(total_hours, 0)), 0)
@@ -180,6 +184,7 @@ def _fetch_recent_workload_hours(cur, employee_id: int, window_days: int = 90) -
 #   - experience years (defaults to 0 if null)
 #   - parsed skills list
 def _build_employee_records(rows) -> List[Dict[str, Any]]:
+    # build the complete employee objects expected by the recommender
     employees: List[Dict[str, Any]] = []
     employee_ids = [employee_id for employee_id, _, _ in rows]
     if not employee_ids:
@@ -194,6 +199,7 @@ def _build_employee_records(rows) -> List[Dict[str, Any]]:
         growth_map = {employee_id: None for employee_id in employee_ids}
         workload_map = {employee_id: 0.0 for employee_id in employee_ids}
 
+        # load related records in batches so the recommender has one complete list
         cur.execute(
             """
             SELECT employee_id, skill_name, years_experience, skill_type
@@ -294,6 +300,7 @@ def _build_employee_records(rows) -> List[Dict[str, Any]]:
 
 
 def fetch_employees_by_upload(upload_id: int) -> List[Dict[str, Any]]:
+    # fetch employees from one uploaded dataset
     conn = get_connection()
     cur = conn.cursor()
 
@@ -321,6 +328,7 @@ def fetch_employees_by_upload(upload_id: int) -> List[Dict[str, Any]]:
 #   - experience years (defaults to 0 if null)
 #   - parsed skills list
 def fetch_employees_by_user(user_id: int) -> List[Dict[str, Any]]:
+    # fetch all employees owned by a manager account
     conn = get_connection()
     cur = conn.cursor()
 
@@ -342,6 +350,7 @@ def fetch_employees_by_user(user_id: int) -> List[Dict[str, Any]]:
 # fetch feedback history for an employee
 # ----------------------------------------------------------
 def fetch_employee_feedback(user_id: int, employee_id: int, limit: int = 30) -> List[Dict[str, Any]]:
+    # past feedback on selected recommendations is used as a scoring signal
     conn = get_connection()
     cur = conn.cursor()
 

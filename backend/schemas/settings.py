@@ -4,6 +4,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class SettingsUpdateRequest(BaseModel):
+    # settings form can update appearance, custom weights, or both
     user_id: int = Field(..., gt=0)
     theme: Optional[str] = None
     font_size: Optional[str] = None
@@ -26,17 +27,20 @@ class SettingsUpdateRequest(BaseModel):
 
 
 class UpdateDetailsRequest(BaseModel):
+    # account details update, fields are optional because user may change one value
     user_id: int = Field(..., gt=0)
     name: Optional[str] = None
     email: Optional[EmailStr] = None
 
 
 class ChangePasswordRequest(BaseModel):
+    # password change needs the current and replacement passwords
     user_id: int = Field(..., gt=0)
     current_password: str
     new_password: str
 
 
 class VerifyPasswordRequest(BaseModel):
+    # used before allowing sensitive account changes
     user_id: int = Field(..., gt=0)
     current_password: str

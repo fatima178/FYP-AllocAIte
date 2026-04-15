@@ -36,6 +36,7 @@ router = APIRouter()
 
 @router.get("/employee/profile")
 def employee_profile(user_id: int):
+    # main employee portal payload: profile, skills, goals and assignments
     try:
         return get_employee_profile(int(user_id))
     except EmployeeProfileError as exc:
@@ -44,6 +45,7 @@ def employee_profile(user_id: int):
 
 @router.get("/employee/settings")
 def employee_settings(user_id: int):
+    # employee-facing settings page data
     try:
         return get_employee_settings(int(user_id))
     except EmployeeProfileError as exc:
@@ -52,6 +54,7 @@ def employee_settings(user_id: int):
 
 @router.put("/employee/skills")
 def employee_update_skills(payload: EmployeeSkillsUpdateRequest):
+    # employees submit skill changes for manager approval
     try:
         return update_employee_self_skills(payload.user_id, payload.skills)
     except EmployeeProfileError as exc:
@@ -60,6 +63,7 @@ def employee_update_skills(payload: EmployeeSkillsUpdateRequest):
 
 @router.delete("/employee/skills")
 def employee_delete_skill(user_id: int, skill_name: str, skill_type: str):
+    # employees can remove an approved skill from their own profile
     if not user_id:
         raise HTTPException(400, "user_id is required")
     if not skill_name:
@@ -74,6 +78,7 @@ def employee_delete_skill(user_id: int, skill_name: str, skill_type: str):
 
 @router.get("/employee/skills/pending")
 def employee_pending_skills(user_id: int):
+    # manager endpoint for pending employee skill submissions
     if not user_id:
         raise HTTPException(400, "user_id is required")
     try:
@@ -84,6 +89,7 @@ def employee_pending_skills(user_id: int):
 
 @router.post("/employee/skills/review")
 def employee_review_skill(payload: EmployeeSkillReviewRequest):
+    # manager approves or rejects one pending skill request
     try:
         return review_pending_skill_request(payload.user_id, payload.request_id, payload.approve)
     except EmployeeProfileError as exc:
@@ -92,6 +98,7 @@ def employee_review_skill(payload: EmployeeSkillReviewRequest):
 
 @router.put("/employee/learning-goals")
 def employee_update_learning_goals(payload: EmployeeLearningGoalsRequest):
+    # learning goals are another signal used by recommendations
     try:
         return update_learning_goals(payload.user_id, payload.learning_goals)
     except EmployeeProfileError as exc:
@@ -100,6 +107,7 @@ def employee_update_learning_goals(payload: EmployeeLearningGoalsRequest):
 
 @router.put("/employee/preferences")
 def employee_update_preferences(payload: EmployeePreferencesRequest):
+    # accept both old and new preference payload shapes
     preferences = payload.preferences
     if preferences is None:
         preferences = payload.preferences_text
@@ -115,6 +123,7 @@ def employee_update_preferences(payload: EmployeePreferencesRequest):
 
 @router.post("/employee/recommendation-reason")
 def employee_recommendation_reason(payload: EmployeeRecommendationReasonRequest):
+    # lets an employee test how they match a possible task
     if payload.start_date > payload.end_date:
         raise HTTPException(400, "start_date must be on or before end_date")
     try:
@@ -130,6 +139,7 @@ def employee_recommendation_reason(payload: EmployeeRecommendationReasonRequest)
 
 @router.get("/employee/calendar")
 def employee_calendar(user_id: int, week_start: date = None):
+    # returns the employee's visible week calendar
     try:
         return fetch_employee_calendar(int(user_id), week_start)
     except EmployeeCalendarError as exc:
@@ -138,6 +148,7 @@ def employee_calendar(user_id: int, week_start: date = None):
 
 @router.post("/employee/calendar")
 def employee_calendar_entry(payload: EmployeeCalendarEntryRequest):
+    # creates a personal busy/unavailable block
     try:
         return create_personal_calendar_entry(
             payload.user_id,

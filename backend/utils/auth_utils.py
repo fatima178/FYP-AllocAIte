@@ -8,6 +8,7 @@ PASSWORD_RULE_MESSAGE = (
 
 
 def validate_password_complexity(password: str, error_type=ValueError) -> None:
+    # keep password rules in one place so register, settings and invites match
     if not (
         isinstance(password, str)
         and len(password) >= 6
@@ -18,8 +19,10 @@ def validate_password_complexity(password: str, error_type=ValueError) -> None:
 
 
 def hash_password(password: str) -> str:
+    # simple project-level hashing helper used before storing passwords
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 
 def password_matches(password: str, password_hash: str) -> bool:
+    # compare by hashing the incoming password and checking against the saved hash
     return hash_password(password) == password_hash

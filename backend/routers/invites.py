@@ -11,6 +11,7 @@ router = APIRouter()
 
 
 def _required_positive_int(value, field_name: str) -> int:
+    # ids from invite payloads need to be valid positive integers
     try:
         parsed = int(value)
     except (TypeError, ValueError):
@@ -22,6 +23,7 @@ def _required_positive_int(value, field_name: str) -> int:
 
 @router.post("/invites")
 def create_employee_invite(payload: dict):
+    # manager creates a login invite for one employee
     user_id = _required_positive_int(payload.get("user_id"), "user_id")
     employee_id = _required_positive_int(payload.get("employee_id"), "employee_id")
     try:
@@ -32,6 +34,7 @@ def create_employee_invite(payload: dict):
 
 @router.post("/invites/accept")
 def accept_employee_invite(payload: dict):
+    # employee accepts their invite and creates login details
     token = payload.get("token")
     email = payload.get("email")
     password = payload.get("password")
@@ -49,6 +52,7 @@ def accept_employee_invite(payload: dict):
 
 @router.get("/invites/info")
 def invite_info(token: str):
+    # frontend uses this to show who the invite is for
     try:
         return get_invite_info(token)
     except InviteProcessingError as exc:

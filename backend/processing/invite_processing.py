@@ -8,6 +8,7 @@ from db import get_connection
 from utils.auth_utils import hash_password, validate_password_complexity
 
 
+# used when invite work fails so the router can show a clean error
 class InviteProcessingError(Exception):
     def __init__(self, status_code: int, message: str):
         super().__init__(message)
@@ -16,15 +17,18 @@ class InviteProcessingError(Exception):
 
 
 def _hash_token(token: str) -> str:
+    # store only a hash of the invite token, not the raw link token
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def _build_invite_link(token: str) -> str:
+    # frontend base url can change between local development and deployment
     base = (os.environ.get("FRONTEND_BASE_URL") or "http://localhost:3000").rstrip("/")
     return f"{base}/invite?token={token}"
 
 
 def create_invite(manager_user_id: int, employee_id: int) -> Dict[str, str]:
+    # managers can create one login invite for an employee they own
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -40,6 +44,7 @@ def create_invite(manager_user_id: int, employee_id: int) -> Dict[str, str]:
         if not row:
             raise InviteProcessingError(404, "employee not found for this user")
 
+        # do not create another invite if the employee already has a user account
         cur.execute(
             'SELECT 1 FROM "Users" WHERE employee_id = %s;',
             (employee_id,),
@@ -51,6 +56,7 @@ def create_invite(manager_user_id: int, employee_id: int) -> Dict[str, str]:
         token_hash = _hash_token(token)
         expires_at = datetime.utcnow() + timedelta(days=7)
 
+        # save the hashed token so the real token only exists in the invite link
         cur.execute(
             """
             INSERT INTO "EmployeeInvites" (
@@ -83,6 +89,7 @@ def create_invite(manager_user_id: int, employee_id: int) -> Dict[str, str]:
 
 
 def _validate_password(password: str):
+    # employee invite passwords use the same rules as manager passwords
     if not password:
         raise InviteProcessingError(400, "password is required")
     try:
@@ -92,6 +99,7 @@ def _validate_password(password: str):
 
 
 def accept_invite(token: str, email: str, password: str) -> Dict[str, str]:
+    # turn a valid invite link into an employee login account
     clean_token = str(token or "").strip()
     if not clean_token:
         raise InviteProcessingError(400, "invite token is required")
@@ -125,6 +133,7 @@ def accept_invite(token: str, email: str, password: str) -> Dict[str, str]:
         if expires_at and expires_at < datetime.utcnow():
             raise InviteProcessingError(400, "invite expired")
 
+        # emails must stay unique across manager and employee accounts
         cur.execute(
             'SELECT 1 FROM "Users" WHERE email = %s;',
             (clean_email,),
@@ -150,6 +159,7 @@ def accept_invite(token: str, email: str, password: str) -> Dict[str, str]:
 
         password_hash = hash_password(password)
 
+        # employee account is linked back to the existing employee row
         cur.execute(
             """
             INSERT INTO "Users" (name, email, password_hash, account_type, employee_id)
@@ -183,6 +193,7 @@ def accept_invite(token: str, email: str, password: str) -> Dict[str, str]:
 
 
 def get_invite_info(token: str) -> Dict[str, str]:
+    # used by the frontend invite page before the employee accepts the invite
     clean_token = str(token or "").strip()
     if not clean_token:
         raise InviteProcessingError(400, "invite token is required")

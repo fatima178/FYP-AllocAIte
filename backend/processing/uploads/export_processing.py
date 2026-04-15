@@ -23,10 +23,12 @@ EXPORT_COLUMNS = [
 
 
 def _join_list(values):
+    # excel stores grouped skills as comma-separated text
     return ", ".join(str(v) for v in values if v not in (None, "")) if values else ""
 
 
 def export_manager_data(user_id: int) -> bytes:
+    # rebuild an excel-style dataset for the manager's employees and assignments
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -42,6 +44,7 @@ def export_manager_data(user_id: int) -> bytes:
         employees = cur.fetchall()
 
         if not employees:
+            # still return a valid empty spreadsheet if the manager has no data
             df = pd.DataFrame(columns=EXPORT_COLUMNS)
             buffer = BytesIO()
             df.to_excel(buffer, index=False)
@@ -59,6 +62,7 @@ def export_manager_data(user_id: int) -> bytes:
         )
         skills = cur.fetchall()
 
+        # prepare one skill bucket per employee for technical and soft skills
         skill_map = {
             emp_id: {
                 "technical_names": [],
@@ -91,12 +95,14 @@ def export_manager_data(user_id: int) -> bytes:
         )
         assignments = cur.fetchall()
 
+        # each employee may have zero, one or many current assignments
         assignments_by_emp = {}
         for row in assignments:
             assignments_by_emp.setdefault(row[0], []).append(row[1:])
 
         rows = []
         for emp_id, name, role, department in employees:
+            # duplicate employee details for each assignment row, matching the upload format
             skill_entry = skill_map.get(emp_id) or {}
             tech_names = _join_list(skill_entry.get("technical_names"))
             tech_years = _join_list(skill_entry.get("technical_years"))
@@ -135,6 +141,7 @@ def export_manager_data(user_id: int) -> bytes:
 
         df = pd.DataFrame(rows, columns=EXPORT_COLUMNS)
         buffer = BytesIO()
+        # write the dataframe into memory so FastAPI can stream it to the browser
         df.to_excel(buffer, index=False)
         return buffer.getvalue()
     finally:
