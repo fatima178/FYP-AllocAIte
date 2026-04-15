@@ -708,6 +708,7 @@ def log_chat(cur, user_id: int, message: str, response: str):
             (user_id, message, response),
         )
     except Exception:
+        # Chat logging is non-critical; the user response should not fail if audit logging does.
         pass
 
 

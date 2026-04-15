@@ -1,7 +1,7 @@
 import { useState } from "react";
-import "../styles/Chatbot.css";
-import ChatbotPanel from "../components/ChatbotPanel";
-import { useChatbot } from "../hooks/useChatbot";
+import "../../styles/Chatbot.css";
+import ChatbotPanel from "../../components/ChatbotPanel";
+import { useChatbot } from "../../hooks/useChatbot";
 
 export default function ChatbotPopup() {
   const [open, setOpen] = useState(false);

@@ -12,15 +12,25 @@ import {
   writePreference,
 } from "../../lib/preferences";
 import {
-  ADJUSTABLE_WEIGHT_BUDGET,
   DEFAULT_MANAGER_WEIGHTS,
-  FIXED_SEMANTIC_WEIGHT,
-  GROUP_TO_DETAIL_SHARES,
+  DEFAULT_WEIGHT_CONFIG,
   HISTORY_PAGE_SIZE,
-  MANAGER_WEIGHT_TOTAL,
 } from "./constants";
 
 const DEFAULT_SKILL_ROW = { skill_name: "", years_experience: "", skill_type: "technical" };
+
+const buildSkillsPayload = (skills) =>
+  skills
+    .filter(
+      (skill) =>
+        String(skill.skill_name || "").trim() ||
+        String(skill.years_experience || "").trim()
+    )
+    .map((skill) => ({
+      skill_name: skill.skill_name,
+      years_experience: skill.years_experience,
+      skill_type: skill.skill_type || "technical",
+    }));
 
 const buildHistoryTitle = (item) => {
   const assignmentTitle = String(item?.assignment_title || "").trim();
@@ -46,7 +56,7 @@ const buildTopMatchesLabel = (item) => {
 
 const getWeightPoints = (value) => Math.round(Number(value || 0) * 100);
 
-const validateWeights = (nextWeights) => {
+const validateWeights = (nextWeights, managerWeightTotal) => {
   const entries = Object.entries(nextWeights);
   for (const [, value] of entries) {
     const num = Number(value);
@@ -54,21 +64,32 @@ const validateWeights = (nextWeights) => {
     if (num < 0) return "Weights cannot be negative.";
   }
   const total = entries.reduce((sum, [, value]) => sum + Number(value), 0);
-  if (Math.abs(total - MANAGER_WEIGHT_TOTAL) > 0.0001) {
-    return "Weights must add up to 0.65 (65%).";
+  if (Math.abs(total - managerWeightTotal) > 0.0001) {
+    return `Weights must add up to ${managerWeightTotal} (${Math.round(managerWeightTotal * 100)}%).`;
   }
   return "";
 };
 
-const expandGroupedWeights = (groupedWeights) => {
-  const detailed = { semantic: FIXED_SEMANTIC_WEIGHT };
-  Object.entries(GROUP_TO_DETAIL_SHARES).forEach(([groupKey, mapping]) => {
+const expandGroupedWeights = (groupedWeights, config) => {
+  const detailed = { semantic: config.fixed_semantic_weight };
+  Object.entries(config.group_to_detail_shares).forEach(([groupKey, mapping]) => {
     const groupValue = Number(groupedWeights[groupKey] || 0);
     Object.entries(mapping).forEach(([detailKey, share]) => {
       detailed[detailKey] = Number((groupValue * share).toFixed(6));
     });
   });
   return detailed;
+};
+
+const collapseDetailedWeights = (detailedWeights, config) => {
+  const groupedWeights = {};
+  Object.entries(config.group_to_detail_shares).forEach(([groupKey, mapping]) => {
+    groupedWeights[groupKey] = Object.keys(mapping).reduce(
+      (sum, detailKey) => sum + Number(detailedWeights[detailKey] ?? 0),
+      0
+    );
+  });
+  return groupedWeights;
 };
 
 export function useSettingsCoreState() {
@@ -85,6 +106,7 @@ export function useSettingsCoreState() {
   const [theme, setTheme] = useState(() => readPreference("theme", DEFAULT_THEME));
   const [fontSize, setFontSize] = useState(() => readPreference("fontSize", DEFAULT_FONT_SIZE));
   const [weights, setWeights] = useState({ ...DEFAULT_MANAGER_WEIGHTS });
+  const [weightConfig, setWeightConfig] = useState(DEFAULT_WEIGHT_CONFIG);
   const [isEditModalOpen, setEditModalOpen] = useState(false);
   const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
   const [detailsStatus, setDetailsStatus] = useState(null);
@@ -144,20 +166,10 @@ export function useSettingsCoreState() {
           setFontSize(data.font_size);
           writePreference("fontSize", data.font_size);
         }
+        const nextWeightConfig = data.weight_config || DEFAULT_WEIGHT_CONFIG;
+        setWeightConfig(nextWeightConfig);
         if (data.weights) {
-          const groupedWeights = {
-            skills_fit:
-              (data.weights.skill ?? 0) +
-              (data.weights.possible_skill ?? 0) +
-              (data.weights.soft_skill ?? 0) +
-              (data.weights.possible_soft_skill ?? 0),
-            experience_role: (data.weights.experience ?? 0) + (data.weights.role ?? 0),
-            availability_balance:
-              (data.weights.availability ?? 0) + (data.weights.fairness ?? 0),
-            growth_potential:
-              data.weights.preferences ?? DEFAULT_MANAGER_WEIGHTS.growth_potential,
-            past_feedback: data.weights.feedback ?? DEFAULT_MANAGER_WEIGHTS.past_feedback,
-          };
+          const groupedWeights = collapseDetailedWeights(data.weights, nextWeightConfig);
           setWeights(
             Object.fromEntries(
               Object.entries(groupedWeights).map(([key, value]) => [key, Number(value.toFixed(2))])
@@ -191,8 +203,12 @@ export function useSettingsCoreState() {
     [weights]
   );
   const remainingWeightPoints = useMemo(
-    () => Math.max(0, Math.round(ADJUSTABLE_WEIGHT_BUDGET * 100) - totalAllocatedPoints),
-    [totalAllocatedPoints]
+    () =>
+      Math.max(
+        0,
+        Math.round(weightConfig.adjustable_weight_budget * 100) - totalAllocatedPoints
+      ),
+    [totalAllocatedPoints, weightConfig.adjustable_weight_budget]
   );
 
   const changeTheme = (value) => {
@@ -218,7 +234,7 @@ export function useSettingsCoreState() {
       }, 0);
       const maxAllowedPoints = Math.max(
         0,
-        Math.round(ADJUSTABLE_WEIGHT_BUDGET * 100) - otherPoints
+        Math.round(weightConfig.adjustable_weight_budget * 100) - otherPoints
       );
       const clampedPoints = Math.min(safePoints, maxAllowedPoints);
       return {
@@ -229,23 +245,23 @@ export function useSettingsCoreState() {
   };
 
   const saveWeights = () => {
-    const errorMessage = validateWeights(weights);
+    const errorMessage = validateWeights(weights, weightConfig.manager_weight_total);
     if (errorMessage) {
       setStatus(errorMessage);
       setTimeout(() => setStatus(""), 2500);
       return;
     }
     updateSettings(
-      { use_custom_weights: true, weights: expandGroupedWeights(weights) },
+      { use_custom_weights: true, weights: expandGroupedWeights(weights, weightConfig) },
       "Weightings saved."
     );
   };
 
   const resetWeights = () => {
-    const defaults = { ...DEFAULT_MANAGER_WEIGHTS };
+    const defaults = { ...weightConfig.default_manager_weights };
     setWeights(defaults);
     updateSettings(
-      { use_custom_weights: true, weights: expandGroupedWeights(defaults) },
+      { use_custom_weights: true, weights: expandGroupedWeights(defaults, weightConfig) },
       "Weightings reset."
     );
   };
@@ -438,6 +454,7 @@ export function useSettingsCoreState() {
     account,
     theme,
     fontSize,
+    weightConfig,
     weights,
     totalAllocatedPoints,
     remainingWeightPoints,
@@ -524,18 +541,6 @@ export function useTeamManagementState() {
 
     setEmployeeSaving(true);
     try {
-      const skillsPayload = employeeSkills
-        .filter(
-          (skill) =>
-            String(skill.skill_name || "").trim() ||
-            String(skill.years_experience || "").trim()
-        )
-        .map((skill) => ({
-          skill_name: skill.skill_name,
-          years_experience: skill.years_experience,
-          skill_type: skill.skill_type || "technical",
-        }));
-
       await apiFetch("/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -544,7 +549,7 @@ export function useTeamManagementState() {
           name: employeeForm.name,
           role: employeeForm.role,
           department: employeeForm.department,
-          skills: skillsPayload,
+          skills: buildSkillsPayload(employeeSkills),
         }),
       });
 
@@ -575,24 +580,12 @@ export function useTeamManagementState() {
 
     setExistingSkillSaving(true);
     try {
-      const skillsPayload = existingEmployeeSkills
-        .filter(
-          (skill) =>
-            String(skill.skill_name || "").trim() ||
-            String(skill.years_experience || "").trim()
-        )
-        .map((skill) => ({
-          skill_name: skill.skill_name,
-          years_experience: skill.years_experience,
-          skill_type: skill.skill_type || "technical",
-        }));
-
       await apiFetch(`/employees/${Number(existingEmployeeId)}/skills`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: Number(userId),
-          skills: skillsPayload,
+          skills: buildSkillsPayload(existingEmployeeSkills),
         }),
       });
 

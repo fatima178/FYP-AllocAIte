@@ -61,3 +61,11 @@ export const GROUP_TO_DETAIL_SHARES = {
 };
 
 export const ADJUSTABLE_WEIGHT_BUDGET = MANAGER_WEIGHT_TOTAL;
+
+export const DEFAULT_WEIGHT_CONFIG = {
+  fixed_semantic_weight: FIXED_SEMANTIC_WEIGHT,
+  manager_weight_total: MANAGER_WEIGHT_TOTAL,
+  adjustable_weight_budget: ADJUSTABLE_WEIGHT_BUDGET,
+  default_manager_weights: DEFAULT_MANAGER_WEIGHTS,
+  group_to_detail_shares: GROUP_TO_DETAIL_SHARES,
+};

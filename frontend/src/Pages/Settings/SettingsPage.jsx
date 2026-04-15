@@ -10,11 +10,7 @@ import HistorySection from "./HistorySection";
 import PasswordModal from "./PasswordModal";
 import SectionSidebar from "./SectionSidebar";
 import TeamSection from "./TeamSection";
-import {
-  ADJUSTABLE_WEIGHT_BUDGET,
-  FIXED_SEMANTIC_WEIGHT,
-  WEIGHTING_FIELDS,
-} from "./constants";
+import { WEIGHTING_FIELDS } from "./constants";
 import {
   useRecommendationHistoryState,
   useSettingsCoreState,
@@ -71,10 +67,10 @@ function SettingsPage() {
           {activeSection === "weights" && (
             <WeightsSection
               weightingFields={WEIGHTING_FIELDS}
-              fixedSemanticWeight={FIXED_SEMANTIC_WEIGHT}
+              fixedSemanticWeight={core.weightConfig.fixed_semantic_weight}
               totalAllocatedPoints={core.totalAllocatedPoints}
               remainingWeightPoints={core.remainingWeightPoints}
-              adjustableWeightBudget={ADJUSTABLE_WEIGHT_BUDGET}
+              adjustableWeightBudget={core.weightConfig.adjustable_weight_budget}
               weights={core.weights}
               getWeightPoints={core.getWeightPoints}
               onWeightChange={core.updateWeightAllocation}

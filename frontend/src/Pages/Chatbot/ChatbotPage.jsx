@@ -1,7 +1,7 @@
-import Menu from "./Menu";
-import "../styles/Chatbot.css";
-import ChatbotPanel from "../components/ChatbotPanel";
-import { useChatbot } from "../hooks/useChatbot";
+import Menu from "../Menu";
+import "../../styles/Chatbot.css";
+import ChatbotPanel from "../../components/ChatbotPanel";
+import { useChatbot } from "../../hooks/useChatbot";
 
 function ChatbotPage() {
   const chatbot = useChatbot();

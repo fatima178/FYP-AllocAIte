@@ -1,6 +1,3 @@
-# processing/dashboard_processing.py
-
-from datetime import date
 from db import get_connection
 from processing.availability_processing import calculate_availability_from_rows, dashboard_window
 from processing.assignment_history_processing import archive_completed_assignments

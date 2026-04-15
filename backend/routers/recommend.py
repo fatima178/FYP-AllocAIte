@@ -77,6 +77,7 @@ def assign_recommendation(payload: RecommendationAssignRequest):
                     int(result.get("assignment_id")),
                 )
             except RecommendationLogError:
+                # Assignment should still succeed if recommendation history cannot be updated.
                 pass
 
         return {"message": "Task assigned successfully.", **result}

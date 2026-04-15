@@ -5,12 +5,6 @@ from processing.employee.employee_processing import (
     add_skills_to_employee,
     create_employee_entry,
     list_employees,
-    normalize_skill_entry,
-    normalize_skill_lines,
-)
-from processing.employee.employee_profile_common import EmployeeProfileError
-from processing.employee.employee_profile_accounts_processing import (
-    create_employee_account,
 )
 
 router = APIRouter()
@@ -44,48 +38,4 @@ def update_employee_skills(employee_id: int, payload: dict):
     try:
         return add_skills_to_employee(int(user_id), int(employee_id), skills)
     except EmployeeProcessingError as exc:
-        raise HTTPException(exc.status_code, exc.message)
-
-
-@router.post("/employees/skills/normalize")
-def normalize_skill(payload: dict):
-    name = payload.get("skill_name")
-    years = payload.get("years_experience")
-    try:
-        return normalize_skill_entry(name, years)
-    except EmployeeProcessingError as exc:
-        raise HTTPException(exc.status_code, exc.message)
-
-
-@router.post("/employees/skills/normalize-batch")
-def normalize_skills(payload: dict):
-    raw_text = payload.get("raw_text")
-    try:
-        return {"skills": normalize_skill_lines(raw_text)}
-    except EmployeeProcessingError as exc:
-        raise HTTPException(exc.status_code, exc.message)
-
-
-@router.post("/employees/create-login")
-def create_employee_login(payload: dict):
-    user_id = payload.get("user_id")
-    employee_id = payload.get("employee_id")
-    name = payload.get("name")
-    email = payload.get("email")
-    password = payload.get("password")
-    if not user_id:
-        raise HTTPException(400, "user_id is required")
-    if not employee_id:
-        raise HTTPException(400, "employee_id is required")
-    if not name or not email or not password:
-        raise HTTPException(400, "name, email, and password are required")
-    try:
-        return create_employee_account(
-            int(user_id),
-            int(employee_id),
-            name,
-            email,
-            password,
-        )
-    except EmployeeProfileError as exc:
         raise HTTPException(exc.status_code, exc.message)

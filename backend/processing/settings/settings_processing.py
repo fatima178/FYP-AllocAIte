@@ -7,6 +7,7 @@ from processing.settings.weight_defaults import (
     FIXED_SEMANTIC_WEIGHT,
     NON_SEMANTIC_WEIGHT_KEYS,
     resolve_effective_weight_map,
+    weight_config,
 )
 from utils.auth_utils import (
     PASSWORD_RULE_MESSAGE,
@@ -75,6 +76,7 @@ def fetch_user_settings(user_id: int):
             "font_size": row[4],
             "use_custom_weights": bool(row[5]),
             "weights": effective_weights,
+            "weight_config": weight_config(),
         }
 
     finally:
@@ -120,6 +122,12 @@ def persist_user_settings(
     use_custom_weights: Optional[bool] = None,
     weights: Optional[dict] = None,
 ):
+    normalized = None
+    if weights is not None:
+        normalized = _normalise_weights(weights)
+        if normalized is None:
+            raise HTTPException(400, "Invalid weights supplied.")
+
     conn = get_connection()
     cur = conn.cursor()
 
@@ -130,8 +138,6 @@ def persist_user_settings(
             VALUES (%s)
             ON CONFLICT (user_id) DO NOTHING;
         """, (user_id,))
-
-        normalized = _normalise_weights(weights) if weights is not None else None
 
         # update provided fields, keep previous values if null
         cur.execute("""

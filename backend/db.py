@@ -8,327 +8,297 @@ def get_connection():
     if database_url:
         return psycopg2.connect(database_url)
 
-    conn = psycopg2.connect(
+    return psycopg2.connect(
         dbname=os.getenv("ALLOCATE_DB_NAME") or os.getenv("PGDATABASE", "allocaite"),
         user=os.getenv("ALLOCATE_DB_USER") or os.getenv("PGUSER", "fatima"),
         password=os.getenv("ALLOCATE_DB_PASSWORD") or os.getenv("PGPASSWORD", ""),
         host=os.getenv("ALLOCATE_DB_HOST") or os.getenv("PGHOST", "localhost"),
-        port=os.getenv("ALLOCATE_DB_PORT") or os.getenv("PGPORT", "5433")
+        port=os.getenv("ALLOCATE_DB_PORT") or os.getenv("PGPORT", "5433"),
     )
-    return conn
+
+
+TABLE_DEFINITIONS = (
+    """
+    CREATE TABLE IF NOT EXISTS "Users" (
+        user_id SERIAL PRIMARY KEY,
+        name VARCHAR(100),
+        email VARCHAR(100) UNIQUE,
+        password_hash VARCHAR(255),
+        account_type VARCHAR(20) DEFAULT 'manager',
+        employee_id INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS "Uploads" (
+        upload_id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES "Users"(user_id),
+        file_name VARCHAR(255),
+        upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_active BOOLEAN DEFAULT TRUE
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS "Employees" (
+        employee_id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE,
+        upload_id INT REFERENCES "Uploads"(upload_id) ON DELETE CASCADE,
+        name VARCHAR(100),
+        role VARCHAR(100),
+        department VARCHAR(100)
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS "EmployeeSkills" (
+        id SERIAL PRIMARY KEY,
+        employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+        skill_name VARCHAR(100),
+        years_experience FLOAT,
+        skill_type VARCHAR(20) DEFAULT 'technical'
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS "EmployeeSelfSkills" (
+        id SERIAL PRIMARY KEY,
+        employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+        skill_name VARCHAR(100),
+        years_experience FLOAT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS "EmployeeLearningGoals" (
+        id SERIAL PRIMARY KEY,
+        employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+        skill_name VARCHAR(100),
+        priority INT DEFAULT 3,
+        notes TEXT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS "EmployeePreferences" (
+        employee_id INT PRIMARY KEY REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+        preferred_roles TEXT,
+        preferred_departments TEXT,
+        preferred_projects TEXT,
+        growth_text TEXT,
+        work_style TEXT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS "EmployeeCalendarEntries" (
+        entry_id SERIAL PRIMARY KEY,
+        employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+        label TEXT,
+        start_date DATE,
+        end_date DATE,
+        total_hours FLOAT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS "Assignments" (
+        assignment_id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE,
+        employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+        upload_id INT REFERENCES "Uploads"(upload_id) ON DELETE CASCADE,
+        title VARCHAR(150),
+        start_date DATE,
+        end_date DATE,
+        total_hours FLOAT,
+        remaining_hours FLOAT
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS "AssignmentHistory" (
+        history_id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE,
+        employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+        upload_id INT REFERENCES "Uploads"(upload_id) ON DELETE SET NULL,
+        source_assignment_id INT,
+        title VARCHAR(150),
+        start_date DATE,
+        end_date DATE,
+        total_hours FLOAT,
+        remaining_hours FLOAT,
+        archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS "RecommendationTasks" (
+        task_id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE,
+        task_description TEXT,
+        start_date DATE,
+        end_date DATE,
+        assignment_id INT REFERENCES "Assignments"(assignment_id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS "RecommendationLog" (
+        log_id SERIAL PRIMARY KEY,
+        task_id INT REFERENCES "RecommendationTasks"(task_id) ON DELETE CASCADE,
+        employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+        recommendation_rank INT,
+        recommendation_score FLOAT,
+        manager_selected BOOLEAN DEFAULT FALSE,
+        performance_rating VARCHAR(20),
+        feedback_notes TEXT,
+        outcome_tags TEXT,
+        feedback_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CHECK (performance_rating IS NULL OR performance_rating IN ('Excellent', 'Good', 'Average', 'Poor'))
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS "ChatLogs" (
+        chat_id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES "Users"(user_id),
+        query_text TEXT,
+        response_text TEXT,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS "UserSettings" (
+        user_id INT PRIMARY KEY REFERENCES "Users"(user_id) ON DELETE CASCADE,
+        theme VARCHAR(20) DEFAULT 'light',
+        font_size VARCHAR(20) DEFAULT 'medium',
+        use_custom_weights BOOLEAN DEFAULT FALSE,
+        weight_semantic FLOAT,
+        weight_skill FLOAT,
+        weight_possible_skill FLOAT,
+        weight_soft_skill FLOAT,
+        weight_possible_soft_skill FLOAT,
+        weight_experience FLOAT,
+        weight_role FLOAT,
+        weight_availability FLOAT,
+        weight_fairness FLOAT,
+        weight_preferences FLOAT,
+        weight_feedback FLOAT
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS "EmployeeInvites" (
+        invite_id SERIAL PRIMARY KEY,
+        manager_user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE,
+        employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
+        email VARCHAR(100),
+        token_hash VARCHAR(128),
+        expires_at TIMESTAMP,
+        used_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+)
+
+
+SCHEMA_UPDATES = (
+    'ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS account_type VARCHAR(20) DEFAULT \'manager\';',
+    'ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS employee_id INT;',
+    'ALTER TABLE "Employees" ADD COLUMN IF NOT EXISTS user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE;',
+    'ALTER TABLE "Uploads" ADD COLUMN IF NOT EXISTS upload_type VARCHAR(50) DEFAULT \'assignments\';',
+    'ALTER TABLE "Assignments" ADD COLUMN IF NOT EXISTS user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE;',
+    'ALTER TABLE "Employees" DROP COLUMN IF EXISTS experience_years;',
+    'ALTER TABLE "Employees" DROP COLUMN IF EXISTS skills;',
+    'ALTER TABLE "EmployeeSkills" ADD COLUMN IF NOT EXISTS skill_type VARCHAR(20) DEFAULT \'technical\';',
+    'UPDATE "EmployeeSkills" SET skill_type = COALESCE(skill_type, \'technical\');',
+    'ALTER TABLE "EmployeeLearningGoals" ADD COLUMN IF NOT EXISTS notes TEXT;',
+    'ALTER TABLE "EmployeePreferences" ADD COLUMN IF NOT EXISTS growth_text TEXT;',
+    'ALTER TABLE "EmployeeSelfSkills" ADD COLUMN IF NOT EXISTS skill_type VARCHAR(20) DEFAULT \'technical\';',
+    'ALTER TABLE "EmployeeSelfSkills" ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT \'pending\';',
+    'ALTER TABLE "EmployeeSelfSkills" ADD COLUMN IF NOT EXISTS approved_by_user_id INT REFERENCES "Users"(user_id) ON DELETE SET NULL;',
+    'ALTER TABLE "EmployeeSelfSkills" ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP;',
+    'ALTER TABLE "EmployeeSelfSkills" ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMP;',
+    'UPDATE "EmployeeSelfSkills" SET skill_type = COALESCE(skill_type, \'technical\');',
+    'UPDATE "EmployeeSelfSkills" SET status = COALESCE(status, \'pending\');',
+    'ALTER TABLE "EmployeeCalendarEntries" ADD COLUMN IF NOT EXISTS total_hours FLOAT;',
+    'ALTER TABLE "EmployeeCalendarEntries" ADD COLUMN IF NOT EXISTS label TEXT;',
+    'ALTER TABLE "EmployeeCalendarEntries" ADD COLUMN IF NOT EXISTS start_date DATE;',
+    'ALTER TABLE "EmployeeCalendarEntries" ADD COLUMN IF NOT EXISTS end_date DATE;',
+    'ALTER TABLE "EmployeeCalendarEntries" DROP COLUMN IF EXISTS event_date;',
+    'ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS use_custom_weights BOOLEAN DEFAULT FALSE;',
+    'ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_semantic FLOAT;',
+    'ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_skill FLOAT;',
+    'ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_possible_skill FLOAT;',
+    'ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_soft_skill FLOAT;',
+    'ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_possible_soft_skill FLOAT;',
+    'ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_experience FLOAT;',
+    'ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_role FLOAT;',
+    'ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_availability FLOAT;',
+    'ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_fairness FLOAT;',
+    'ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_preferences FLOAT;',
+    'ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_feedback FLOAT;',
+    'UPDATE "Users" SET account_type = COALESCE(account_type, \'manager\');',
+    'ALTER TABLE "RecommendationTasks" ADD COLUMN IF NOT EXISTS assignment_id INT REFERENCES "Assignments"(assignment_id) ON DELETE SET NULL;',
+    'ALTER TABLE "RecommendationLog" ADD COLUMN IF NOT EXISTS outcome_tags TEXT;',
+    """
+    DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'employee_self_skills_status_check'
+        ) THEN
+            ALTER TABLE "EmployeeSelfSkills"
+            ADD CONSTRAINT employee_self_skills_status_check
+            CHECK (status IN ('pending', 'approved', 'rejected'));
+        END IF;
+    END
+    $$;
+    """,
+)
+
+
+INDEX_DEFINITIONS = (
+    'CREATE INDEX IF NOT EXISTS idx_assign_employee ON "Assignments"(employee_id);',
+    'CREATE INDEX IF NOT EXISTS idx_assign_dates ON "Assignments"(start_date, end_date);',
+    'CREATE INDEX IF NOT EXISTS idx_assign_user ON "Assignments"(user_id);',
+    'CREATE INDEX IF NOT EXISTS idx_emp_upload ON "Employees"(upload_id);',
+    'CREATE INDEX IF NOT EXISTS idx_upload_active ON "Uploads"(user_id, is_active);',
+    'CREATE INDEX IF NOT EXISTS idx_emp_user ON "Employees"(user_id);',
+    'CREATE INDEX IF NOT EXISTS idx_skill_employee ON "EmployeeSkills"(employee_id);',
+    'CREATE INDEX IF NOT EXISTS idx_skill_name ON "EmployeeSkills"(skill_name);',
+    'CREATE INDEX IF NOT EXISTS idx_skill_type ON "EmployeeSkills"(skill_type);',
+    'CREATE INDEX IF NOT EXISTS idx_self_skill_employee ON "EmployeeSelfSkills"(employee_id);',
+    'CREATE INDEX IF NOT EXISTS idx_self_skill_name ON "EmployeeSelfSkills"(skill_name);',
+    'CREATE INDEX IF NOT EXISTS idx_self_skill_status ON "EmployeeSelfSkills"(status);',
+    'CREATE INDEX IF NOT EXISTS idx_goal_employee ON "EmployeeLearningGoals"(employee_id);',
+    'CREATE INDEX IF NOT EXISTS idx_goal_skill ON "EmployeeLearningGoals"(skill_name);',
+    'CREATE INDEX IF NOT EXISTS idx_pref_employee ON "EmployeePreferences"(employee_id);',
+    'CREATE INDEX IF NOT EXISTS idx_assign_hist_employee ON "AssignmentHistory"(employee_id);',
+    'CREATE INDEX IF NOT EXISTS idx_assign_hist_user ON "AssignmentHistory"(user_id);',
+    'CREATE INDEX IF NOT EXISTS idx_assign_hist_source ON "AssignmentHistory"(source_assignment_id);',
+    'CREATE INDEX IF NOT EXISTS idx_users_employee_id ON "Users"(employee_id);',
+    'CREATE INDEX IF NOT EXISTS idx_invite_token ON "EmployeeInvites"(token_hash);',
+    'CREATE INDEX IF NOT EXISTS idx_invite_employee ON "EmployeeInvites"(employee_id);',
+    'CREATE INDEX IF NOT EXISTS idx_emp_calendar_employee ON "EmployeeCalendarEntries"(employee_id);',
+    'CREATE INDEX IF NOT EXISTS idx_emp_calendar_start ON "EmployeeCalendarEntries"(start_date);',
+    'CREATE INDEX IF NOT EXISTS idx_emp_calendar_end ON "EmployeeCalendarEntries"(end_date);',
+    'CREATE INDEX IF NOT EXISTS idx_rec_task_user ON "RecommendationTasks"(user_id);',
+    'CREATE INDEX IF NOT EXISTS idx_rec_task_assignment ON "RecommendationTasks"(assignment_id);',
+    'CREATE INDEX IF NOT EXISTS idx_rec_log_task ON "RecommendationLog"(task_id);',
+    'CREATE INDEX IF NOT EXISTS idx_rec_log_employee ON "RecommendationLog"(employee_id);',
+)
+
+
+def _execute_all(cur, statements):
+    for statement in statements:
+        cur.execute(statement)
 
 
 def init_db():
-    # initialises all required tables and indexes if they do not exist
     conn = get_connection()
     cur = conn.cursor()
 
-    # users table stores basic account data
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS "Users" (
-            user_id SERIAL PRIMARY KEY,
-            name VARCHAR(100),
-            email VARCHAR(100) UNIQUE,
-            password_hash VARCHAR(255),
-            account_type VARCHAR(20) DEFAULT 'manager',
-            employee_id INT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-
-    # uploads table tracks each excel upload tied to a user
-    # is_active marks which dataset is currently in use
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS "Uploads" (
-            upload_id SERIAL PRIMARY KEY,
-            user_id INT REFERENCES "Users"(user_id),
-            file_name VARCHAR(255),
-            upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            is_active BOOLEAN DEFAULT TRUE
-        );
-    """)
-
-    # employees table stores all staff from the uploaded dataset
-    # skills stored as json list
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS "Employees" (
-            employee_id SERIAL PRIMARY KEY,
-            user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE,
-            upload_id INT REFERENCES "Uploads"(upload_id) ON DELETE CASCADE,
-            name VARCHAR(100),
-            role VARCHAR(100),
-            department VARCHAR(100)
-        );
-    """)
-
-    # employee skills table stores per-skill experience for each employee
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS "EmployeeSkills" (
-            id SERIAL PRIMARY KEY,
-            employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
-            skill_name VARCHAR(100),
-            years_experience FLOAT,
-            skill_type VARCHAR(20) DEFAULT 'technical'
-        );
-    """)
-
-    # employee self-skills entered via their own portal
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS "EmployeeSelfSkills" (
-            id SERIAL PRIMARY KEY,
-            employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
-            skill_name VARCHAR(100),
-            years_experience FLOAT,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-
-    # employee learning goals (skills they want to develop)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS "EmployeeLearningGoals" (
-            id SERIAL PRIMARY KEY,
-            employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
-            skill_name VARCHAR(100),
-            priority INT DEFAULT 3,
-            notes TEXT,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-
-    # employee preferences for future matching
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS "EmployeePreferences" (
-            employee_id INT PRIMARY KEY REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
-            preferred_roles TEXT,
-            preferred_departments TEXT,
-            preferred_projects TEXT,
-            growth_text TEXT,
-            work_style TEXT,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-
-    # employee personal calendar entries (visible only to employee)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS "EmployeeCalendarEntries" (
-            entry_id SERIAL PRIMARY KEY,
-            employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
-            label TEXT,
-            start_date DATE,
-            end_date DATE,
-            total_hours FLOAT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-
-    cur.execute("""
-        ALTER TABLE "EmployeeCalendarEntries"
-        ADD COLUMN IF NOT EXISTS total_hours FLOAT;
-    """)
-
-    # assignments table stores project assignments for employees
-    # total_hours and remaining_hours allow availability calculations
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS "Assignments" (
-            assignment_id SERIAL PRIMARY KEY,
-            user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE,
-            employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
-            upload_id INT REFERENCES "Uploads"(upload_id) ON DELETE CASCADE,
-            title VARCHAR(150),
-            start_date DATE,
-            end_date DATE,
-            total_hours FLOAT,
-            remaining_hours FLOAT
-        );
-    """)
-
-    # assignment history table stores past records for fairness tracking
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS "AssignmentHistory" (
-            history_id SERIAL PRIMARY KEY,
-            user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE,
-            employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
-            upload_id INT REFERENCES "Uploads"(upload_id) ON DELETE SET NULL,
-            source_assignment_id INT,
-            title VARCHAR(150),
-            start_date DATE,
-            end_date DATE,
-            total_hours FLOAT,
-            remaining_hours FLOAT,
-            archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-
-    # recommendations table stores optional suggestions for future expansion
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS "Recommendations" (
-            rec_id SERIAL PRIMARY KEY,
-            assignment_id INT REFERENCES "Assignments"(assignment_id) ON DELETE CASCADE,
-            employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
-            match_score FLOAT,
-            reason TEXT,
-            generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-
-    # recommendation tasks represent a specific recommendation request
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS "RecommendationTasks" (
-            task_id SERIAL PRIMARY KEY,
-            user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE,
-            task_description TEXT,
-            start_date DATE,
-            end_date DATE,
-            assignment_id INT REFERENCES "Assignments"(assignment_id) ON DELETE SET NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-
-    # recommendation log records each ranked recommendation and feedback
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS "RecommendationLog" (
-            log_id SERIAL PRIMARY KEY,
-            task_id INT REFERENCES "RecommendationTasks"(task_id) ON DELETE CASCADE,
-            employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
-            recommendation_rank INT,
-            recommendation_score FLOAT,
-            manager_selected BOOLEAN DEFAULT FALSE,
-            performance_rating VARCHAR(20),
-            feedback_notes TEXT,
-            outcome_tags TEXT,
-            feedback_at TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            CHECK (performance_rating IS NULL OR performance_rating IN ('Excellent', 'Good', 'Average', 'Poor'))
-        );
-    """)
-
-    # chatlogs store user queries and responses for auditing/debugging
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS "ChatLogs" (
-            chat_id SERIAL PRIMARY KEY,
-            user_id INT REFERENCES "Users"(user_id),
-            query_text TEXT,
-            response_text TEXT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-
-    # user settings store theme and font size preferences
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS "UserSettings" (
-            user_id INT PRIMARY KEY REFERENCES "Users"(user_id) ON DELETE CASCADE,
-            theme VARCHAR(20) DEFAULT 'light',
-            font_size VARCHAR(20) DEFAULT 'medium',
-            use_custom_weights BOOLEAN DEFAULT FALSE,
-            weight_semantic FLOAT,
-            weight_skill FLOAT,
-            weight_possible_skill FLOAT,
-            weight_soft_skill FLOAT,
-            weight_possible_soft_skill FLOAT,
-            weight_experience FLOAT,
-            weight_role FLOAT,
-            weight_availability FLOAT,
-            weight_fairness FLOAT,
-            weight_preferences FLOAT,
-            weight_feedback FLOAT
-        );
-    """)
-
-    # employee invite tokens for account creation
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS "EmployeeInvites" (
-            invite_id SERIAL PRIMARY KEY,
-            manager_user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE,
-            employee_id INT REFERENCES "Employees"(employee_id) ON DELETE CASCADE,
-            email VARCHAR(100),
-            token_hash VARCHAR(128),
-            expires_at TIMESTAMP,
-            used_at TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-
-    cur.execute('ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS account_type VARCHAR(20) DEFAULT \'manager\';')
-    cur.execute('ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS employee_id INT;')
-    cur.execute('ALTER TABLE "Employees" ADD COLUMN IF NOT EXISTS user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE;')
-    cur.execute('ALTER TABLE "Uploads" ADD COLUMN IF NOT EXISTS upload_type VARCHAR(50) DEFAULT \'assignments\';')
-    cur.execute('ALTER TABLE "Assignments" ADD COLUMN IF NOT EXISTS user_id INT REFERENCES "Users"(user_id) ON DELETE CASCADE;')
-    cur.execute('ALTER TABLE "Employees" DROP COLUMN IF EXISTS experience_years;')
-    cur.execute('ALTER TABLE "Employees" DROP COLUMN IF EXISTS skills;')
-    cur.execute('ALTER TABLE "EmployeeSkills" ADD COLUMN IF NOT EXISTS skill_type VARCHAR(20) DEFAULT \'technical\';')
-    cur.execute('UPDATE "EmployeeSkills" SET skill_type = COALESCE(skill_type, \'technical\');')
-    cur.execute('ALTER TABLE "EmployeeLearningGoals" ADD COLUMN IF NOT EXISTS notes TEXT;')
-    cur.execute('ALTER TABLE "EmployeePreferences" ADD COLUMN IF NOT EXISTS growth_text TEXT;')
-    cur.execute('ALTER TABLE "EmployeeSelfSkills" ADD COLUMN IF NOT EXISTS skill_type VARCHAR(20) DEFAULT \'technical\';')
-    cur.execute('ALTER TABLE "EmployeeSelfSkills" ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT \'pending\';')
-    cur.execute('ALTER TABLE "EmployeeSelfSkills" ADD COLUMN IF NOT EXISTS approved_by_user_id INT REFERENCES "Users"(user_id) ON DELETE SET NULL;')
-    cur.execute('ALTER TABLE "EmployeeSelfSkills" ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP;')
-    cur.execute('ALTER TABLE "EmployeeSelfSkills" ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMP;')
-    cur.execute('UPDATE "EmployeeSelfSkills" SET skill_type = COALESCE(skill_type, \'technical\');')
-    cur.execute('UPDATE "EmployeeSelfSkills" SET status = COALESCE(status, \'pending\');')
-    cur.execute("""
-        DO $$
-        BEGIN
-            IF NOT EXISTS (
-                SELECT 1
-                FROM pg_constraint
-                WHERE conname = 'employee_self_skills_status_check'
-            ) THEN
-                ALTER TABLE "EmployeeSelfSkills"
-                ADD CONSTRAINT employee_self_skills_status_check
-                CHECK (status IN ('pending', 'approved', 'rejected'));
-            END IF;
-        END
-        $$;
-    """)
-    cur.execute('ALTER TABLE "EmployeeCalendarEntries" ADD COLUMN IF NOT EXISTS label TEXT;')
-    cur.execute('ALTER TABLE "EmployeeCalendarEntries" ADD COLUMN IF NOT EXISTS start_date DATE;')
-    cur.execute('ALTER TABLE "EmployeeCalendarEntries" ADD COLUMN IF NOT EXISTS end_date DATE;')
-    cur.execute('ALTER TABLE "EmployeeCalendarEntries" DROP COLUMN IF EXISTS event_date;')
-    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS use_custom_weights BOOLEAN DEFAULT FALSE;')
-    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_semantic FLOAT;')
-    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_skill FLOAT;')
-    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_possible_skill FLOAT;')
-    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_possible_soft_skill FLOAT;')
-    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_experience FLOAT;')
-    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_role FLOAT;')
-    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_availability FLOAT;')
-    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_fairness FLOAT;')
-    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_preferences FLOAT;')
-    cur.execute('ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS weight_feedback FLOAT;')
-    cur.execute('UPDATE "Users" SET account_type = COALESCE(account_type, \'manager\');')
-    cur.execute('ALTER TABLE "RecommendationTasks" ADD COLUMN IF NOT EXISTS assignment_id INT REFERENCES "Assignments"(assignment_id) ON DELETE SET NULL;')
-    cur.execute('ALTER TABLE "RecommendationLog" ADD COLUMN IF NOT EXISTS outcome_tags TEXT;')
-    # indexes to speed up availability calculations and dashboard queries
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_employee ON "Assignments"(employee_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_dates ON "Assignments"(start_date, end_date);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_user ON "Assignments"(user_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_upload ON "Employees"(upload_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_upload_active ON "Uploads"(user_id, is_active);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_user ON "Employees"(user_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_skill_employee ON "EmployeeSkills"(employee_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_skill_name ON "EmployeeSkills"(skill_name);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_skill_type ON "EmployeeSkills"(skill_type);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_self_skill_employee ON "EmployeeSelfSkills"(employee_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_self_skill_name ON "EmployeeSelfSkills"(skill_name);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_self_skill_status ON "EmployeeSelfSkills"(status);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_goal_employee ON "EmployeeLearningGoals"(employee_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_goal_skill ON "EmployeeLearningGoals"(skill_name);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_pref_employee ON "EmployeePreferences"(employee_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_hist_employee ON "AssignmentHistory"(employee_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_hist_user ON "AssignmentHistory"(user_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_assign_hist_source ON "AssignmentHistory"(source_assignment_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_users_employee_id ON "Users"(employee_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_invite_token ON "EmployeeInvites"(token_hash);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_invite_employee ON "EmployeeInvites"(employee_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_calendar_employee ON "EmployeeCalendarEntries"(employee_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_calendar_start ON "EmployeeCalendarEntries"(start_date);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_emp_calendar_end ON "EmployeeCalendarEntries"(end_date);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_rec_task_user ON "RecommendationTasks"(user_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_rec_task_assignment ON "RecommendationTasks"(assignment_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_rec_log_task ON "RecommendationLog"(task_id);')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_rec_log_employee ON "RecommendationLog"(employee_id);')
-
-    conn.commit()
-    cur.close()
-    conn.close()
+    try:
+        _execute_all(cur, TABLE_DEFINITIONS)
+        _execute_all(cur, SCHEMA_UPDATES)
+        _execute_all(cur, INDEX_DEFINITIONS)
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()

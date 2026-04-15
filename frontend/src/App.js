@@ -1,20 +1,19 @@
 import { useEffect } from 'react';
-import './App.css';
 
 // individual route components
 import LoginPage from './Pages/Login';
-import UploadPage from './Pages/Upload/index';
-import DashboardPage from './Pages/Dashboard/index';
+import UploadPage from './Pages/Upload';
+import DashboardPage from './Pages/Dashboard';
 import TasksPage from './Pages/Tasks';
-import AssignmentsPage from './Pages/Assignments/index';
+import AssignmentsPage from './Pages/Assignments';
 import ChatbotPage from './Pages/Chatbot';
-import RecommendationsPage from './Pages/Recommendations/index';
-import SettingsPage from "./Pages/Settings/SettingsPage";
-import ChatbotPopup from "./Pages/ChatbotPopup";
+import RecommendationsPage from './Pages/Recommendations';
+import SettingsPage from "./Pages/Settings";
+import ChatbotPopup from "./Pages/Chatbot/ChatbotPopup";
 import EmployeePortalPage from './Pages/EmployeePortal';
-import EmployeeCalendarPage from './Pages/EmployeeCalendar/index';
-import EmployeeSettingsPage from './Pages/EmployeeSettings/index';
-import InvitePage from './Pages/Invite/index';
+import EmployeeCalendarPage from './Pages/EmployeeCalendar';
+import EmployeeSettingsPage from './Pages/EmployeeSettings';
+import InvitePage from './Pages/Invite';
 import { getSessionItem } from './session';
 import { applyInitialPreferences } from './lib/preferences';
 

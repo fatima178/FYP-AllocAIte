@@ -1,6 +1,3 @@
-# routers/dashboard.py
-
-from datetime import date
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 
