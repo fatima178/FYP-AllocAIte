@@ -45,6 +45,8 @@ def _validate_extension(filename: str):
 # read excel file into dataframe
 # uses pandas to read the first sheet.
 def _read_dataframe(file_bytes: bytes):
+    if not file_bytes:
+        raise UploadProcessingError(400, "uploaded file is empty.")
     try:
         return pd.read_excel(BytesIO(file_bytes), sheet_name=0)
     except Exception as exc:
@@ -62,6 +64,10 @@ def _validate_columns(df: pd.DataFrame):
 # insert upload entry + deactivate old uploads
 # marks all previous uploads inactive and inserts a new active upload.
 def _insert_upload(cur, user_id: int, filename: str) -> int:
+    cur.execute('SELECT 1 FROM "Users" WHERE user_id = %s;', (user_id,))
+    if not cur.fetchone():
+        raise UploadProcessingError(404, "user not found.")
+
     # deactivate older uploads
     cur.execute(
         """
@@ -91,6 +97,14 @@ def _insert_upload(cur, user_id: int, filename: str) -> int:
 # converts "skill set" column (comma-separated) into json list
 # and stores basic metadata for that employee.
 def _insert_employee(cur, user_id: int, upload_id: int, group_name: str, row: pd.Series) -> int:
+    clean_name = str(group_name or "").strip()
+    if not clean_name or clean_name.lower() == "nan":
+        raise UploadProcessingError(400, "employee name is required.")
+    if not str(row.get("Role", "")).strip() or str(row.get("Role", "")).strip().lower() == "nan":
+        raise UploadProcessingError(400, f"role is required for {clean_name}.")
+    if not str(row.get("Department", "")).strip() or str(row.get("Department", "")).strip().lower() == "nan":
+        raise UploadProcessingError(400, f"department is required for {clean_name}.")
+
     raw_skills = str(row.get("Skill Set", "")).strip()
     raw_years = str(row.get("Skill Experience (Years)", "")).strip()
     skills = [s.strip() for s in raw_skills.split(",") if s.strip()]
@@ -116,7 +130,7 @@ def _insert_employee(cur, user_id: int, upload_id: int, group_name: str, row: pd
         (
             user_id,
             upload_id,
-            group_name,                   # employee name
+            clean_name,                   # employee name
             row["Role"],
             row["Department"],
         ),
@@ -124,12 +138,18 @@ def _insert_employee(cur, user_id: int, upload_id: int, group_name: str, row: pd
 
     employee_id = cur.fetchone()[0]
     for skill, exp in zip(skills, years):
+        try:
+            years_experience = float(exp)
+        except (TypeError, ValueError):
+            raise UploadProcessingError(400, f"invalid experience value for skill: {skill}.")
+        if years_experience < 0:
+            raise UploadProcessingError(400, f"experience cannot be negative for skill: {skill}.")
         cur.execute(
             """
             INSERT INTO "EmployeeSkills" (employee_id, skill_name, years_experience, skill_type)
             VALUES (%s, %s, %s, %s);
             """,
-            (employee_id, skill, float(exp), "technical"),
+            (employee_id, skill, years_experience, "technical"),
         )
 
     if soft_skills:
@@ -138,12 +158,21 @@ def _insert_employee(cur, user_id: int, upload_id: int, group_name: str, row: pd
         else:
             pairs = [(skill, None) for skill in soft_skills]
         for skill, exp in pairs:
+            if exp in (None, ""):
+                years_experience = None
+            else:
+                try:
+                    years_experience = float(exp)
+                except (TypeError, ValueError):
+                    raise UploadProcessingError(400, f"invalid experience value for soft skill: {skill}.")
+                if years_experience < 0:
+                    raise UploadProcessingError(400, f"experience cannot be negative for soft skill: {skill}.")
             cur.execute(
                 """
                 INSERT INTO "EmployeeSkills" (employee_id, skill_name, years_experience, skill_type)
                 VALUES (%s, %s, %s, %s);
                 """,
-                (employee_id, skill, float(exp) if exp not in (None, "") else None, "soft"),
+                (employee_id, skill, years_experience, "soft"),
             )
 
     return employee_id
@@ -169,8 +198,13 @@ def _insert_assignments(cur, upload_id: int, employee_id: int, group: pd.DataFra
         if pd.isna(start_date) or pd.isna(end_date):
             continue
 
-        total_hours = float(row.get("Total Hours", 0) or 0)
-        remaining_hours = float(row.get("Remaining Hours", 0) or 0)
+        try:
+            total_hours = float(row.get("Total Hours", 0) or 0)
+            remaining_hours = float(row.get("Remaining Hours", 0) or 0)
+        except (TypeError, ValueError):
+            raise UploadProcessingError(400, f"invalid hours for project: {title}.")
+        if total_hours < 0 or remaining_hours < 0:
+            raise UploadProcessingError(400, f"hours cannot be negative for project: {title}.")
         # insert assignment entry
         cur.execute(
         """

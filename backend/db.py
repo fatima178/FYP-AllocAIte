@@ -4,19 +4,22 @@ import psycopg2
 
 
 def get_connection():
+    # deployed databases usually provide a full DATABASE_URL
     database_url = os.getenv("DATABASE_URL")
     if database_url:
         return psycopg2.connect(database_url)
 
+    # local development can use the separate Postgres variables instead
     return psycopg2.connect(
         dbname=os.getenv("ALLOCATE_DB_NAME") or os.getenv("PGDATABASE", "allocaite"),
         user=os.getenv("ALLOCATE_DB_USER") or os.getenv("PGUSER", "fatima"),
         password=os.getenv("ALLOCATE_DB_PASSWORD") or os.getenv("PGPASSWORD", ""),
         host=os.getenv("ALLOCATE_DB_HOST") or os.getenv("PGHOST", "localhost"),
         port=os.getenv("ALLOCATE_DB_PORT") or os.getenv("PGPORT", "5433"),
-    )
+)
 
 
+# tables needed by the app when it starts with a fresh database
 TABLE_DEFINITIONS = (
     """
     CREATE TABLE IF NOT EXISTS "Users" (
@@ -196,6 +199,8 @@ TABLE_DEFINITIONS = (
 )
 
 
+# lightweight migrations for columns added while developing the project
+# these are safe to run repeatedly because they use IF NOT EXISTS where possible
 SCHEMA_UPDATES = (
     'ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS account_type VARCHAR(20) DEFAULT \'manager\';',
     'ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS employee_id INT;',
@@ -253,6 +258,7 @@ SCHEMA_UPDATES = (
 )
 
 
+# indexes for the queries used most often by dashboard, tasks, invites and history
 INDEX_DEFINITIONS = (
     'CREATE INDEX IF NOT EXISTS idx_assign_employee ON "Assignments"(employee_id);',
     'CREATE INDEX IF NOT EXISTS idx_assign_dates ON "Assignments"(start_date, end_date);',
@@ -286,11 +292,14 @@ INDEX_DEFINITIONS = (
 
 
 def _execute_all(cur, statements):
+    # run a group of SQL statements in order
     for statement in statements:
         cur.execute(statement)
 
 
 def init_db():
+    # called once when the FastAPI app starts
+    # creates missing tables, applies simple schema updates, then adds indexes
     conn = get_connection()
     cur = conn.cursor()
 

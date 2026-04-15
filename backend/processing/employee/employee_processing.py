@@ -20,6 +20,8 @@ def normalize_skill_entry(name: str, years) -> Dict[str, Any]:
         clean_years = float(years)
     except Exception:
         raise EmployeeProcessingError(400, "years_experience must be a number")
+    if clean_years < 0:
+        raise EmployeeProcessingError(400, "years_experience cannot be negative")
     return {"skill_name": clean_name, "years_experience": clean_years}
 
 

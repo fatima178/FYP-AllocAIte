@@ -22,6 +22,7 @@ SKILL_KEYWORDS = [
     "ios", "android", "react native", "swift", "kotlin", "security",
 ]
 
+# maps missing skill keywords to likely roles a company might need
 ROLE_HINTS = {
     "Frontend developer": {"react", "vue", "angular", "frontend", "ui", "ux", "figma", "design"},
     "Backend developer": {"python", "java", "node", "node.js", "express", "django", "flask", "fastapi", "spring", "backend", "api", "rest", "graphql", "sql", "postgres", "mysql", "mongodb", "redis"},
@@ -37,6 +38,7 @@ ROLE_HINTS = {
 
 
 def _extract_task_skill_hints(task_description: str):
+    # simple keyword scan to estimate what skills the task is asking for
     text = str(task_description or "").lower()
     found = []
     for skill in sorted(SKILL_KEYWORDS, key=len, reverse=True):
@@ -46,6 +48,7 @@ def _extract_task_skill_hints(task_description: str):
     unique = []
     seen = set()
     for skill in found:
+        # avoid double counting close variants like node and node.js
         normalized = skill.replace(".js", "").strip()
         if normalized not in seen:
             unique.append(skill)
@@ -54,6 +57,7 @@ def _extract_task_skill_hints(task_description: str):
 
 
 def _suggest_hiring_roles(missing_skills):
+    # suggest broad roles based on which missing skills overlap role keywords
     if not missing_skills:
         return []
 
@@ -69,6 +73,7 @@ def _suggest_hiring_roles(missing_skills):
 
 
 def _build_gap_analysis(task_description: str, user_id: int, recommendations):
+    # compare task skills against the user's current team skills
     employees = fetch_employees_by_user(user_id)
     org_skills = set()
     for employee in employees:
@@ -90,6 +95,7 @@ def _build_gap_analysis(task_description: str, user_id: int, recommendations):
     top_score = 0
     strong_matches = 0
     for rec in recommendations or []:
+        # use recommendation strength to decide if internal coverage is weak
         score = rec.get("score_percent")
         if isinstance(score, (int, float)):
             top_score = max(top_score, float(score))
@@ -103,6 +109,7 @@ def _build_gap_analysis(task_description: str, user_id: int, recommendations):
         len(missing_skills) > 0
     )
     if not weak_internal_fit:
+        # no gap message is needed when the team already looks suitable
         return None
 
     suggested_roles = _suggest_hiring_roles(missing_skills)

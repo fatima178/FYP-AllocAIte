@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from io import BytesIO
 
@@ -79,7 +79,11 @@ def export_settings(user_id: int):
 
 
 @router.get("/settings/recommendation-history")
-def get_recommendation_history(user_id: int, limit: int = 10, offset: int = 0):
+def get_recommendation_history(
+    user_id: int,
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
     try:
         return fetch_recommendation_history(user_id, limit, offset)
     except RecommendationLogError as exc:

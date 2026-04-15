@@ -4,6 +4,7 @@ from typing import Optional
 from db import get_connection
 
 
+# custom error so routes can return a clear status/message if archiving fails
 class AssignmentHistoryError(Exception):
     def __init__(self, status_code: int, message: str):
         super().__init__(message)
@@ -12,11 +13,14 @@ class AssignmentHistoryError(Exception):
 
 
 def archive_completed_assignments(user_id: int, as_of: Optional[date] = None) -> int:
+    # default to today's date, but allow tests/manual calls to pass another date
     cutoff = as_of or date.today()
 
     conn = get_connection()
     cur = conn.cursor()
     try:
+        # copy finished assignments into history first
+        # NOT EXISTS prevents the same assignment being archived more than once
         cur.execute(
             """
             INSERT INTO "AssignmentHistory" (
@@ -56,6 +60,8 @@ def archive_completed_assignments(user_id: int, as_of: Optional[date] = None) ->
             (user_id, user_id, cutoff),
         )
 
+        # after the history row exists, remove the old active assignment
+        # this keeps dashboards focused on current/upcoming work
         cur.execute(
             """
             DELETE FROM "Assignments" a
@@ -75,6 +81,7 @@ def archive_completed_assignments(user_id: int, as_of: Optional[date] = None) ->
             (user_id, user_id, cutoff),
         )
 
+        # rowcount here is the number of assignments removed from active assignments
         archived = cur.rowcount
         conn.commit()
         return archived

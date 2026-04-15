@@ -39,6 +39,8 @@ def _validate_extension(filename: str):
 
 
 def _read_dataframe(file_bytes: bytes):
+    if not file_bytes:
+        raise AssignmentUploadError(400, "uploaded file is empty.")
     try:
         return pd.read_excel(BytesIO(file_bytes), sheet_name=0)
     except Exception as exc:
@@ -118,6 +120,10 @@ def process_assignment_upload(user_id: int, filename: str, file_bytes: bytes, co
     cur = conn.cursor()
 
     try:
+        cur.execute('SELECT 1 FROM "Users" WHERE user_id = %s;', (user_id,))
+        if not cur.fetchone():
+            raise AssignmentUploadError(404, "user not found.")
+
         by_id = _resolve_employee_ids(cur, user_id)
 
         for idx, row in enumerate(rows):
@@ -144,6 +150,18 @@ def process_assignment_upload(user_id: int, filename: str, file_bytes: bytes, co
 
             if employee_id is not None and employee_id not in by_id:
                 errors.append(f"row {row_number}: employee not found.")
+
+            for field_name in ("total_hours", "remaining_hours"):
+                raw_value = row.get(field_name)
+                if raw_value is None or pd.isna(raw_value) or raw_value == "":
+                    continue
+                try:
+                    numeric_value = float(raw_value)
+                except Exception:
+                    errors.append(f"row {row_number}: {field_name} must be a number.")
+                    continue
+                if numeric_value < 0:
+                    errors.append(f"row {row_number}: {field_name} cannot be negative.")
 
         if errors:
             raise AssignmentUploadError(400, " ; ".join(errors[:10]))

@@ -10,6 +10,7 @@ export default function ChatbotPanel({
   variant = "full",
   onClose,
 }) {
+  // popup and full page use the same component with slightly different layout
   const isPopup = variant === "popup";
   const hasMessages = messages.length > 0;
 
@@ -35,6 +36,7 @@ export default function ChatbotPanel({
       </div>
 
       <div className="chatbot-message-panel">
+        {/* empty state only appears on the full chatbot page before any messages */}
         {!hasMessages && !isPopup ? (
           <div className="chatbot-empty-state">
             <div className="chatbot-empty-icon">A</div>
@@ -48,6 +50,7 @@ export default function ChatbotPanel({
         ) : null}
 
         <div className="chatbot-messages">
+          {/* render each user/bot message with a different css class */}
           {messages.map((msg) => (
             <div key={msg.id} className={`chat-msg-row ${msg.sender}`}>
               <div className={`chat-msg ${msg.sender}`}>
@@ -64,6 +67,7 @@ export default function ChatbotPanel({
           {isPopup ? "Try one of these" : "Try a prompt"}
         </div>
         <div className="suggestion-list">
+          {/* clicking a suggestion fills the input so the user can edit or send it */}
           {suggestions.map((suggestion) => (
             <button
               key={suggestion}
@@ -78,6 +82,7 @@ export default function ChatbotPanel({
       </div>
 
       <div className="chatbot-input-area">
+        {/* enter key sends the current message, same as clicking Send */}
         <input
           type="text"
           placeholder={isPopup ? "Type message..." : "Type your question..."}

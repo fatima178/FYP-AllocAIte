@@ -115,6 +115,8 @@ def employee_update_preferences(payload: EmployeePreferencesRequest):
 
 @router.post("/employee/recommendation-reason")
 def employee_recommendation_reason(payload: EmployeeRecommendationReasonRequest):
+    if payload.start_date > payload.end_date:
+        raise HTTPException(400, "start_date must be on or before end_date")
     try:
         return get_employee_recommendation_reason(
             payload.user_id,

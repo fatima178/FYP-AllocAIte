@@ -10,6 +10,16 @@ from processing.employee.employee_processing import (
 router = APIRouter()
 
 
+def _required_positive_int(value, field_name: str) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        raise HTTPException(400, f"{field_name} must be a valid integer")
+    if parsed <= 0:
+        raise HTTPException(400, f"{field_name} must be greater than 0")
+    return parsed
+
+
 @router.get("/employees")
 def get_employees(user_id: int):
     try:
@@ -20,22 +30,18 @@ def get_employees(user_id: int):
 
 @router.post("/employees")
 def create_employee(payload: dict):
-    user_id = payload.get("user_id")
-    if not user_id:
-        raise HTTPException(400, "user_id is required")
+    user_id = _required_positive_int(payload.get("user_id"), "user_id")
     try:
-        return create_employee_entry(int(user_id), payload)
+        return create_employee_entry(user_id, payload)
     except EmployeeProcessingError as exc:
         raise HTTPException(exc.status_code, exc.message)
 
 
 @router.put("/employees/{employee_id}/skills")
 def update_employee_skills(employee_id: int, payload: dict):
-    user_id = payload.get("user_id")
+    user_id = _required_positive_int(payload.get("user_id"), "user_id")
     skills = payload.get("skills")
-    if not user_id:
-        raise HTTPException(400, "user_id is required")
     try:
-        return add_skills_to_employee(int(user_id), int(employee_id), skills)
+        return add_skills_to_employee(user_id, int(employee_id), skills)
     except EmployeeProcessingError as exc:
         raise HTTPException(exc.status_code, exc.message)

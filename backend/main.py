@@ -8,12 +8,15 @@ from routers import upload, dashboard, auth, recommend, settings, tasks, chatbot
 
 app = FastAPI()
 
+
 def get_allowed_origins():
+    # local frontend urls are allowed by default for development
     origins = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
 
+    # deployed frontend urls can be passed in through ALLOWED_ORIGINS
     env_origins = os.getenv("ALLOWED_ORIGINS", "")
     if env_origins.strip():
         origins.extend(origin.strip() for origin in env_origins.split(",") if origin.strip())
@@ -24,6 +27,7 @@ def get_allowed_origins():
 
 ALLOWED_ORIGINS = get_allowed_origins()
 
+# allow the React frontend to call the FastAPI backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -50,4 +54,5 @@ app.include_router(invites.router, prefix="/api")
 
 @app.get("/")
 def home():
+    # quick health check route
     return {"message": "Backend connected successfully"}

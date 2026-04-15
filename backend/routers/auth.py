@@ -41,6 +41,11 @@ class LoginRequest(BaseModel):
 #   4) insert user and return metadata
 @router.post("/register")
 def register_user(payload: RegisterRequest):
+    clean_name = payload.name.strip()
+    clean_email = payload.email.strip().lower()
+    if len(clean_name.split()) < 2:
+        raise HTTPException(400, "please enter your full name.")
+
     conn = get_connection()
     cur = conn.cursor()
 
@@ -54,7 +59,7 @@ def register_user(payload: RegisterRequest):
 
     try:
         # check email uniqueness before inserting
-        cur.execute('SELECT 1 FROM "Users" WHERE email = %s;', (payload.email,))
+        cur.execute('SELECT 1 FROM "Users" WHERE email = %s;', (clean_email,))
         if cur.fetchone():
             raise HTTPException(400, "email already registered.")
 
@@ -63,7 +68,7 @@ def register_user(payload: RegisterRequest):
             INSERT INTO "Users" (name, email, password_hash)
             VALUES (%s, %s, %s)
             RETURNING user_id, created_at;
-        """, (payload.name, payload.email, password_hash))
+        """, (clean_name, clean_email, password_hash))
 
         user_id, created_at = cur.fetchone()
         default_weights = default_weight_tuple()
@@ -115,8 +120,8 @@ def register_user(payload: RegisterRequest):
 
         return {
             "user_id": user_id,
-            "name": payload.name,
-            "email": payload.email,
+            "name": clean_name,
+            "email": clean_email,
             "created_at": created_at.isoformat(),
             "account_type": "manager",
             "employee_id": None,
@@ -143,6 +148,7 @@ def register_user(payload: RegisterRequest):
 #   4) return login success response
 @router.post("/login")
 def login_user(payload: LoginRequest):
+    clean_email = payload.email.strip().lower()
     conn = get_connection()
     cur = conn.cursor()
 
@@ -152,7 +158,7 @@ def login_user(payload: LoginRequest):
             SELECT user_id, name, password_hash, created_at, account_type, employee_id
             FROM "Users"
             WHERE email = %s;
-        """, (payload.email,))
+        """, (clean_email,))
         record = cur.fetchone()
 
         if not record:
@@ -173,7 +179,7 @@ def login_user(payload: LoginRequest):
         return {
             "user_id": user_id,
             "name": name,
-            "email": payload.email,
+            "email": clean_email,
             "created_at": created_at.isoformat(),
             "has_upload": has_upload,
             "account_type": account_type or "manager",

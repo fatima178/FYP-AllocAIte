@@ -4,12 +4,14 @@ import { apiFetch } from "../api";
 import { getSessionItem } from "../session";
 
 export function useChatbot() {
+  // messages are kept here so the full page and popup can share the same logic
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const chatEndRef = useRef(null);
   const nextMessageIdRef = useRef(1);
 
+  // every message needs a stable id for React's list rendering
   const createMessage = (sender, text) => ({
     id: nextMessageIdRef.current++,
     sender,
@@ -17,6 +19,7 @@ export function useChatbot() {
   });
 
   useEffect(() => {
+    // whenever a new message appears, scroll to the bottom of the chat
     if (!chatEndRef.current || messages.length === 0) {
       return;
     }
@@ -24,6 +27,7 @@ export function useChatbot() {
   }, [messages]);
 
   useEffect(() => {
+    // load example prompts from the backend for the logged in manager
     const userId = getSessionItem("user_id");
     if (!userId) {
       setSuggestions([]);
@@ -48,11 +52,13 @@ export function useChatbot() {
     loadSuggestions();
 
     return () => {
+      // prevents setting state if the component unmounts before the request returns
       active = false;
     };
   }, []);
 
   const sendMessage = async () => {
+    // ignore empty messages so blank bubbles are not sent
     const trimmed = input.trim();
     if (!trimmed) return;
 
@@ -65,6 +71,7 @@ export function useChatbot() {
       return;
     }
 
+    // add the user's message immediately so the chat feels responsive
     setMessages((prev) => [...prev, createMessage("user", trimmed)]);
 
     try {
@@ -77,6 +84,7 @@ export function useChatbot() {
         }),
       });
 
+      // backend returns the assistant response as plain text
       setMessages((prev) => [...prev, createMessage("bot", res.response)]);
     } catch {
       setMessages((prev) => [

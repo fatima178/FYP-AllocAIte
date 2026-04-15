@@ -19,12 +19,14 @@ import { applyInitialPreferences } from './lib/preferences';
 
 function App() {
   useEffect(() => {
+    // apply saved theme/font choices as soon as the app loads
     applyInitialPreferences();
   }, []);
 
-  // determine current URL path
+  // current path decides which page component to show
   const path = window.location.pathname || '/';
 
+  // invite links must work before the employee has logged in
   if (path === '/invite') {
     return <InvitePage />;
   }
@@ -33,12 +35,12 @@ function App() {
   const hasUser = Boolean(getSessionItem('user_id'));
   const accountType = getSessionItem('account_type') || 'manager';
 
-  // if user is not authenticated, always send them to login
+  // if no user id is stored, keep the user on the login/register screen
   if (!hasUser) {
     return <LoginPage />;
   }
 
-  // employee accounts only see their own portal
+  // employee accounts are restricted to employee-only pages
   if (accountType === 'employee') {
     if (path === '/employee-calendar') {
       return <EmployeeCalendarPage />;
@@ -53,13 +55,13 @@ function App() {
     return <EmployeePortalPage />;
   }
 
-  // root path redirects into the real app flow
+  // managers start from upload because the rest of the app depends on data
   if (path === '/') {
     window.location.replace('/upload');
     return null;
   }
 
-  // simple route map for static routing
+  // simple routing without a router library
   const pages = {
     '/dashboard': <DashboardPage />,
     '/tasks': <TasksPage />,
@@ -75,7 +77,7 @@ function App() {
       {/* render the selected page, fallback to UploadPage */}
       {pages[path] || <UploadPage />}
 
-      {/* floating popup assistant available on all pages */}
+      {/* floating assistant stays available across manager pages */}
       <ChatbotPopup /> 
     </>
   );

@@ -85,6 +85,7 @@ def fetch_user_settings(user_id: int):
 
 
 def _normalise_weights(weights: dict):
+    # backend re-checks weights so invalid custom values are never silently saved
     if not isinstance(weights, dict):
         return None
     clean = {}
@@ -107,12 +108,19 @@ def _normalise_weights(weights: dict):
         return None
     if FIXED_SEMANTIC_WEIGHT >= 1:
         return None
+    # keep semantic fixed, then scale the rest to fill the remaining budget
     scaled = {
         key: round((clean[key] / total_other) * (1 - FIXED_SEMANTIC_WEIGHT), 6)
         for key in clean
     }
     scaled["semantic"] = FIXED_SEMANTIC_WEIGHT
     return scaled
+
+
+def _validate_user_exists(cur, user_id: int):
+    cur.execute('SELECT 1 FROM "Users" WHERE user_id = %s;', (user_id,))
+    if not cur.fetchone():
+        raise HTTPException(404, "user not found.")
 
 
 def persist_user_settings(
@@ -124,6 +132,7 @@ def persist_user_settings(
 ):
     normalized = None
     if weights is not None:
+        # custom weights are optional, but if supplied they must be valid
         normalized = _normalise_weights(weights)
         if normalized is None:
             raise HTTPException(400, "Invalid weights supplied.")
@@ -132,6 +141,8 @@ def persist_user_settings(
     cur = conn.cursor()
 
     try:
+        _validate_user_exists(cur, user_id)
+
         # ensure settings row exists
         cur.execute("""
             INSERT INTO "UserSettings" (user_id)
@@ -191,6 +202,11 @@ def persist_user_settings(
 #   - user exists
 #   - new email is not used by another user
 def update_account_details(user_id: int, name: Optional[str], email: Optional[str]):
+    clean_name = name.strip() if isinstance(name, str) else name
+    clean_email = email.strip().lower() if isinstance(email, str) else email
+    if clean_name is not None and not clean_name:
+        raise HTTPException(400, "name cannot be blank.")
+
     conn = get_connection()
     cur = conn.cursor()
 
@@ -201,10 +217,10 @@ def update_account_details(user_id: int, name: Optional[str], email: Optional[st
             raise HTTPException(404, "user not found.")
 
         # check email uniqueness (if provided)
-        if email:
+        if clean_email:
             cur.execute(
                 'SELECT user_id FROM "Users" WHERE email = %s AND user_id <> %s;',
-                (email, user_id),
+                (clean_email, user_id),
             )
             if cur.fetchone():
                 raise HTTPException(400, "email already in use by another account.")
@@ -217,7 +233,7 @@ def update_account_details(user_id: int, name: Optional[str], email: Optional[st
                 email = COALESCE(%s, email)
             WHERE user_id = %s
             RETURNING name, email, created_at;
-        """, (name, email, user_id))
+        """, (clean_name, clean_email, user_id))
 
         updated = cur.fetchone()
         conn.commit()
@@ -241,6 +257,9 @@ def update_account_details(user_id: int, name: Optional[str], email: Optional[st
 #   - user exists
 #   - provided current_password hashes to stored hash
 def verify_user_password(user_id: int, current_password: str):
+    if not current_password:
+        raise HTTPException(400, "current password is required.")
+
     conn = get_connection()
     cur = conn.cursor()
 
@@ -269,6 +288,9 @@ def verify_user_password(user_id: int, current_password: str):
 #   - new password differs from old one
 #   - current password matches stored hash
 def change_user_password(user_id: int, current_password: str, new_password: str):
+    if not current_password:
+        raise HTTPException(400, "current password is required.")
+
     # simple complexity rule: must contain uppercase + special char
     try:
         validate_password_complexity(new_password)

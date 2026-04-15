@@ -2,6 +2,7 @@
 
 FIXED_SEMANTIC_WEIGHT = 0.35
 
+# detailed weights are what the recommendation scoring code actually uses
 DEFAULT_DETAIL_WEIGHTS = {
     "semantic": FIXED_SEMANTIC_WEIGHT,
     "skill": 0.22,
@@ -16,6 +17,7 @@ DEFAULT_DETAIL_WEIGHTS = {
     "feedback": 0.05,
 }
 
+# the settings page groups detailed values into friendlier slider categories
 GROUP_TO_DETAIL_SHARES = {
     "skills_fit": {
         "skill": 0.88,
@@ -65,6 +67,7 @@ def default_weight_map():
 
 
 def default_group_weight_map():
+    # adds up the detailed defaults so the frontend starts with grouped defaults
     return {
         group_key: round(
             sum(DEFAULT_DETAIL_WEIGHTS[detail_key] for detail_key in detail_shares),
@@ -75,6 +78,7 @@ def default_group_weight_map():
 
 
 def weight_config():
+    # returned to the frontend so backend and frontend use the same weight rules
     manager_weight_total = round(1 - FIXED_SEMANTIC_WEIGHT, 6)
     return {
         "fixed_semantic_weight": FIXED_SEMANTIC_WEIGHT,
@@ -86,12 +90,14 @@ def weight_config():
 
 
 def resolve_effective_weight_map(raw_weights):
+    # if the user has not saved custom weights, fall back to default values
     resolved = default_weight_map()
     if not isinstance(raw_weights, dict):
         return resolved
 
     normalized = {}
     for key in WEIGHT_KEYS:
+        # convert database values into floats where possible
         value = raw_weights.get(key)
         try:
             normalized[key] = float(value) if value is not None else None
@@ -104,6 +110,7 @@ def resolve_effective_weight_map(raw_weights):
         return resolved
 
     for key, value in normalized.items():
+        # keep default value for missing/zero fields, but use saved positive values
         if value is not None and value > 0:
             resolved[key] = value
 

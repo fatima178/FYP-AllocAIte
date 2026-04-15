@@ -3,13 +3,14 @@ import re
 
 
 PASSWORD_RULE_MESSAGE = (
-    "password must include at least one uppercase letter and one special character."
+    "password must be at least 6 characters and include at least one uppercase letter and one special character."
 )
 
 
 def validate_password_complexity(password: str, error_type=ValueError) -> None:
     if not (
         isinstance(password, str)
+        and len(password) >= 6
         and re.search(r"[A-Z]", password)
         and re.search(r"[^A-Za-z0-9]", password)
     ):
